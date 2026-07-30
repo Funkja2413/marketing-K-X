@@ -58,10 +58,13 @@ test("server-renders the unified summer campaign template", async () => {
       new RegExp(`class="[^"]*\\b${layerClass}\\b[^"]*"`),
     );
   }
-  assert.match(html, /src="\/figma\/crops\/hero-scene\.webp"/);
   assert.match(
     html,
-    /class="[^"]*\bcampaign-hero-media-layer\b[^"]*"[\s\S]*?<img\b[^>]*src="\/figma\/crops\/hero-scene\.webp"/,
+    /src="\/theme-assets\/summer\/hero-scene-v2\.png"/,
+  );
+  assert.match(
+    html,
+    /class="[^"]*\bcampaign-hero-media-layer\b[^"]*"[\s\S]*?<img\b[^>]*src="\/theme-assets\/summer\/hero-scene-v2\.png"/,
   );
   assert.match(
     html,
@@ -110,6 +113,10 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(themePacks, /\bheroMedia\b/);
   assert.match(themePacks, /type:\s*["']image["']/);
   assert.match(themePacks, /type:\s*["']video["']/);
+  assert.match(
+    themePacks,
+    /src:\s*["']\/theme-assets\/summer\/hero-scene-v2\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["']/,
+  );
   assert.doesNotMatch(themePacks, /\bheroImage\b/);
   assert.match(
     themePacks,
@@ -198,7 +205,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   await Promise.all(
     [
       "../public/figma/crops/map-cap.png",
-      "../public/figma/crops/hero-scene.webp",
+      "../public/theme-assets/summer/hero-scene-v2.png",
       "../public/figma/crops/brand-logo.png",
       "../public/figma/equipment-water-gun.webp",
       "../public/figma/topic-sunset-card.webp",

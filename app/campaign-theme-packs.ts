@@ -69,8 +69,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
       mapBackgroundImage: "/figma/crops/map-cap.png",
       heroMedia: {
         type: "image",
-        src: "/figma/crops/hero-scene.webp",
-        fit: "contain",
+        src: "/theme-assets/summer/hero-scene-v2.png",
+        fit: "cover",
         position: "center top",
       },
       grandRewardImage: "/figma/reward-gold-horse.webp",
