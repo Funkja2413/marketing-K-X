@@ -47,7 +47,6 @@ type CampaignStageProps = {
   ready: boolean;
   isDrawing: boolean;
   collectionTitleId: string;
-  collectionEyebrow: string;
   collectionHeading: string;
   collectionSubheading: string;
   tiers: StageTier[];
@@ -111,7 +110,6 @@ export function CampaignStage({
   ready,
   isDrawing,
   collectionTitleId,
-  collectionEyebrow,
   collectionHeading,
   collectionSubheading,
   tiers,
@@ -125,6 +123,10 @@ export function CampaignStage({
   onTierSelect,
   onCardSelect,
 }: CampaignStageProps) {
+  const collectionHeadingMatch = collectionHeading.match(
+    /^(.*?)(\d+)(.*)$/,
+  );
+
   return (
     <section
       className="campaign-stage"
@@ -251,8 +253,17 @@ export function CampaignStage({
       >
         <div className="collection-heading">
           <div>
-            <span>{collectionEyebrow}</span>
-            <h2 id={collectionTitleId}>{collectionHeading}</h2>
+            <h2 id={collectionTitleId}>
+              {collectionHeadingMatch ? (
+                <>
+                  {collectionHeadingMatch[1]}
+                  <em>{collectionHeadingMatch[2]}</em>
+                  {collectionHeadingMatch[3]}
+                </>
+              ) : (
+                collectionHeading
+              )}
+            </h2>
             <p>{collectionSubheading}</p>
           </div>
         </div>

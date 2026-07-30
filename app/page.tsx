@@ -457,7 +457,7 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     collectionRewardMode: "amount",
     missingCardLabel: "神秘装备",
     cardNoun: "装备卡",
-    drawCta: "抽装备 · 一顺到底",
+    drawCta: "抽装备 一顺到底",
     rewardVerb: "兑顺顺券",
     tasksTitle: "玩一夏，赚更多",
     drawTabLabel: "抽装备",
@@ -1341,7 +1341,6 @@ export default function Home() {
         ready={ready}
         isDrawing={isDrawing}
         collectionTitleId="collection-title"
-        collectionEyebrow={theme.collectionName}
         collectionHeading={collectionHeading}
         collectionSubheading={collectionSubheading}
         tiers={stageTiers}
