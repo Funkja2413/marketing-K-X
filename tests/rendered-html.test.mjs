@@ -56,6 +56,14 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(page, /claimTier/);
   assert.match(page, /completeTask/);
   assert.match(css, /Figma A1: 375px image-first summer campaign/);
+  assert.match(
+    css,
+    /\.campaign-shell\s*\{[^}]*width:\s*min\(100%,\s*375px\)/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.campaign-shell\.theme-summer\s*\{[^}]*\bwidth:/s,
+  );
   assert.match(css, /background:\s*url\("\/figma\/svg-07\.svg"\)/);
 
   await Promise.all(

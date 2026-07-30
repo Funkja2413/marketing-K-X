@@ -51,7 +51,7 @@ button:focus-visible {
 
 .campaign-shell {
   position: relative;
-  width: min(100%, 520px);
+  width: min(100%, 375px);
   min-height: 100vh;
   margin: 0 auto;
   overflow: hidden;
@@ -1788,7 +1788,6 @@ footer button {
   --brown: #78daff;
   --cream: #fff;
   --cream-strong: #082d45;
-  width: min(100%, 375px);
   background: #bcecff;
   color: #082d45;
   box-shadow: 0 0 80px rgba(8, 108, 154, 0.22);
