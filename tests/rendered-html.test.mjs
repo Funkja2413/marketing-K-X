@@ -34,15 +34,34 @@ test("server-renders the unified summer campaign template", async () => {
     html,
     /class="campaign-shell campaign-template theme-summer"/,
   );
-  assert.match(html, /class="campaign-stage"/);
-  assert.match(html, /class="campaign-top-cap has-art"/);
-  assert.match(html, /class="hero campaign-hero"/);
-  assert.match(html, /class="hero-actions campaign-action-bar"/);
+  assert.match(html, /class="[^"]*\bcampaign-stage\b[^"]*"/);
+  assert.match(
+    html,
+    /class="[^"]*\bcampaign-hero\b[^"]*\bcampaign-hero-mask\b[^"]*"/,
+  );
+  assert.match(html, /class="[^"]*\bcampaign-action-bar\b[^"]*"/);
   assert.match(
     html,
     /class="collection-panel campaign-reward-shelf"/,
   );
+  for (const layerClass of [
+    "campaign-hero-stack",
+    "campaign-map-layer",
+    "campaign-hero-mask",
+    "campaign-hero-media-layer",
+    "campaign-hero-effect-layer",
+    "campaign-hero-ui-layer",
+  ]) {
+    assert.match(
+      html,
+      new RegExp(`class="[^"]*\\b${layerClass}\\b[^"]*"`),
+    );
+  }
   assert.match(html, /src="\/figma\/crops\/hero-scene\.webp"/);
+  assert.match(
+    html,
+    /class="[^"]*\bcampaign-hero-media-layer\b[^"]*"[\s\S]*?<img\b[^>]*src="\/figma\/crops\/hero-scene\.webp"/,
+  );
   assert.match(html, /class="stage-nav campaign-theme-tabs"/);
   assert.match(html, /data-testid="theme-tab-summer"/);
   assert.match(html, /data-testid="theme-tab-night"/);
@@ -76,8 +95,24 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(themePacks, /export type CampaignThemePack/);
   assert.match(themePacks, /export const THEME_PACKS/);
   assert.match(themePacks, /export function getThemePackStyle/);
+  assert.match(themePacks, /export type CampaignHeroMedia\s*=/);
+  assert.match(themePacks, /heroMedia:\s*CampaignHeroMedia/);
+  assert.match(themePacks, /\bheroMedia\b/);
+  assert.match(themePacks, /type:\s*["']image["']/);
+  assert.match(themePacks, /type:\s*["']video["']/);
+  assert.doesNotMatch(themePacks, /\bheroImage\b/);
   assert.match(campaignStage, /export function CampaignStage/);
   assert.match(campaignStage, /className="campaign-stage"/);
+  assert.match(campaignStage, /campaign-hero-stack/);
+  assert.match(campaignStage, /campaign-map-layer/);
+  assert.match(campaignStage, /campaign-hero-mask/);
+  assert.match(campaignStage, /campaign-hero-media-layer/);
+  assert.match(campaignStage, /campaign-hero-effect-layer/);
+  assert.match(campaignStage, /campaign-hero-ui-layer/);
+  assert.match(campaignStage, /<video\b/);
+  assert.match(campaignStage, /\bmuted\b/);
+  assert.match(campaignStage, /\bloop\b/);
+  assert.match(campaignStage, /\bplaysInline\b/);
   assert.match(campaignStage, /data-testid=\{`theme-tab-\$\{tab\.id\}`\}/);
   assert.match(campaignStage, /data-testid="draw-balance"/);
   assert.match(css, /Figma A1: 375px image-first summer campaign/);
@@ -92,7 +127,19 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(css, /background:\s*url\("\/figma\/svg-07\.svg"\)/);
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-hero\s*\{[^}]*aspect-ratio:\s*375\s*\/\s*425/s,
+    /\.campaign-template\s+\.campaign-hero\s*\{(?=[^}]*aspect-ratio:\s*375\s*\/\s*425)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-hero-mask\s*\{(?=[^}]*overflow:\s*hidden)(?=[^}]*border-radius:\s*[^;}\n]+)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-hero-media\s*\{(?=[^}]*width:\s*100%)(?=[^}]*height:\s*88\.2353%)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template[^{]*\.campaign-action-bar\s*\{[^}]*height:\s*11\.7647%/s,
   );
   assert.match(
     css,

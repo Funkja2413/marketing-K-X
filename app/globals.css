@@ -2978,51 +2978,101 @@ footer button {
 }
 
 .campaign-template .campaign-stage {
+  --campaign-hero-radius: clamp(24px, 8cqw, 42px);
   position: relative;
   width: 100%;
   background: var(--stage-page);
   color: var(--stage-text);
 }
 
-.campaign-template .campaign-top-cap {
+.campaign-template .campaign-hero-stack {
   position: relative;
   width: 100%;
-  aspect-ratio: 375 / 78;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--stage-top-cap) 88%, white), var(--stage-top-cap));
+  padding-top: 20.8%;
 }
 
-.campaign-template .campaign-top-cap.is-plain::after {
+.campaign-template .campaign-map-layer {
   position: absolute;
-  inset: 16% 6%;
-  content: "";
-  border-radius: 999px;
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--stage-accent) 16%, transparent),
-      transparent
-    );
-  opacity: 0.6;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  aspect-ratio: 375 / 78;
+  overflow: visible;
+  background: var(--stage-map);
 }
 
-.campaign-template .campaign-top-cap img {
+.campaign-template .campaign-map-layer::after {
+  position: absolute;
+  top: calc(100% - 1px);
+  right: 0;
+  left: 0;
+  z-index: 0;
+  height: var(--campaign-hero-radius);
+  content: "";
+  background: var(--stage-map);
+}
+
+.campaign-template .campaign-map-art,
+.campaign-template .campaign-map-edge {
+  position: absolute;
+  display: block;
+  width: 100%;
+  object-fit: cover;
+}
+
+.campaign-template .campaign-map-art {
+  inset: 0;
+  z-index: 1;
+  height: 100%;
+}
+
+.campaign-template .campaign-map-edge {
+  top: calc(100% - 1px);
+  right: 0;
+  left: 0;
+  z-index: 1;
+  height: var(--campaign-hero-radius);
+  object-position: center bottom;
+}
+
+.campaign-template .campaign-hero-mask {
+  border-radius: var(--campaign-hero-radius);
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.campaign-template .campaign-hero-effect-layer,
+.campaign-template .campaign-hero-ui-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.campaign-template .campaign-hero-effect-layer {
+  z-index: 2;
+  pointer-events: none;
+}
+
+.campaign-template .campaign-hero-ui-layer {
+  z-index: 3;
+}
+
+.campaign-template .campaign-hero-media-content {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
 }
 
 .campaign-template .campaign-hero {
   position: relative;
+  z-index: 2;
   width: 100%;
   min-height: 0;
   height: auto;
   aspect-ratio: 375 / 425;
   padding: 0;
-  overflow: visible;
+  overflow: hidden;
   isolation: isolate;
   background: var(--stage-hero);
 }
@@ -3048,14 +3098,13 @@ footer button {
   display: none;
 }
 
-.campaign-template .campaign-hero-media img {
+.campaign-template .campaign-hero-media img,
+.campaign-template .campaign-hero-media video {
   position: relative;
   z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  object-position: center;
   filter: none;
 }
 

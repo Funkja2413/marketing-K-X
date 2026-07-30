@@ -1,6 +1,6 @@
 # CampaignStage 主题包使用说明
 
-`CampaignStage` 是活动首屏的统一容器。顶部占位、Hero、主题 Tab、主操作按钮、奖励档位和收集卡槽都由同一套组件与共享 CSS 负责排版。
+`CampaignStage` 是活动首屏的统一容器。首屏采用固定分层：底部地图背景、前景圆角活动场、首焦媒体、动效层和实时 UI 层。主题 Tab、主操作按钮、奖励档位和收集卡槽都由同一套组件与共享 CSS 负责排版。
 
 主题包只负责两类内容：
 
@@ -19,12 +19,15 @@
 
 将新文件放进 `public`，然后只修改对应主题包中的素材路径。
 
-例如替换 Night 的 Hero：
+例如把 Night 的 Hero 替换成图片：
 
 ```ts
 night: {
   assets: {
-    heroImage: "/theme-assets/night/hero-scene-v2.webp",
+    heroMedia: {
+      type: "image",
+      src: "/theme-assets/night/hero-scene-v2.webp",
+    },
   },
   colors: {
     // 保持原 Token 不变
@@ -32,14 +35,28 @@ night: {
 }
 ```
 
+替换成视频时只需要改媒体配置：
+
+```ts
+heroMedia: {
+  type: "video",
+  src: "/theme-assets/night/hero-loop.mp4",
+  poster: "/theme-assets/night/hero-poster.webp",
+}
+```
+
+视频会自动静音、循环、行内播放，并与图片共用同一个圆角 Mask。
+
 替换后不需要修改 `CampaignStage`、页面 JSX 或共享 CSS。
 
 可单独替换的素材字段：
 
 ```ts
 assets: {
-  topCapImage?: string;
-  heroImage: string;
+  mapBackgroundImage?: string;
+  heroMedia:
+    | { type: "image"; src: string; fit?: "cover" | "contain"; position?: string }
+    | { type: "video"; src: string; poster?: string; fit?: "cover" | "contain"; position?: string };
   grandRewardImage?: string;
   rewardShelfImage?: string;
   actionButtonImage?: string;
@@ -49,8 +66,8 @@ assets: {
 }
 ```
 
-- `topCapImage` 可省略。省略后，顶部槽位仍然保留，由 `topCapBackground` 填充，不会改变页面高度。
-- `heroImage` 是必填项。
+- `mapBackgroundImage` 是活动场背后的地图层；省略时由 `mapBackground` 填充，仍保留相同空间。
+- `heroMedia` 是必填项，可选择图片或视频。
 - `grandRewardImage` 可省略；它用于终极奖励档位的透明底奖品图。
 - 其余 `*Image` 字段是整套 UI 框体素材，可按需提供；省略时自动使用颜色 Token 生成的默认 UI。
 
@@ -68,8 +85,11 @@ assets: {
 ```ts
 const newSkin: CampaignThemePack = {
   assets: {
-    topCapImage: "/theme-assets/new-skin/top-cap.webp",
-    heroImage: "/theme-assets/new-skin/hero.webp",
+    mapBackgroundImage: "/theme-assets/new-skin/map.webp",
+    heroMedia: {
+      type: "image",
+      src: "/theme-assets/new-skin/hero.webp",
+    },
     grandRewardImage: "/theme-assets/new-skin/grand-reward.webp",
     rewardShelfImage: "/theme-assets/new-skin/reward-shelf.webp",
     actionButtonImage: "/theme-assets/new-skin/action-button.webp",
@@ -79,7 +99,7 @@ const newSkin: CampaignThemePack = {
   },
   colors: {
     page: "#...",
-    topCapBackground: "#...",
+    mapBackground: "#...",
     heroBackground: "#...",
     surface: "#...",
     surfaceText: "#...",
@@ -109,8 +129,10 @@ const newSkin: CampaignThemePack = {
 public/
 └── theme-assets/
     └── new-skin/
-        ├── top-cap.webp
+        ├── map.webp
         ├── hero.webp
+        ├── hero-loop.mp4
+        ├── hero-poster.webp
         ├── grand-reward.webp
         ├── reward-shelf.webp
         ├── action-button.webp
@@ -133,22 +155,25 @@ public/
 
 ## 素材规范
 
-### Top Cap
+### 地图背景层
 
 - 推荐导出尺寸：`1125 × 234`
 - 页面显示比例：`375 : 78`
 - 可以是 PNG、WebP 或 AVIF。
-- 可以不提供图片，但固定的 Top Cap 槽位仍会存在。
-- 不提供图片时使用 `colors.topCapBackground`。
-- 不要通过删除槽位来缩短某一个主题的页面。
+- 地图位于圆角活动场下面；活动场顶部圆角外露出的仍是地图层。
+- 可以不提供图片，但固定地图空间仍会存在。
+- 不提供图片时使用 `colors.mapBackground`。
 
-### Hero
+### 圆角活动场与 Hero
 
-- 标准导出尺寸：`1125 × 1125`
-- 页面显示比例：`1 : 1`
+- 圆角活动场设计尺寸：`375 × 425`。
+- 其中 Hero 媒体槽：`375 × 375`；底部实时按钮层：`375 × 50`。
+- 图片标准导出尺寸：`1125 × 1125`。
+- 视频建议使用 `1 : 1` MP4/WebM，并提供同尺寸 Poster。
 - 标题、副标题、活动日期和主视觉建议在设计侧合成为一张图片。
-- 不要提交横版 OG 图再依赖 `object-fit: contain` 或模糊背景补边。
+- 默认使用 `cover` 填满圆角 Mask；横版素材如需完整展示，可配置 `fit: "contain"`。
 - 关键人物、Logo 和文字应避开 Tab、右侧分享/规则入口以及底部主操作区。
+- 更换图片或视频不会改变圆角、尺寸、Tab、按钮或抽卡动效。
 
 ### 收集卡
 
@@ -169,7 +194,7 @@ public/
 
 以下内容只能在 `CampaignStage` 或它的共享 CSS 中维护：
 
-- Top Cap、Hero、按钮栏和奖励面板的高度与比例。
+- 地图层、圆角活动场、Hero 媒体层、按钮栏和奖励面板的高度与比例。
 - Tab、分享/规则入口和主按钮的位置。
 - 左右入口与主按钮的列宽。
 - 奖励档位数量对应的栅格布局。
@@ -210,7 +235,7 @@ transform
 
 ## 上线前检查
 
-- 两个主题的 Top Cap、Hero、按钮栏和奖励面板占位完全一致。
+- 两个主题的地图层、圆角活动场、按钮栏和奖励面板占位完全一致。
 - 切换 Tab 时页面主体没有上下跳动。
 - 主按钮、左右入口、分享和规则按钮都可以点击。
 - Hero 无拉伸、无补边、无文字被裁切。

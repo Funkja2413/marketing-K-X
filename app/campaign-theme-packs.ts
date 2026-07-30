@@ -2,15 +2,33 @@ import type { CSSProperties } from "react";
 
 export type ThemeId = "summer" | "night";
 
+export type CampaignHeroMedia =
+  | {
+      type: "image";
+      src: string;
+      fit?: "cover" | "contain";
+      position?: string;
+    }
+  | {
+      type: "video";
+      src: string;
+      poster?: string;
+      fit?: "cover" | "contain";
+      position?: string;
+    };
+
 export type CampaignThemePack = {
   assets: {
     /**
-     * Optional 375:78 chrome artwork. When omitted, the fixed slot uses
-     * `topCapBackground`, so every theme keeps identical geometry.
+     * Optional map layer behind the rounded campaign field. The visible map
+     * slot stays 375:78 regardless of the foreground campaign media.
      */
-    topCapImage?: string;
-    /** Standard asset contract: 1:1 artwork, recommended at 1125 × 1125. */
-    heroImage: string;
+    mapBackgroundImage?: string;
+    /**
+     * Swappable image or video rendered inside the fixed 375:375 media layer.
+     * The surrounding 375:425 rounded mask and live UI never change.
+     */
+    heroMedia: CampaignHeroMedia;
     /** Optional transparent art used by the final reward tier. */
     grandRewardImage?: string;
     /** Optional full-bleed UI skins; geometry still comes from CampaignStage. */
@@ -22,7 +40,7 @@ export type CampaignThemePack = {
   };
   colors: {
     page: string;
-    topCapBackground: string;
+    mapBackground: string;
     heroBackground: string;
     surface: string;
     surfaceText: string;
@@ -48,13 +66,16 @@ export type CampaignThemePack = {
 export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
   summer: {
     assets: {
-      topCapImage: "/figma/crops/map-cap.png",
-      heroImage: "/figma/crops/hero-scene.webp",
+      mapBackgroundImage: "/figma/crops/map-cap.png",
+      heroMedia: {
+        type: "image",
+        src: "/figma/crops/hero-scene.webp",
+      },
       grandRewardImage: "/figma/reward-gold-horse.webp",
     },
     colors: {
       page: "#bcecff",
-      topCapBackground: "#dfeef8",
+      mapBackground: "#dfeef8",
       heroBackground: "#19a9ed",
       surface: "rgba(253, 254, 252, 0.97)",
       surfaceText: "#101921",
@@ -78,11 +99,15 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
   },
   night: {
     assets: {
-      heroImage: "/theme-assets/night/hero-scene.webp",
+      mapBackgroundImage: "/figma/crops/map-cap.png",
+      heroMedia: {
+        type: "image",
+        src: "/theme-assets/night/hero-scene.webp",
+      },
     },
     colors: {
       page: "#24120d",
-      topCapBackground: "#160b08",
+      mapBackground: "#dfeef8",
       heroBackground: "#1b0d09",
       surface: "rgba(111, 56, 36, 0.98)",
       surfaceText: "#fff0d4",
@@ -109,7 +134,7 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
 export function getThemePackStyle(pack: CampaignThemePack): CSSProperties {
   return {
     "--stage-page": pack.colors.page,
-    "--stage-top-cap": pack.colors.topCapBackground,
+    "--stage-map": pack.colors.mapBackground,
     "--stage-hero": pack.colors.heroBackground,
     "--stage-surface": pack.colors.surface,
     "--stage-text": pack.colors.surfaceText,

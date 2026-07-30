@@ -1,7 +1,11 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import type { CampaignThemePack, ThemeId } from "./campaign-theme-packs";
+import type {
+  CampaignHeroMedia,
+  CampaignThemePack,
+  ThemeId,
+} from "./campaign-theme-packs";
 
 type ThemeTab = {
   id: ThemeId;
@@ -60,6 +64,41 @@ type CampaignStageProps = {
   onCardSelect: (cardId: string) => void;
 };
 
+function CampaignHeroMediaSlot({ media }: { media: CampaignHeroMedia }) {
+  const mediaStyle: CSSProperties = {
+    objectFit: media.fit ?? "cover",
+    objectPosition: media.position ?? "center",
+  };
+
+  if (media.type === "video") {
+    return (
+      <video
+        className="campaign-hero-media-content"
+        src={media.src}
+        poster={media.poster}
+        style={mediaStyle}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        tabIndex={-1}
+      />
+    );
+  }
+
+  return (
+    <img
+      className="campaign-hero-media-content"
+      src={media.src}
+      alt=""
+      style={mediaStyle}
+      decoding="async"
+      fetchPriority="high"
+    />
+  );
+}
+
 export function CampaignStage({
   activeTheme,
   pack,
@@ -98,98 +137,114 @@ export function CampaignStage({
       aria-label="活动主舞台"
       data-testid="campaign-stage"
     >
-      <div
-        className={`campaign-top-cap ${
-          pack.assets.topCapImage ? "has-art" : "is-plain"
-        }`}
-        aria-hidden="true"
-      >
-        {pack.assets.topCapImage && (
-          <img src={pack.assets.topCapImage} alt="" decoding="async" />
-        )}
-      </div>
-
-      <section
-        className="hero campaign-hero"
-        aria-labelledby="campaign-title"
-        data-tier={heroTier}
-      >
-        <h1 id="campaign-title" className="sr-only">
-          {accessibleTitle}
-        </h1>
-        <picture className="hero-media campaign-hero-media">
-          <img
-            src={pack.assets.heroImage}
-            alt=""
-            decoding="async"
-            fetchPriority="high"
-          />
-        </picture>
-
-        <div className="hero-progress-visual" aria-hidden="true">
-          {heroCards}
-        </div>
-
-        <nav
-          className="stage-nav campaign-theme-tabs"
-          aria-label="活动主题"
+      <div className="campaign-hero-stack">
+        <div
+          className={`campaign-map-layer ${
+            pack.assets.mapBackgroundImage ? "has-art" : "is-plain"
+          }`}
+          aria-hidden="true"
         >
-          {tabs.map((tab) => (
-            <button
-              type="button"
-              className={activeTheme === tab.id ? "active" : ""}
-              onClick={() => onSwitchTheme(tab.id)}
-              aria-pressed={activeTheme === tab.id}
-              data-testid={`theme-tab-${tab.id}`}
-              key={tab.id}
+          {pack.assets.mapBackgroundImage && (
+            <>
+              <img
+                className="campaign-map-art"
+                src={pack.assets.mapBackgroundImage}
+                alt=""
+                decoding="async"
+              />
+              <img
+                className="campaign-map-edge"
+                src={pack.assets.mapBackgroundImage}
+                alt=""
+                decoding="async"
+              />
+            </>
+          )}
+        </div>
+
+        <section
+          className="hero campaign-hero campaign-hero-mask"
+          aria-labelledby="campaign-title"
+          data-tier={heroTier}
+        >
+          <h1 id="campaign-title" className="sr-only">
+            {accessibleTitle}
+          </h1>
+
+          <div
+            className="hero-media campaign-hero-media campaign-hero-media-layer"
+            aria-hidden="true"
+          >
+            <CampaignHeroMediaSlot media={pack.assets.heroMedia} />
+          </div>
+
+          <div className="campaign-hero-effect-layer" aria-hidden="true">
+            <div className="hero-progress-visual">{heroCards}</div>
+          </div>
+
+          <div className="campaign-hero-ui-layer">
+            <nav
+              className="stage-nav campaign-theme-tabs"
+              aria-label="活动主题"
             >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+              {tabs.map((tab) => (
+                <button
+                  type="button"
+                  className={activeTheme === tab.id ? "active" : ""}
+                  onClick={() => onSwitchTheme(tab.id)}
+                  aria-pressed={activeTheme === tab.id}
+                  data-testid={`theme-tab-${tab.id}`}
+                  key={tab.id}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
 
-        <div className="hero-actions campaign-action-bar">
-          <button
-            type="button"
-            className="side-action left"
-            onClick={onOpenCollection}
-          >
-            我的
-            <br />
-            {collectionEntryLabel}
-          </button>
-          <button
-            type="button"
-            className={`draw-button ${isDrawing ? "drawing" : ""}`}
-            onClick={onDraw}
-            disabled={!ready || isDrawing}
-            aria-label={`${drawLabel}，剩余${drawBalance}次`}
-            data-testid="draw-button"
-          >
-            <span className="draw-button-glow" aria-hidden="true" />
-            <span>{isDrawing ? drawingLabel : drawLabel}</span>
-            <b data-testid="draw-balance">{drawBalance}</b>
-          </button>
-          <button
-            type="button"
-            className="side-action right"
-            onClick={onOpenPrizes}
-          >
-            我的
-            <br />
-            奖品
-          </button>
-        </div>
+            <div className="hero-actions campaign-action-bar">
+              <button
+                type="button"
+                className="side-action left"
+                onClick={onOpenCollection}
+              >
+                我的
+                <br />
+                {collectionEntryLabel}
+              </button>
+              <button
+                type="button"
+                className={`draw-button ${isDrawing ? "drawing" : ""}`}
+                onClick={onDraw}
+                disabled={!ready || isDrawing}
+                aria-label={`${drawLabel}，剩余${drawBalance}次`}
+                data-testid="draw-button"
+              >
+                <span className="draw-button-glow" aria-hidden="true" />
+                <span>{isDrawing ? drawingLabel : drawLabel}</span>
+                <b data-testid="draw-balance">{drawBalance}</b>
+              </button>
+              <button
+                type="button"
+                className="side-action right"
+                onClick={onOpenPrizes}
+              >
+                我的
+                <br />
+                奖品
+              </button>
+            </div>
 
-        <div className="floating-actions">
-          <button type="button" onClick={onShare}>
-            分享
-          </button>
-          <button type="button" onClick={onOpenRules}>
-            规则
-          </button>
-        </div>
-      </section>
+            <div className="floating-actions">
+              <button type="button" onClick={onShare}>
+                分享
+              </button>
+              <button type="button" onClick={onOpenRules}>
+                规则
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <section
         className="collection-panel campaign-reward-shelf"
