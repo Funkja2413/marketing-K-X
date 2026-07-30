@@ -50,8 +50,6 @@ type CampaignStageProps = {
   collectionEyebrow: string;
   collectionHeading: string;
   collectionSubheading: string;
-  uniqueCount: number;
-  totalCards: number;
   tiers: StageTier[];
   cards: StageCard[];
   onSwitchTheme: (themeId: ThemeId) => void;
@@ -116,8 +114,6 @@ export function CampaignStage({
   collectionEyebrow,
   collectionHeading,
   collectionSubheading,
-  uniqueCount,
-  totalCards,
   tiers,
   cards,
   onSwitchTheme,
@@ -129,8 +125,6 @@ export function CampaignStage({
   onTierSelect,
   onCardSelect,
 }: CampaignStageProps) {
-  const progress = totalCards > 0 ? (uniqueCount / totalCards) * 100 : 0;
-
   return (
     <section
       className="campaign-stage"
@@ -261,17 +255,6 @@ export function CampaignStage({
             <h2 id={collectionTitleId}>{collectionHeading}</h2>
             <p>{collectionSubheading}</p>
           </div>
-          <div className="collection-count">
-            <strong>{uniqueCount}</strong>
-            <span>/ {totalCards}</span>
-          </div>
-        </div>
-
-        <div
-          className="progress-track"
-          aria-label={`已集齐${uniqueCount}种卡`}
-        >
-          <span style={{ width: `${progress}%` }} />
         </div>
 
         <div className="tier-row">

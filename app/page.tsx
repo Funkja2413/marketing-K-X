@@ -1344,8 +1344,6 @@ export default function Home() {
         collectionEyebrow={theme.collectionName}
         collectionHeading={collectionHeading}
         collectionSubheading={collectionSubheading}
-        uniqueCount={uniqueCount}
-        totalCards={CARD_DEFINITIONS.length}
         tiers={stageTiers}
         cards={stageCards}
         onSwitchTheme={switchTheme}

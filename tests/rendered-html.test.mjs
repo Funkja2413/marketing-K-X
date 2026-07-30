@@ -77,6 +77,8 @@ test("server-renders the unified summer campaign template", async () => {
   assert.match(html, /data-testid="draw-button"/);
   assert.match(html, /data-testid="draw-balance"/);
   assert.match(html, /class="featured-task-rail"/);
+  assert.doesNotMatch(html, /\bcollection-count\b/);
+  assert.doesNotMatch(html, /\bprogress-track\b/);
   assert.match(html, /扎进水里夏天（马上顺）/);
   assert.match(html, /抖音生活服务，让每次心动都值得/);
   assert.doesNotMatch(html, /figma\.com\/api\/mcp\/asset/i);
@@ -150,6 +152,8 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(campaignStage, /\bplaysInline\b/);
   assert.match(campaignStage, /data-testid=\{`theme-tab-\$\{tab\.id\}`\}/);
   assert.match(campaignStage, /data-testid="draw-balance"/);
+  assert.doesNotMatch(campaignStage, /className="collection-count"/);
+  assert.doesNotMatch(campaignStage, /className="progress-track"/);
   assert.match(css, /Figma A1: 375px image-first summer campaign/);
   assert.match(
     css,
@@ -190,8 +194,18 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-reward-shelf\s*\{[^}]*aspect-ratio:\s*355\s*\/\s*166/s,
+    /\.campaign-template\s+\.campaign-hero\s+\.campaign-theme-tabs,[\s\S]*?\{[^}]*top:\s*30\.35%/s,
   );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-reward-shelf\s*\{(?=[^}]*aspect-ratio:\s*355\s*\/\s*166)(?=[^}]*margin:\s*clamp\(8px,\s*2\.133cqw,\s*11px\)\s+10px\s+0)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.featured-task-rail\s*\{(?=[^}]*padding:\s*0\s+16px\s+5px)(?=[^}]*scroll-padding-inline:\s*16px)[^}]*\}/s,
+  );
+  assert.doesNotMatch(css, /\.collection-count\b/);
+  assert.doesNotMatch(css, /\.progress-track\b/);
 
   assert.doesNotMatch(page, /\bheroMode\b/);
   assert.doesNotMatch(page, /\bheroImage\b/);
