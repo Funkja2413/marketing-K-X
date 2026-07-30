@@ -29,7 +29,7 @@ export type CampaignThemePack = {
      */
     mapBackgroundImage?: string;
     /**
-     * Swappable image or video rendered across the fixed 375:425 media layer.
+     * Swappable image or video rendered across the fixed 375:460 media layer.
      * The transition mask and live UI are independent overlays.
      */
     heroMedia: CampaignHeroMedia;

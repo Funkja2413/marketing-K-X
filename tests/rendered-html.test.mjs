@@ -181,16 +181,12 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.doesNotMatch(themePacks, /\bheroImage\b/);
   assert.match(
     themePacks,
-    /(?:media layer[^.\n]*375\s*[:×x]\s*425|375\s*[:×x]\s*425[^.\n]*media layer)/i,
+    /(?:media layer[^.\n]*375\s*[:×x]\s*460|375\s*[:×x]\s*460[^.\n]*media layer)/i,
   );
   assert.doesNotMatch(themePacks, /375\s*[:×x]\s*375/i);
   assert.match(
     themePackGuide,
-    /Hero 媒体槽[^。\n]*375\s*[×x:]\s*425/i,
-  );
-  assert.doesNotMatch(
-    themePackGuide,
-    /Hero 媒体槽[^。\n]*375\s*[×x:]\s*375/i,
+    /Hero 媒体槽[^。\n]*375\s*[×x:]\s*460/i,
   );
   assert.match(campaignStage, /export function CampaignStage/);
   assert.match(campaignStage, /className="campaign-stage"/);
@@ -215,8 +211,9 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
     campaignStage,
     /data-testid="hero-measurement-overlay"/,
   );
-  assert.match(campaignStage, /data-hero-ratio="375\/425"/);
-  assert.match(campaignStage, /data-transition-inset="52%"/);
+  assert.match(campaignStage, /data-hero-ratio="375\/460"/);
+  assert.match(campaignStage, /data-transition-inset="65\.2174%"/);
+  assert.match(campaignStage, /data-reward-overlap="27px"/);
   assert.doesNotMatch(campaignStage, /\bcollectionEyebrow\b/);
   assert.match(campaignStage, /collectionHeadingMatch/);
   assert.match(campaignStage, /<em>\{collectionHeadingMatch\[2\]\}<\/em>/);
@@ -242,11 +239,11 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-hero\s*\{(?=[^}]*aspect-ratio:\s*375\s*\/\s*425)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+    /\.campaign-template\s+\.campaign-hero\s*\{(?=[^}]*aspect-ratio:\s*375\s*\/\s*460)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-hero-transition-layer\s*\{(?=[^}]*inset:\s*52%\s+0\s+0)[^}]*\}/s,
+    /\.campaign-template\s+\.campaign-hero-transition-layer\s*\{(?=[^}]*inset:\s*65\.2174%\s+0\s+0)[^}]*\}/s,
   );
   assert.match(
     css,
@@ -266,11 +263,11 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   );
   assert.match(
     css,
-    /\.campaign-template[^{]*\.campaign-action-bar\s*\{[^}]*height:\s*11\.7647%/s,
+    /\.campaign-template[^{]*\.campaign-action-bar\s*\{(?=[^}]*top:\s*81\.5217%)(?=[^}]*height:\s*10\.8696%)[^}]*\}/s,
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-hero\s+\.campaign-theme-tabs,[\s\S]*?\{[^}]*top:\s*30\.35%/s,
+    /\.campaign-template\s+\.campaign-hero\s+\.campaign-theme-tabs,[\s\S]*?\{[^}]*top:\s*28\.0435%/s,
   );
   assert.match(
     css,
@@ -282,7 +279,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-reward-shelf\s*\{(?=[^}]*aspect-ratio:\s*355\s*\/\s*166)(?=[^}]*margin:\s*clamp\(8px,\s*2\.133cqw,\s*11px\)\s+10px\s+0)[^}]*\}/s,
+    /\.campaign-template\s+\.campaign-reward-shelf\s*\{(?=[^}]*aspect-ratio:\s*355\s*\/\s*166)(?=[^}]*margin:\s*clamp\(-36px,\s*-7\.2cqw,\s*-27px\)\s+10px\s+0)[^}]*\}/s,
   );
   assert.doesNotMatch(
     css,

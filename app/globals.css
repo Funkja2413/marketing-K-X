@@ -2953,7 +2953,7 @@ footer button {
 }
 
 .campaign-template .campaign-hero-transition-layer {
-  inset: 52% 0 0;
+  inset: 65.2174% 0 0;
   z-index: 1;
   pointer-events: none;
   background: linear-gradient(
@@ -3106,7 +3106,7 @@ footer button {
 
 .campaign-template .hero-measure-safe-zone {
   position: absolute;
-  inset: 0 0 11.7647%;
+  inset: 0 0 18.4783%;
   border-bottom: 2px dashed #00e5ff;
 }
 
@@ -3124,7 +3124,7 @@ footer button {
 
 .campaign-template .hero-measure-transition-zone {
   position: absolute;
-  inset: 52% 0 0;
+  inset: 65.2174% 0 0;
   border-top: 2px solid #ff375f;
   background: repeating-linear-gradient(
     135deg,
@@ -3181,8 +3181,11 @@ footer button {
 
 .campaign-template .hero-measure-action-zone {
   position: absolute;
-  inset: 88.2353% 0 0;
+  top: 81.5217%;
+  right: 0;
+  left: 0;
   z-index: 2;
+  height: 10.8696%;
   border: 2px solid #baff20;
   background: rgba(186, 255, 32, 0.07);
 }
@@ -3199,6 +3202,26 @@ footer button {
   font-size: clamp(8px, 2.267cqw, 11px);
   font-weight: 950;
   transform: translateX(-50%);
+}
+
+.campaign-template .hero-measure-extension-zone {
+  position: absolute;
+  inset: 92.3913% 0 0;
+  z-index: 1;
+  border: 2px solid #a86bff;
+  background: rgba(168, 107, 255, 0.08);
+}
+
+.campaign-template .hero-measure-extension-zone span {
+  position: absolute;
+  right: 9px;
+  bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: #a86bff;
+  color: #fff;
+  font-size: clamp(8px, 2.267cqw, 11px);
+  font-weight: 900;
 }
 
 .campaign-template .hero-measure-info {
@@ -3247,7 +3270,7 @@ footer button {
   width: 100%;
   min-height: 0;
   height: auto;
-  aspect-ratio: 375 / 425;
+  aspect-ratio: 375 / 460;
   padding: 0;
   overflow: hidden;
   isolation: isolate;
@@ -3288,7 +3311,7 @@ footer button {
 .campaign-template .campaign-hero .campaign-theme-tabs,
 .campaign-template.theme-night .campaign-hero .campaign-theme-tabs {
   position: absolute;
-  top: 30.35%;
+  top: 28.0435%;
   right: auto;
   bottom: auto;
   left: 50%;
@@ -3340,7 +3363,7 @@ footer button {
 
 .campaign-template .campaign-hero .campaign-action-bar {
   position: absolute;
-  top: 88.2353%;
+  top: 81.5217%;
   right: 0;
   bottom: auto;
   left: 0;
@@ -3350,7 +3373,7 @@ footer button {
   align-items: center;
   gap: 0 7.7333%;
   width: 100%;
-  height: 11.7647%;
+  height: 10.8696%;
 }
 
 .campaign-template .campaign-action-bar .side-action {
@@ -3419,7 +3442,7 @@ footer button {
 
 .campaign-template .campaign-hero .floating-actions {
   position: absolute;
-  top: 25%;
+  top: 23.0978%;
   right: 0;
   left: auto;
   z-index: 9;
@@ -3445,7 +3468,7 @@ footer button {
 }
 
 .campaign-template .campaign-hero .hero-collected-card.recent {
-  top: 73%;
+  top: 67.4457%;
   left: 43.7%;
   z-index: 9;
   display: grid;
@@ -3459,7 +3482,7 @@ footer button {
   width: calc(100% - 20px);
   height: auto;
   aspect-ratio: 355 / 166;
-  margin: clamp(8px, 2.133cqw, 11px) 10px 0;
+  margin: clamp(-36px, -7.2cqw, -27px) 10px 0;
   padding: 0;
   overflow: hidden;
   border: 0;
@@ -3471,6 +3494,27 @@ footer button {
   background-size: 100% 100%;
   color: var(--stage-text);
   box-shadow: none;
+}
+
+.campaign-template .campaign-reward-shelf.is-measured {
+  outline: 2px solid #a86bff;
+  outline-offset: -2px;
+}
+
+.campaign-template .campaign-reward-overlap-measurement {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 20;
+  max-width: 58%;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: #a86bff;
+  color: #fff;
+  font-size: clamp(7px, 2cqw, 10px);
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: right;
 }
 
 .campaign-template .campaign-reward-shelf .collection-heading {

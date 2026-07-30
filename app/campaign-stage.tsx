@@ -63,7 +63,7 @@ type CampaignStageProps = {
 };
 
 const HERO_DESIGN_WIDTH = 375;
-const HERO_DESIGN_HEIGHT = 425;
+const HERO_DESIGN_HEIGHT = 460;
 
 function getHeroMediaMeasurement(media: CampaignHeroMedia) {
   const sourceWidth = media.sourceWidth;
@@ -296,8 +296,9 @@ export function CampaignStage({
             <div
               className="campaign-hero-measurement-overlay"
               data-testid="hero-measurement-overlay"
-              data-hero-ratio="375/425"
-              data-transition-inset="52%"
+              data-hero-ratio="375/460"
+              data-transition-inset="65.2174%"
+              data-reward-overlap="27px"
               aria-hidden="true"
             >
               <div className="hero-measure-frame" />
@@ -305,7 +306,7 @@ export function CampaignStage({
                 <span>375</span>
               </div>
               <div className="hero-measure-height">
-                <span>425</span>
+                <span>460</span>
               </div>
               <div className="hero-measure-radius">
                 顶部圆角 R30（375 基准）
@@ -315,23 +316,26 @@ export function CampaignStage({
               </div>
               <div className="hero-measure-transition-zone">
                 <span className="hero-measure-transition-start">
-                  渐变 Mask 起点 · Y221 · Hero 52%
+                  渐变 Mask 起点 · Y300 · Hero 65.22%
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-18">
-                  12% 页面色 · Y258
+                  12% 页面色 · Y329
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-52">
-                  52% 页面色 · Y327
+                  52% 页面色 · Y383
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-80">
-                  88% 页面色 · Y384
+                  88% 页面色 · Y428
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-100">
-                  纯页面色 · Y425
+                  纯页面色 · Y460
                 </span>
               </div>
               <div className="hero-measure-action-zone">
                 <span>实时按钮层 · Y375–425 · 50px</span>
+              </div>
+              <div className="hero-measure-extension-zone">
+                <span>背景延伸 · Y425–460 · 35px</span>
               </div>
               <dl className="hero-measure-info">
                 <div>
@@ -340,7 +344,7 @@ export function CampaignStage({
                 </div>
                 <div>
                   <dt>Hero 容器</dt>
-                  <dd>375×425 · 15:17</dd>
+                  <dd>375×460 · 75:92</dd>
                 </div>
                 <div>
                   <dt>图片源</dt>
@@ -361,9 +365,16 @@ export function CampaignStage({
       </div>
 
       <section
-        className="collection-panel campaign-reward-shelf"
+        className={`collection-panel campaign-reward-shelf${
+          showHeroMeasurements ? " is-measured" : ""
+        }`}
         aria-labelledby={collectionTitleId}
       >
+        {showHeroMeasurements && (
+          <div className="campaign-reward-overlap-measurement" aria-hidden="true">
+            奖励卡片顶边：Hero Y433 · 向上叠入 27px
+          </div>
+        )}
         <div className="collection-heading">
           <div>
             <h2 id={collectionTitleId}>
