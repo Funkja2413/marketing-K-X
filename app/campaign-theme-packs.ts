@@ -25,8 +25,8 @@ export type CampaignThemePack = {
      */
     mapBackgroundImage?: string;
     /**
-     * Swappable image or video rendered inside the fixed 375:375 media layer.
-     * The surrounding 375:425 rounded mask and live UI never change.
+     * Swappable image or video rendered across the fixed 375:425 media layer.
+     * The transition mask and live UI are independent overlays.
      */
     heroMedia: CampaignHeroMedia;
     /** Optional transparent art used by the final reward tier. */
@@ -70,6 +70,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
       heroMedia: {
         type: "image",
         src: "/figma/crops/hero-scene.webp",
+        fit: "contain",
+        position: "center top",
       },
       grandRewardImage: "/figma/reward-gold-horse.webp",
     },
@@ -103,6 +105,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
       heroMedia: {
         type: "image",
         src: "/theme-assets/night/hero-scene.webp",
+        fit: "contain",
+        position: "center top",
       },
     },
     colors: {

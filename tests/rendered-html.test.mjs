@@ -49,6 +49,7 @@ test("server-renders the unified summer campaign template", async () => {
     "campaign-map-layer",
     "campaign-hero-mask",
     "campaign-hero-media-layer",
+    "campaign-hero-transition-layer",
     "campaign-hero-effect-layer",
     "campaign-hero-ui-layer",
   ]) {
@@ -61,6 +62,10 @@ test("server-renders the unified summer campaign template", async () => {
   assert.match(
     html,
     /class="[^"]*\bcampaign-hero-media-layer\b[^"]*"[\s\S]*?<img\b[^>]*src="\/figma\/crops\/hero-scene\.webp"/,
+  );
+  assert.match(
+    html,
+    /\bcampaign-hero-media-layer\b[\s\S]*\bcampaign-hero-transition-layer\b[\s\S]*\bcampaign-hero-effect-layer\b[\s\S]*\bcampaign-hero-ui-layer\b/,
   );
   assert.match(html, /class="stage-nav campaign-theme-tabs"/);
   assert.match(html, /data-testid="theme-tab-summer"/);
@@ -75,12 +80,17 @@ test("server-renders the unified summer campaign template", async () => {
 });
 
 test("keeps the campaign mechanics and local Figma assets wired", async () => {
-  const [page, campaignStage, themePacks, css] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/campaign-stage.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/campaign-theme-packs.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-  ]);
+  const [page, campaignStage, themePacks, themePackGuide, css] =
+    await Promise.all([
+      readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../app/campaign-stage.tsx", import.meta.url), "utf8"),
+      readFile(
+        new URL("../app/campaign-theme-packs.ts", import.meta.url),
+        "utf8",
+      ),
+      readFile(new URL("../THEME-PACKS.md", import.meta.url), "utf8"),
+      readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    ]);
 
   assert.match(page, /summer-campaign-multitheme-v2/);
   assert.match(page, /fixtureModeRef/);
@@ -101,14 +111,32 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(themePacks, /type:\s*["']image["']/);
   assert.match(themePacks, /type:\s*["']video["']/);
   assert.doesNotMatch(themePacks, /\bheroImage\b/);
+  assert.match(
+    themePacks,
+    /(?:media layer[^.\n]*375\s*[:×x]\s*425|375\s*[:×x]\s*425[^.\n]*media layer)/i,
+  );
+  assert.doesNotMatch(themePacks, /375\s*[:×x]\s*375/i);
+  assert.match(
+    themePackGuide,
+    /Hero 媒体槽[^。\n]*375\s*[×x:]\s*425/i,
+  );
+  assert.doesNotMatch(
+    themePackGuide,
+    /Hero 媒体槽[^。\n]*375\s*[×x:]\s*375/i,
+  );
   assert.match(campaignStage, /export function CampaignStage/);
   assert.match(campaignStage, /className="campaign-stage"/);
   assert.match(campaignStage, /campaign-hero-stack/);
   assert.match(campaignStage, /campaign-map-layer/);
   assert.match(campaignStage, /campaign-hero-mask/);
   assert.match(campaignStage, /campaign-hero-media-layer/);
+  assert.match(campaignStage, /campaign-hero-transition-layer/);
   assert.match(campaignStage, /campaign-hero-effect-layer/);
   assert.match(campaignStage, /campaign-hero-ui-layer/);
+  assert.match(
+    campaignStage,
+    /campaign-hero-media-layer[\s\S]*campaign-hero-transition-layer[\s\S]*campaign-hero-effect-layer[\s\S]*campaign-hero-ui-layer/,
+  );
   assert.match(campaignStage, /<video\b/);
   assert.match(campaignStage, /\bmuted\b/);
   assert.match(campaignStage, /\bloop\b/);
@@ -120,6 +148,10 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
     css,
     /\.campaign-shell\s*\{[^}]*width:\s*100%[^}]*max-width:\s*520px/s,
   );
+  assert.match(
+    css,
+    /\.campaign-shell\.campaign-template\s*\{[^}]*overflow:\s*clip\b[^}]*\}/s,
+  );
   assert.doesNotMatch(
     css,
     /\.campaign-shell\.theme-summer\s*\{[^}]*\bwidth:/s,
@@ -127,15 +159,23 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(css, /background:\s*url\("\/figma\/svg-07\.svg"\)/);
   assert.match(
     css,
+    /\.campaign-template\s+\.campaign-map-layer\s*\{(?=[^}]*position:\s*sticky)(?=[^}]*top:\s*0(?:px)?\b)[^}]*\}/s,
+  );
+  assert.match(
+    css,
     /\.campaign-template\s+\.campaign-hero\s*\{(?=[^}]*aspect-ratio:\s*375\s*\/\s*425)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-hero-mask\s*\{(?=[^}]*overflow:\s*hidden)(?=[^}]*border-radius:\s*[^;}\n]+)[^}]*\}/s,
+    /\.campaign-template\s+\.campaign-hero-mask\s*\{(?=[^}]*overflow:\s*hidden)(?=[^}]*border-radius:\s*var\(--campaign-hero-radius\)\s+var\(--campaign-hero-radius\)\s+0(?:px)?\s+0(?:px)?\b)[^}]*\}/s,
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-hero-media\s*\{(?=[^}]*width:\s*100%)(?=[^}]*height:\s*88\.2353%)[^}]*\}/s,
+    /\.campaign-template\s+\.campaign-hero-media\s*\{(?=[^}]*width:\s*100%)(?=[^}]*height:\s*100%)[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.campaign-template\s+\.campaign-hero-media\s*\{[^}]*height:\s*88\.2353%[^}]*\}/s,
   );
   assert.match(
     css,

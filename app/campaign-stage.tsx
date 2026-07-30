@@ -178,6 +178,11 @@ export function CampaignStage({
             <CampaignHeroMediaSlot media={pack.assets.heroMedia} />
           </div>
 
+          <div
+            className="campaign-hero-transition-layer"
+            aria-hidden="true"
+          />
+
           <div className="campaign-hero-effect-layer" aria-hidden="true">
             <div className="hero-progress-visual">{heroCards}</div>
           </div>

@@ -55,7 +55,7 @@ button:focus-visible {
   max-width: 520px;
   min-height: 100vh;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: clip;
   container-type: inline-size;
   background: var(--ink);
   box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
@@ -2973,6 +2973,7 @@ footer button {
 /* Unified campaign-stage geometry.
    Theme packs may change assets and tokens, but never these measurements. */
 .campaign-shell.campaign-template {
+  overflow: clip;
   background: var(--stage-page);
   color: var(--stage-text);
 }
@@ -2988,14 +2989,12 @@ footer button {
 .campaign-template .campaign-hero-stack {
   position: relative;
   width: 100%;
-  padding-top: 20.8%;
+  padding-top: 0;
 }
 
 .campaign-template .campaign-map-layer {
-  position: absolute;
+  position: sticky;
   top: 0;
-  right: 0;
-  left: 0;
   z-index: 0;
   width: 100%;
   aspect-ratio: 375 / 78;
@@ -3038,15 +3037,30 @@ footer button {
 }
 
 .campaign-template .campaign-hero-mask {
-  border-radius: var(--campaign-hero-radius);
+  border-radius: var(--campaign-hero-radius) var(--campaign-hero-radius) 0 0;
   overflow: hidden;
   transform: translateZ(0);
 }
 
+.campaign-template .campaign-hero-transition-layer,
 .campaign-template .campaign-hero-effect-layer,
 .campaign-template .campaign-hero-ui-layer {
   position: absolute;
   inset: 0;
+}
+
+.campaign-template .campaign-hero-transition-layer {
+  inset: 52% 0 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--stage-page) 12%, transparent) 18%,
+    color-mix(in srgb, var(--stage-page) 52%, transparent) 52%,
+    color-mix(in srgb, var(--stage-page) 88%, transparent) 80%,
+    var(--stage-page) 100%
+  );
 }
 
 .campaign-template .campaign-hero-effect-layer {
@@ -3084,11 +3098,11 @@ footer button {
 
 .campaign-template .campaign-hero-media {
   position: absolute;
-  inset: 0 0 auto;
+  inset: 0;
   z-index: 0;
   display: block;
   width: 100%;
-  height: 88.2353%;
+  height: 100%;
   overflow: hidden;
   background: var(--stage-hero);
 }
