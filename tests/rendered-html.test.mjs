@@ -78,6 +78,14 @@ test("server-renders the unified summer campaign template", async () => {
   assert.match(html, /data-testid="draw-balance"/);
   assert.match(html, /抽装备 一顺到底/);
   assert.match(html, /class="featured-task-rail"/);
+  assert.equal(
+    (
+      html.match(
+        /class="[^"]*\bcampaign-banner-slot\b[^"]*"/g,
+      ) ?? []
+    ).length,
+    2,
+  );
   assert.match(html, />攒体力<\/button>/);
   assert.doesNotMatch(html, /攒体力\s*·\s*预告/);
   assert.doesNotMatch(html, /\bcollection-count\b/);
@@ -115,6 +123,36 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(page, /completeTask/);
   assert.match(page, /getThemePackStyle/);
   assert.match(page, /<CampaignStage/);
+  assert.match(page, /\bactivityBanners\.map\(/);
+
+  const postHeroStart = page.indexOf("<CampaignStage");
+  const postHeroEnd = page.indexOf("{drawResult &&", postHeroStart);
+  assert.notEqual(postHeroStart, -1, "missing CampaignStage");
+  assert.ok(postHeroEnd > postHeroStart, "missing post-hero source boundary");
+
+  const postHeroSource = page.slice(postHeroStart, postHeroEnd);
+  let postHeroCursor = -1;
+  for (const moduleClass of [
+    "energy-teaser",
+    "tasks-section",
+    "campaign-content-world",
+    "topics-section",
+    "discovery-section",
+    "more-activities",
+    "campaign-footer",
+  ]) {
+    const moduleIndex = postHeroSource.indexOf(moduleClass);
+    assert.ok(
+      moduleIndex > postHeroCursor,
+      `${moduleClass} missing or out of order after CampaignStage`,
+    );
+    postHeroCursor = moduleIndex;
+  }
+  assert.doesNotMatch(
+    postHeroSource,
+    /theme\.id\s*===\s*["']summer["']/,
+  );
+
   assert.match(themePacks, /export type CampaignThemePack/);
   assert.match(themePacks, /export const THEME_PACKS/);
   assert.match(themePacks, /export function getThemePackStyle/);
@@ -242,6 +280,24 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(
     css,
     /\.campaign-template\s+\.campaign-reward-shelf\s+\.card-scroller\s*\{[^}]*bottom:\s*7\.8%/s,
+  );
+  for (const sharedModuleSelector of [
+    "\\.energy-teaser",
+    "\\.tasks-section",
+    "\\.topics-section",
+    "\\.discovery-section",
+    "footer\\.campaign-footer",
+  ]) {
+    assert.match(
+      css,
+      new RegExp(
+        `\\.campaign-template\\s+${sharedModuleSelector}\\s*\\{`,
+      ),
+    );
+  }
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-banner-list\s*\{(?=[^}]*display:\s*grid)(?=[^}]*gap:\s*10px)[^}]*\}/s,
   );
   assert.doesNotMatch(css, /\.coming-card\b|\.coming-visual\b/);
   assert.doesNotMatch(css, /\.collection-count\b/);

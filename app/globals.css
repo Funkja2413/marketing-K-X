@@ -3422,3 +3422,576 @@ footer button {
   background: var(--stage-count-badge);
   font-size: clamp(8px, 2.667cqw, 13px);
 }
+
+/* Shared post-hero module geometry. Themes only swap tokens, assets, and copy. */
+.campaign-template .energy-teaser {
+  position: relative;
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) 53px;
+  align-items: center;
+  gap: 5px;
+  height: 74px;
+  margin: 8px 10px 0;
+  padding: 3px 9px 3px 4px;
+  overflow: visible;
+  border: 0;
+  border-radius: 22px;
+  background: var(--stage-surface);
+  color: var(--stage-text);
+  box-shadow: none;
+}
+
+.campaign-template .bean-orbit {
+  display: grid;
+  width: 70px;
+  height: 70px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+}
+
+.campaign-template .bean-orbit::before {
+  display: none;
+}
+
+.campaign-template .bean-orbit .side-game-art {
+  position: static;
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  color: var(--stage-accent);
+  font-size: 36px;
+  filter: drop-shadow(0 5px 8px color-mix(in srgb, var(--stage-text) 18%, transparent));
+}
+
+.campaign-template .bean-orbit img {
+  display: block;
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+}
+
+.campaign-template .energy-teaser small {
+  display: none;
+}
+
+.campaign-template .energy-teaser h2 {
+  margin: 0 0 4px;
+  overflow: hidden;
+  color: var(--stage-text);
+  font-size: 15px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-template .energy-teaser p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--stage-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-template .energy-teaser button {
+  position: relative;
+  width: 53px;
+  min-width: 53px;
+  height: 53px;
+  min-height: 53px;
+  padding: 0;
+  border: 2px solid color-mix(in srgb, var(--stage-action-shadow) 50%, transparent);
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--stage-action-start), var(--stage-action-end));
+  color: var(--stage-accent-text);
+  font-size: 20px;
+  font-weight: 900;
+  box-shadow: 0 3px 0 var(--stage-action-shadow);
+}
+
+.campaign-template .energy-teaser button b {
+  position: absolute;
+  top: -8px;
+  right: -3px;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 2px solid var(--stage-surface);
+  border-radius: 50%;
+  background: var(--stage-count-badge);
+  color: #162009;
+  font-size: 11px;
+}
+
+.campaign-template .tasks-section {
+  position: relative;
+  min-height: 641px;
+  padding: 30px 12px 35px;
+  scroll-margin-top: 16px;
+  background: var(--stage-page);
+  color: var(--stage-text);
+}
+
+.campaign-template .section-kicker {
+  position: absolute;
+  top: 29px;
+  right: 78px;
+  z-index: 2;
+  display: block;
+  color: var(--stage-muted);
+}
+
+.campaign-template .section-kicker span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stage-accent) 52%, var(--stage-page));
+  color: var(--stage-accent-text);
+  font-size: 9px;
+  transform: none;
+}
+
+.campaign-template .section-kicker p {
+  position: absolute;
+  top: 30px;
+  right: 146px;
+  width: max-content;
+  margin: 0;
+  color: var(--stage-accent);
+  font-size: 8px;
+  letter-spacing: 0;
+}
+
+.campaign-template .tasks-section > h2 {
+  width: 265px;
+  margin: 0 auto 17px;
+  color: var(--stage-text);
+  font-size: 33px;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: -0.08em;
+}
+
+.campaign-template .tasks-section > h2::before,
+.campaign-template .tasks-section > h2::after {
+  color: var(--stage-accent);
+  font-weight: 500;
+}
+
+.campaign-template .tasks-section > h2::before {
+  content: "（";
+}
+
+.campaign-template .tasks-section > h2::after {
+  content: "）";
+}
+
+.campaign-template .task-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.campaign-template .task-tabs button {
+  min-height: 39px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stage-accent) 24%, var(--stage-page));
+  color: var(--stage-muted);
+  font-size: 15px;
+  font-weight: 950;
+  box-shadow: none;
+}
+
+.campaign-template .task-tabs button.active {
+  background: var(--stage-surface);
+  color: var(--stage-accent);
+  box-shadow: none;
+}
+
+.campaign-template .task-card {
+  border: 0;
+  background: var(--stage-surface);
+  color: var(--stage-text);
+  box-shadow: none;
+}
+
+.campaign-template .task-card-featured {
+  position: relative;
+  display: block;
+  min-height: 116px;
+  padding: 16px 13px 13px;
+  border-radius: 20px;
+  scroll-snap-align: start;
+}
+
+.campaign-template .task-card-featured .task-icon {
+  position: absolute;
+  top: 15px;
+  left: 13px;
+  width: 19px;
+  height: 19px;
+  background: transparent;
+  font-size: 14px;
+}
+
+.campaign-template .task-card-featured .task-title-row h3 {
+  padding-left: 20px;
+}
+
+.campaign-template .task-card-featured .task-copy p {
+  max-width: 225px;
+  margin-top: 7px;
+}
+
+.campaign-template .task-card-featured > button {
+  min-width: 70px;
+  min-height: 32px;
+  margin-top: 10px;
+}
+
+.campaign-template .task-list-compact {
+  gap: 9px;
+  margin-top: 8px;
+}
+
+.campaign-template .task-card-compact {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 74px;
+  padding: 10px 12px;
+  border-radius: 20px;
+}
+
+.campaign-template .task-card-compact .task-icon {
+  display: none;
+}
+
+.campaign-template .task-title-row {
+  gap: 4px;
+}
+
+.campaign-template .task-title-row h3 {
+  color: var(--stage-text);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.campaign-template .task-title-row span {
+  color: var(--stage-text);
+  font-size: 12px;
+}
+
+.campaign-template .task-copy p {
+  margin: 5px 0 0;
+  color: var(--stage-muted);
+  font-size: 10px;
+}
+
+.campaign-template .task-progress {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.campaign-template .task-card > button {
+  min-width: 67px;
+  min-height: 33px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--stage-action-start), var(--stage-action-end));
+  color: var(--stage-accent-text);
+  font-size: 11px;
+  box-shadow: none;
+}
+
+.campaign-template .task-card > button:disabled {
+  background: color-mix(in srgb, var(--stage-action-start) 44%, var(--stage-surface));
+  color: color-mix(in srgb, var(--stage-accent-text) 78%, transparent);
+}
+
+.campaign-template .campaign-content-world {
+  --campaign-content-ink: var(--stage-text);
+  position: relative;
+  min-height: 0;
+}
+
+.campaign-template.theme-summer .campaign-content-world {
+  --campaign-content-ink: #fff;
+}
+
+.campaign-template.theme-night .campaign-content-world {
+  background:
+    radial-gradient(circle at 10% 7%, color-mix(in srgb, var(--stage-accent) 12%, transparent), transparent 28%),
+    radial-gradient(circle at 90% 68%, color-mix(in srgb, var(--stage-action-start) 10%, transparent), transparent 30%),
+    var(--stage-page);
+}
+
+.campaign-template .topics-section {
+  height: 365px;
+  padding: 34px 0 24px;
+  overflow: hidden;
+  border-radius: 0;
+  background: transparent;
+  color: var(--campaign-content-ink);
+}
+
+.campaign-template .topics-section::before {
+  display: none;
+}
+
+.campaign-template .topics-section > p {
+  margin: 0;
+  color: color-mix(in srgb, var(--campaign-content-ink) 68%, transparent);
+  font-size: 9px;
+  text-align: center;
+  letter-spacing: 0.12em;
+}
+
+.campaign-template .topics-section > h2 {
+  margin: 2px 0 17px;
+  color: var(--campaign-content-ink);
+  font-size: 32px;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.campaign-template .topic-chips {
+  display: grid;
+  grid-auto-columns: max-content;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 31px);
+  gap: 6px 12px;
+  height: 74px;
+  margin: 0;
+  padding: 1px 16px 5px;
+  overflow-x: auto;
+  scroll-padding-inline: 16px;
+  scrollbar-width: none;
+}
+
+.campaign-template .topic-chips span {
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--campaign-content-ink) 76%, transparent);
+  border-radius: 999px;
+  color: var(--campaign-content-ink);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.campaign-template .topic-chips span:nth-child(2n) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--stage-accent) 24%, var(--stage-surface));
+  color: var(--stage-text);
+}
+
+.campaign-template .topic-chips span:nth-child(3n) {
+  border-color: transparent;
+  background: var(--stage-accent);
+  color: var(--stage-accent-text);
+}
+
+.campaign-template .inspiration-grid {
+  display: grid;
+  grid-auto-columns: 220px;
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 0 16px 6px;
+  overflow-x: auto;
+  scroll-padding-inline: 16px;
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+}
+
+.campaign-template .inspiration-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.campaign-template .inspiration-card,
+.campaign-template .inspiration-card-2 {
+  position: relative;
+  min-height: 143px;
+  padding: 8px 8px 30px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 19px;
+  background: var(--stage-surface);
+  color: var(--stage-text);
+  box-shadow: none;
+  scroll-snap-align: start;
+}
+
+.campaign-template .inspiration-media,
+.campaign-template .inspiration-card > div {
+  display: grid;
+  width: 100%;
+  height: 96px;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--stage-accent) 13%, var(--stage-surface));
+  font-size: 42px;
+  transform: none;
+}
+
+.campaign-template .inspiration-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.campaign-template .inspiration-card > span {
+  display: none;
+}
+
+.campaign-template .inspiration-card h3 {
+  margin: 6px 22px 0 23px;
+  overflow: hidden;
+  color: var(--stage-text);
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-template .inspiration-card h3::before {
+  position: absolute;
+  bottom: 7px;
+  left: 10px;
+  content: "#";
+  color: var(--stage-action-start);
+  font-size: 25px;
+  font-weight: 900;
+}
+
+.campaign-template .inspiration-card button {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  color: transparent;
+  font-size: 0;
+}
+
+.campaign-template .inspiration-card button::after {
+  position: absolute;
+  right: 10px;
+  bottom: 7px;
+  content: "→";
+  color: var(--stage-text);
+  font-size: 22px;
+}
+
+.campaign-template .discovery-section {
+  min-height: 1019px;
+  padding: 22px 8px 42px;
+}
+
+.campaign-template.theme-summer .discovery-section {
+  color: white;
+}
+
+.campaign-template.theme-night .discovery-section {
+  color: var(--stage-text);
+}
+
+.campaign-template .discovery-heading small {
+  color: color-mix(in srgb, currentColor 56%, transparent);
+}
+
+.campaign-template .venue-card {
+  border-color: var(--stage-surface);
+  background: var(--stage-surface);
+  color: var(--stage-text);
+}
+
+.campaign-template .venue-meta {
+  color: var(--stage-muted);
+}
+
+.campaign-template .more-activities {
+  background: var(--stage-surface);
+  color: var(--stage-accent);
+}
+
+.campaign-template .campaign-banner-list {
+  display: grid;
+  gap: 10px;
+  width: calc(100% - 8px);
+  margin: 0 auto;
+}
+
+.campaign-template .campaign-banner-slot {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  align-items: center;
+  width: 100%;
+  height: 91px;
+  margin: 0;
+  padding: 12px 17px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--stage-accent) 18%, transparent);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 82% 30%, color-mix(in srgb, var(--stage-accent) 20%, transparent), transparent 32%),
+    linear-gradient(110deg, var(--stage-surface), color-mix(in srgb, var(--stage-accent) 12%, var(--stage-surface)));
+  color: var(--stage-text);
+  text-align: left;
+}
+
+.campaign-template .campaign-banner-slot small,
+.campaign-template .campaign-banner-slot strong {
+  display: block;
+}
+
+.campaign-template .campaign-banner-slot small {
+  margin-bottom: 3px;
+  color: var(--stage-accent);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.campaign-template .campaign-banner-slot strong {
+  font-size: 20px;
+  line-height: 1.15;
+}
+
+.campaign-template .campaign-banner-slot > b {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--stage-accent) 18%, transparent);
+  color: var(--stage-accent);
+  font-size: 18px;
+}
+
+.campaign-template footer.campaign-footer {
+  position: relative;
+  min-height: 137px;
+  padding: 29px 24px 35px;
+  background: color-mix(in srgb, var(--stage-page) 84%, var(--stage-surface));
+}
+
+.campaign-template .footer-rules-entry {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 36px;
+  border: 0;
+  color: transparent;
+  font-size: 0;
+  opacity: 0;
+}

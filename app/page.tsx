@@ -45,6 +45,17 @@ type TaskDefinition = {
   repeatable?: boolean;
 };
 
+type VenueDefinition = {
+  image: string;
+  location: string;
+  title: string;
+};
+
+type ActivityBannerDefinition = {
+  eyebrow: string;
+  title: string;
+};
+
 type Coupon = {
   id: string;
   tierId: string;
@@ -82,10 +93,19 @@ type ThemeDefinition = {
   missingCardLabel: string;
   cardNoun: string;
   drawCta: string;
-  rewardVerb: string;
   tasksTitle: string;
   drawTabLabel: string;
   energyTabLabel: string;
+  sideGame: {
+    image?: string;
+    visual: string;
+    eyebrow: string;
+    title: string;
+    description: string;
+    cta: string;
+    badge: string;
+    announcement: string;
+  };
   topicEyebrow: string;
   topicTitle: string;
   topicChips: string[];
@@ -96,6 +116,13 @@ type ThemeDefinition = {
     title: string;
     taskId: TaskId;
   }>;
+  discoveryEyebrow: string;
+  discoveryTitle: string;
+  venues: VenueDefinition[];
+  activityBanners: [
+    ActivityBannerDefinition,
+    ActivityBannerDefinition,
+  ];
   cards: CardDefinition[];
   tiers: TierDefinition[];
   tasks: TaskDefinition[];
@@ -458,10 +485,19 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     missingCardLabel: "神秘装备",
     cardNoun: "装备卡",
     drawCta: "抽装备 一顺到底",
-    rewardVerb: "兑顺顺券",
     tasksTitle: "玩一夏，赚更多",
     drawTabLabel: "抽装备",
     energyTabLabel: "攒体力",
+    sideGame: {
+      image: "/figma/mascot-side-horse.webp",
+      visual: "🏄",
+      eyebrow: "金豆副玩法",
+      title: "冲浪得金豆，好礼兑不停",
+      description: "已有99999🟡，冲一冲兑50元券 ›",
+      cta: "冲!",
+      badge: "1",
+      announcement: "冲浪攒金豆玩法即将开放",
+    },
     topicEyebrow: "SUMMER WATER TOPICS",
     topicTitle: "暑期 #灵感话题",
     topicChips: [
@@ -495,6 +531,40 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
         taskId: "store",
       },
     ],
+    discoveryEyebrow: "热门投稿　 HOT!!　🔥",
+    discoveryTitle: "扎进水里夏天（马上顺）",
+    venues: [
+      {
+        image: "/figma/content-card-lions.webp",
+        location: "上海动物园",
+        title: "元旦来动物园打卡啦～",
+      },
+      {
+        image: "/figma/content-card-cabin.webp",
+        location: "世博文化公园",
+        title: "2026元旦许愿接龙！",
+      },
+      {
+        image: "/figma/content-card-lions.webp",
+        location: "上海动物园",
+        title: "元旦来动物园打卡啦～",
+      },
+      {
+        image: "/figma/content-card-cabin.webp",
+        location: "世博文化公园",
+        title: "2026元旦许愿接龙！",
+      },
+    ],
+    activityBanners: [
+      {
+        eyebrow: "LIFE GUIDE",
+        title: "生活有用指南",
+      },
+      {
+        eyebrow: "SUMMER PLAN",
+        title: "吃喝玩乐方案计划",
+      },
+    ],
     cards: SUMMER_CARDS,
     tiers: SUMMER_TIERS,
     tasks: SUMMER_TASKS,
@@ -510,29 +580,83 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     missingCardLabel: "神秘夜味",
     cardNoun: "夜宵卡",
     drawCta: "抽一张夜宵卡",
-    rewardVerb: "兑夜宵券",
     tasksTitle: "玩一夏，抽更多",
     drawTabLabel: "抽夜宵",
     energyTabLabel: "攒体力",
+    sideGame: {
+      visual: "🥘",
+      eyebrow: "夜食副玩法",
+      title: "夜食攒金豆，好礼兑不停",
+      description: "已有8888🟡，攒一攒兑43元券 ›",
+      cta: "攒!",
+      badge: "1",
+      announcement: "夏夜攒金豆玩法即将开放",
+    },
     topicEyebrow: "SUMMER NIGHT TOPICS",
     topicTitle: "暑期 #灵感话题",
     topicChips: [
       "# 趁热吃顿夏夜小火锅",
       "# 我拍到了夏天的味道",
       "# 下班后的第一口快乐",
+      "# 晚风里的烟火气",
+      "# 夏夜碰杯计划",
+      "# 夜宵搭子集合",
     ],
     inspirationCards: [
       {
         emoji: "🥘",
+        image: "/figma/topic-hotpot-card.webp",
         eyebrow: "深夜沸腾指南",
         title: "这口热气，最懂夏夜",
         taskId: "post",
       },
       {
         emoji: "🍢",
+        image: "/figma/topic-sunset-card.webp",
         eyebrow: "街角烟火地图",
         title: "把城市吃到发光",
         taskId: "store",
+      },
+      {
+        emoji: "🍻",
+        image: "/figma/topic-lake-card.webp",
+        eyebrow: "晚风碰杯指南",
+        title: "和夜宵搭子再坐一会",
+        taskId: "share",
+      },
+    ],
+    discoveryEyebrow: "热门夜食　 HOT!!　🔥",
+    discoveryTitle: "钻进夜色吃一夏",
+    venues: [
+      {
+        image: "/figma/topic-hotpot-card.webp",
+        location: "定西路夜市",
+        title: "晚风一吹，今晚就吃小火锅",
+      },
+      {
+        image: "/figma/topic-sunset-card.webp",
+        location: "滨江夜市",
+        title: "落日之后，把城市吃到发光",
+      },
+      {
+        image: "/figma/topic-hotpot-card.webp",
+        location: "昌里路夜市",
+        title: "一桌热气，接住下班后的快乐",
+      },
+      {
+        image: "/figma/topic-lake-card.webp",
+        location: "苏河夜生活带",
+        title: "和夜宵搭子吹风到深夜",
+      },
+    ],
+    activityBanners: [
+      {
+        eyebrow: "NIGHT BITES",
+        title: "深夜食堂地图",
+      },
+      {
+        eyebrow: "AFTER DARK",
+        title: "夏夜聚会灵感",
       },
     ],
     cards: NIGHT_CARDS,
@@ -542,29 +666,8 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
 };
 
 const THEME_ORDER: ThemeId[] = ["summer", "night"];
-
-const SUMMER_VENUES = [
-  {
-    image: "/figma/content-card-lions.webp",
-    location: "上海动物园",
-    title: "元旦来动物园打卡啦～",
-  },
-  {
-    image: "/figma/content-card-cabin.webp",
-    location: "世博文化公园",
-    title: "2026元旦许愿接龙！",
-  },
-  {
-    image: "/figma/content-card-lions.webp",
-    location: "上海动物园",
-    title: "元旦来动物园打卡啦～",
-  },
-  {
-    image: "/figma/content-card-cabin.webp",
-    location: "世博文化公园",
-    title: "2026元旦许愿接龙！",
-  },
-];
+const FEATURED_TASK_IDS: TaskId[] = ["post", "share"];
+const COMPACT_TASK_IDS: TaskId[] = ["store", "post", "gift", "browse"];
 
 function CardArtwork({
   card,
@@ -1263,7 +1366,7 @@ export default function Home() {
 
   function renderTaskCard(
     task: TaskDefinition,
-    variant: "featured" | "compact" | "default",
+    variant: "featured" | "compact",
   ) {
     const progress = state.taskProgress[task.id] ?? 0;
     const complete = progress >= task.target;
@@ -1376,47 +1479,32 @@ export default function Home() {
         }}
       />
 
-      <section className="energy-teaser" aria-label="金豆副玩法预告">
+      <section className="energy-teaser" aria-label={theme.sideGame.eyebrow}>
         <div className="bean-orbit" aria-hidden="true">
-          {theme.id === "summer" ? (
-            <img
-              src="/figma/mascot-side-horse.webp"
-              alt=""
-              loading="lazy"
-              decoding="async"
-            />
-          ) : (
-            <>
-              <span>●</span>
-              <span>●</span>
-              <span>●</span>
-            </>
-          )}
+          <span className="side-game-art">
+            {theme.sideGame.image ? (
+              <img
+                src={theme.sideGame.image}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              theme.sideGame.visual
+            )}
+          </span>
         </div>
         <div>
-          <small>{theme.id === "summer" ? "金豆副玩法" : "副玩法预告"}</small>
-          <h2>
-            {theme.id === "summer"
-              ? "冲浪得金豆，好礼兑不停"
-              : `接金豆，${theme.rewardVerb}`}
-          </h2>
-          <p>
-            {theme.id === "summer"
-              ? "已有99999🟡，冲一冲兑50元券 ›"
-              : "攒体力玩法即将开放"}
-          </p>
+          <small>{theme.sideGame.eyebrow}</small>
+          <h2>{theme.sideGame.title}</h2>
+          <p>{theme.sideGame.description}</p>
         </div>
         <button
           type="button"
-          onClick={() => announce("副玩法将在第二版开放")}
+          onClick={() => announce(theme.sideGame.announcement)}
         >
-          {theme.id === "summer" ? (
-            <>
-              冲!<b>1</b>
-            </>
-          ) : (
-            "预告"
-          )}
+          {theme.sideGame.cta}
+          <b>{theme.sideGame.badge}</b>
         </button>
       </section>
 
@@ -1429,9 +1517,7 @@ export default function Home() {
           <span>每天0点刷新</span>
           <p>PLAY · EARN · COLLECT</p>
         </div>
-        <h2 id="tasks-title">
-          {theme.tasksTitle}
-        </h2>
+        <h2 id="tasks-title">{theme.tasksTitle}</h2>
 
         <div className="task-tabs" role="tablist" aria-label="任务类型">
           <button
@@ -1454,82 +1540,80 @@ export default function Home() {
           </button>
         </div>
 
-        {theme.id === "summer" ? (
-          <>
-            <div className="featured-task-rail">
-              {TASKS.slice(0, 2).map((task) =>
-                renderTaskCard(task, "featured"),
-              )}
-            </div>
-            <div className="task-list task-list-compact">
-              {[TASKS[2], TASKS[0], TASKS[3], TASKS[4]].map((task) =>
-                renderTaskCard(task, "compact"),
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="task-list">
-            {TASKS.map((task) => renderTaskCard(task, "default"))}
-          </div>
-        )}
-      </section>
-
-      <div className="campaign-content-world">
-      <section className="topics-section" aria-labelledby="topics-title">
-        <p>{theme.topicEyebrow}</p>
-        <h2 id="topics-title">{theme.topicTitle}</h2>
-        <div className="topic-chips">
-          {theme.topicChips.map((chip, index) => (
-            <span key={`${chip}-${index}`}>{chip}</span>
-          ))}
+        <div className="featured-task-rail">
+          {FEATURED_TASK_IDS.map((taskId) => {
+            const task = TASKS.find((candidate) => candidate.id === taskId);
+            return task ? renderTaskCard(task, "featured") : null;
+          })}
         </div>
-        <div className="inspiration-grid">
-          {theme.inspirationCards.map((item, index) => {
-            const task = TASKS.find((candidate) => candidate.id === item.taskId);
-            return (
-              <article
-                className={`inspiration-card inspiration-card-${index + 1}`}
-                key={item.title}
-              >
-                <div className="inspiration-media" aria-hidden="true">
-                  {item.image ? (
-                    <img
-                      src={item.image}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    item.emoji
-                  )}
-                </div>
-                <span>{item.eyebrow}</span>
-                <h3>{item.title}</h3>
-                <button
-                  type="button"
-                  onClick={() => task && completeTask(task)}
-                  disabled={!task}
-                >
-                  {item.taskId === "post" ? "发布同款灵感" : "去发现更多"} →
-                </button>
-              </article>
-            );
+        <div className="task-list task-list-compact">
+          {COMPACT_TASK_IDS.map((taskId) => {
+            const task = TASKS.find((candidate) => candidate.id === taskId);
+            return task ? renderTaskCard(task, "compact") : null;
           })}
         </div>
       </section>
 
-      {theme.id === "summer" && (
+      <div className="campaign-content-world">
+        <section className="topics-section" aria-labelledby="topics-title">
+          <p>{theme.topicEyebrow}</p>
+          <h2 id="topics-title">{theme.topicTitle}</h2>
+          <div className="topic-chips">
+            {theme.topicChips.map((chip, index) => (
+              <span key={`${chip}-${index}`}>{chip}</span>
+            ))}
+          </div>
+          <div className="inspiration-grid">
+            {theme.inspirationCards.map((item, index) => {
+              const task = TASKS.find(
+                (candidate) => candidate.id === item.taskId,
+              );
+              return (
+                <article
+                  className={`inspiration-card inspiration-card-${index + 1}`}
+                  key={item.title}
+                >
+                  <div className="inspiration-media" aria-hidden="true">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      item.emoji
+                    )}
+                  </div>
+                  <span>{item.eyebrow}</span>
+                  <h3>{item.title}</h3>
+                  <button
+                    type="button"
+                    onClick={() => task && completeTask(task)}
+                    disabled={!task}
+                  >
+                    {item.taskId === "post" ? "发布同款灵感" : "去发现更多"} →
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
         <section
           className="discovery-section"
           aria-labelledby="discovery-title"
         >
           <div className="discovery-heading">
-            <small>热门投稿　 HOT!!　🔥</small>
-            <h2 id="discovery-title">扎进水里夏天（马上顺）</h2>
+            <small>{theme.discoveryEyebrow}</small>
+            <h2 id="discovery-title">{theme.discoveryTitle}</h2>
           </div>
           <div className="venue-grid">
-            {SUMMER_VENUES.map((venue, index) => (
-              <article className="venue-card" key={`${venue.location}-${index}`}>
+            {theme.venues.map((venue, index) => (
+              <article
+                className="venue-card"
+                key={`${venue.location}-${index}`}
+              >
                 <div className="venue-media">
                   <img
                     src={venue.image}
@@ -1563,47 +1647,45 @@ export default function Home() {
           <button
             className="more-activities"
             type="button"
-            onClick={() => announce("更多精彩活动即将上线")}
+            onClick={() => announce(`${theme.navLabel}更多精彩活动即将上线`)}
           >
             更多精彩活动
           </button>
-          <button
-            className="campaign-banner-slot"
-            type="button"
-            onClick={() => announce("品牌联合活动位")}
-            aria-label="品牌联合活动"
-          />
+          <div className="campaign-banner-list">
+            {theme.activityBanners.map((banner, index) => (
+              <button
+                className="campaign-banner-slot"
+                type="button"
+                onClick={() => announce(`${banner.title}即将上线`)}
+                aria-label={banner.title}
+                key={banner.title}
+              >
+                <span>
+                  <small>{banner.eyebrow}</small>
+                  <strong>{banner.title}</strong>
+                </span>
+                <b aria-hidden="true">{index + 1}</b>
+              </button>
+            ))}
+          </div>
         </section>
-      )}
       </div>
 
-      <footer className={theme.id === "summer" ? "summer-footer" : ""}>
-        {theme.id === "summer" ? (
-          <>
-            <img
-              className="brand-logo"
-              src="/figma/crops/brand-logo.png"
-              alt="抖音生活服务，让每次心动都值得"
-              loading="lazy"
-              decoding="async"
-            />
-            <button
-              className="footer-rules-entry"
-              type="button"
-              onClick={() => setActiveModal("rules")}
-            >
-              玩法与演示说明
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="footer-mark">{theme.navLabel}</div>
-            <p>本页面为活动机制交互原型，优惠券与任务均为本地模拟。</p>
-            <button type="button" onClick={() => setActiveModal("rules")}>
-              查看玩法与演示说明
-            </button>
-          </>
-        )}
+      <footer className="campaign-footer">
+        <img
+          className="brand-logo"
+          src="/figma/crops/brand-logo.png"
+          alt="抖音生活服务，让每次心动都值得"
+          loading="lazy"
+          decoding="async"
+        />
+        <button
+          className="footer-rules-entry"
+          type="button"
+          onClick={() => setActiveModal("rules")}
+        >
+          玩法与演示说明
+        </button>
       </footer>
 
       {drawResult && resultCard && (
