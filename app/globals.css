@@ -64,16 +64,7 @@ button:focus-visible {
   min-height: 660px;
   padding: max(24px, env(safe-area-inset-top)) 22px 42px;
   isolation: isolate;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(22, 11, 8, 0.28) 0%,
-      rgba(22, 11, 8, 0.08) 34%,
-      rgba(22, 11, 8, 0.54) 68%,
-      #24120d 100%
-    ),
-    linear-gradient(90deg, rgba(20, 8, 5, 0.84), transparent 68%),
-    url("/og.png") 67% center / cover no-repeat;
+  background: #24120d;
 }
 
 .hero::before,
@@ -1560,6 +1551,476 @@ footer button {
   animation: toast-in 240ms ease-out;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Shared image-first hero shell. The artwork owns all campaign typography;
+   interactive controls and collection-driven effects stay in live layers. */
+.hero {
+  min-height: 0;
+  aspect-ratio: 375 / 440;
+  padding: max(14px, env(safe-area-inset-top)) 16px 18px;
+  overflow: hidden;
+  background: #26130d;
+}
+
+.hero::before,
+.hero::after,
+.hero-noise,
+.hero-copy {
+  display: none;
+}
+
+.hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: block;
+  overflow: hidden;
+  background: #1b0d09;
+}
+
+.hero-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-summer-keyvisual .hero-media {
+  background: #16aef2;
+}
+
+.hero-summer-keyvisual .hero-media img {
+  object-position: center;
+}
+
+.hero-night-keyvisual .hero-media::before {
+  position: absolute;
+  inset: -26px;
+  content: "";
+  background: url("/og-night.webp") center / cover no-repeat;
+  filter: blur(22px) brightness(0.55);
+  transform: scale(1.09);
+}
+
+.hero-night-keyvisual .hero-media::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(
+    180deg,
+    rgba(18, 7, 4, 0.16),
+    rgba(18, 7, 4, 0.08) 58%,
+    rgba(18, 7, 4, 0.78)
+  );
+}
+
+.hero-night-keyvisual .hero-media img {
+  position: relative;
+  z-index: 1;
+  object-fit: contain;
+  filter: saturate(1.05) contrast(1.02);
+}
+
+.hero-topline {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  right: 12px;
+  z-index: 5;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.prototype-chip {
+  min-height: 25px;
+  padding: 4px 9px;
+  color: rgba(255, 255, 255, 0.74);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(7, 52, 73, 0.36);
+  font-size: 9px;
+}
+
+.stage-nav {
+  top: 29%;
+  right: 10%;
+  bottom: auto;
+  left: 10%;
+  z-index: 5;
+  min-height: 37px;
+  padding: 4px;
+  border-color: rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 7px 22px rgba(5, 59, 85, 0.14);
+  backdrop-filter: blur(14px);
+}
+
+.stage-nav button {
+  flex: 1;
+  min-width: 0;
+  min-height: 29px;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #56829a;
+  font-size: 10px;
+  font-weight: 850;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stage-nav button.active {
+  background: #fff;
+  color: #0978af;
+  box-shadow: 0 4px 12px rgba(3, 73, 106, 0.16);
+}
+
+.stage-nav button.locked {
+  color: rgba(57, 95, 112, 0.5);
+  cursor: not-allowed;
+}
+
+.theme-night .stage-nav {
+  border-color: rgba(255, 240, 212, 0.18);
+  background: rgba(30, 14, 10, 0.74);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
+
+.theme-night .stage-nav button {
+  color: rgba(255, 240, 212, 0.56);
+}
+
+.theme-night .stage-nav button.active {
+  background: var(--cream);
+  color: #4a1f11;
+}
+
+.hero-actions {
+  z-index: 6;
+  bottom: 14px;
+}
+
+.floating-actions {
+  position: absolute;
+  top: 38%;
+  right: 0;
+  left: auto;
+  z-index: 7;
+}
+
+.hero-progress-visual {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hero-collected-card {
+  position: absolute;
+  display: grid;
+  width: clamp(34px, 10vw, 48px);
+  height: clamp(34px, 10vw, 48px);
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 16px;
+  background:
+    radial-gradient(
+      circle at 50% 45%,
+      color-mix(in srgb, var(--card-accent) 58%, white),
+      rgba(255, 255, 255, 0.86)
+    );
+  font-size: clamp(19px, 5.5vw, 28px);
+  box-shadow:
+    0 9px 20px rgba(0, 71, 105, 0.2),
+    inset 0 1px rgba(255, 255, 255, 0.65);
+  animation: hero-card-settle 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-collected-card-0 {
+  top: 47%;
+  left: 5%;
+  transform: rotate(-9deg);
+}
+
+.hero-collected-card-1 {
+  top: 57%;
+  right: 5%;
+  transform: rotate(8deg);
+}
+
+.hero-collected-card-2 {
+  top: 69%;
+  left: 13%;
+  transform: rotate(5deg);
+}
+
+.hero-collected-card-3 {
+  top: 66%;
+  right: 14%;
+  transform: rotate(-7deg);
+}
+
+.hero-collected-card-4 {
+  top: 54%;
+  left: 47%;
+  transform: rotate(4deg);
+}
+
+.hero-collected-card.recent {
+  animation: hero-card-arrive 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* First theme: clean summer palette layered over the same campaign DOM. */
+.campaign-shell.theme-summer {
+  --ink: #bfefff;
+  --ink-deep: #e7faff;
+  --brown: #65cff1;
+  --brown-light: #8de0f7;
+  --cream: #fff;
+  --cream-strong: #0b5777;
+  --muted: #5d9ab3;
+  background: #bfefff;
+  color: #0b5673;
+  box-shadow: 0 0 80px rgba(8, 108, 154, 0.22);
+}
+
+.theme-summer .side-action {
+  background: rgba(225, 248, 255, 0.9);
+  color: #0a5676;
+}
+
+.theme-summer .draw-button {
+  border-color: rgba(255, 255, 255, 0.82);
+  background: linear-gradient(180deg, #ff513f, #f52d25);
+}
+
+.theme-summer .floating-actions button {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(5, 101, 145, 0.66);
+  color: white;
+}
+
+.theme-summer .collection-panel {
+  border-color: rgba(14, 112, 153, 0.12);
+  background: rgba(250, 254, 255, 0.96);
+  color: #104f69;
+  box-shadow:
+    0 16px 38px rgba(18, 115, 154, 0.14),
+    inset 0 1px rgba(255, 255, 255, 0.9);
+}
+
+.theme-summer .collection-heading > div:first-child > span,
+.theme-summer .collection-count strong,
+.theme-summer .energy-teaser small,
+.theme-summer .footer-mark {
+  color: #0aa0df;
+}
+
+.theme-summer .collection-heading p {
+  color: #6f98aa;
+}
+
+.theme-summer .collection-count {
+  color: #47798f;
+}
+
+.theme-summer .progress-track {
+  background: #d9eef6;
+}
+
+.theme-summer .progress-track span {
+  background: linear-gradient(90deg, #21c1ee, #caff42);
+  box-shadow: 0 0 15px rgba(23, 175, 220, 0.34);
+}
+
+.theme-summer .tier {
+  color: #8aaab8;
+}
+
+.theme-summer .tier-ticket {
+  border-color: #c7e2ed;
+  background: #edf7fa;
+}
+
+.theme-summer .tier.unlocked {
+  color: #125b78;
+}
+
+.theme-summer .tier.unlocked .tier-ticket {
+  border-color: rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, #ff6a58, #f73a2f);
+  color: white;
+}
+
+.theme-summer .tier.claimed .tier-ticket {
+  background: #e4f8b1;
+  color: #267763;
+}
+
+.theme-summer .food-card {
+  border-color: #cde5ee;
+}
+
+.theme-summer .food-card.owned {
+  background:
+    radial-gradient(
+      circle at 50% 25%,
+      color-mix(in srgb, var(--card-accent) 36%, transparent),
+      transparent 64%
+    ),
+    linear-gradient(180deg, #fff, #eaf8fd);
+  color: #144e65;
+}
+
+.theme-summer .food-card.missing {
+  background: #edf5f8;
+  color: #8ca7b3;
+}
+
+.theme-summer .food-card small {
+  color: #759aa9;
+}
+
+.theme-summer .food-card.missing .card-emoji {
+  border-color: #bed5de;
+  background: rgba(105, 157, 178, 0.08);
+}
+
+.theme-summer .energy-teaser {
+  border-color: rgba(18, 133, 178, 0.13);
+  background:
+    radial-gradient(circle at 0 50%, rgba(202, 255, 66, 0.27), transparent 32%),
+    linear-gradient(110deg, #fff, #dff7ff);
+  color: #104f69;
+}
+
+.theme-summer .energy-teaser p {
+  color: #7395a4;
+}
+
+.theme-summer .energy-teaser button {
+  background: #d8f1fa;
+  color: #1174a0;
+}
+
+.theme-summer .bean-orbit,
+.theme-summer .coming-visual {
+  border-color: rgba(9, 153, 207, 0.26);
+  background: rgba(34, 183, 227, 0.08);
+}
+
+.theme-summer .tasks-section {
+  background:
+    radial-gradient(circle at 100% 20%, rgba(255, 255, 255, 0.46), transparent 32%),
+    #bfefff;
+}
+
+.theme-summer .section-kicker {
+  color: #5390aa;
+}
+
+.theme-summer .tasks-section > h2 {
+  color: #0b5775;
+}
+
+.theme-summer .task-tabs {
+  background: rgba(79, 196, 235, 0.3);
+}
+
+.theme-summer .task-tabs button {
+  color: #5a91a8;
+}
+
+.theme-summer .task-tabs button.active {
+  background: white;
+  color: #16a5d8;
+}
+
+.theme-summer .coming-card {
+  border-color: rgba(14, 131, 175, 0.12);
+  background: linear-gradient(145deg, #fff, #ddf6ff);
+  color: #0b5775;
+}
+
+.theme-summer .coming-card p {
+  color: #7195a4;
+}
+
+.theme-summer .topics-section {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.26), transparent 26%),
+    #63d0f2;
+  color: white;
+}
+
+.theme-summer .topics-section::before {
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.theme-summer .topics-section > p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.theme-summer .topic-chips span {
+  border-color: rgba(255, 255, 255, 0.62);
+  color: white;
+}
+
+.theme-summer .topic-chips span:nth-child(2) {
+  border-color: #d6ff6a;
+  color: #185c78;
+  background: #d6ff6a;
+}
+
+.theme-summer .inspiration-card {
+  background:
+    radial-gradient(circle at 70% 20%, rgba(255, 255, 255, 0.23), transparent 32%),
+    linear-gradient(155deg, #46c8ee, #0c88c4);
+}
+
+.theme-summer .inspiration-card-2 {
+  background:
+    radial-gradient(circle at 75% 18%, rgba(202, 255, 66, 0.28), transparent 28%),
+    linear-gradient(155deg, #64d6b0, #12858a);
+}
+
+.theme-summer footer {
+  background: #e9faff;
+}
+
+.theme-summer footer p {
+  color: #7395a4;
+}
+
+.theme-summer footer button {
+  border-color: #98c4d6;
+  color: #3a7c98;
+}
+
+.theme-summer .result-modal,
+.theme-summer .gift-modal {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(202, 255, 66, 0.16), transparent 34%),
+    linear-gradient(180deg, #0d91c6, #075276);
+}
+
+.theme-summer .sheet-modal {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(90, 210, 246, 0.23), transparent 30%),
+    #075276;
+}
+
 @keyframes button-pulse {
   0% {
     opacity: 0.7;
@@ -1568,6 +2029,31 @@ footer button {
   100% {
     opacity: 0;
     transform: scale(1.12);
+  }
+}
+
+@keyframes hero-card-settle {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+    scale: 0.72;
+  }
+}
+
+@keyframes hero-card-arrive {
+  0% {
+    opacity: 0;
+    translate: 0 180px;
+    scale: 0.5;
+  }
+  72% {
+    opacity: 1;
+    translate: 0 -8px;
+    scale: 1.08;
+  }
+  100% {
+    translate: 0;
+    scale: 1;
   }
 }
 
@@ -1610,7 +2096,8 @@ footer button {
 
 @media (max-width: 420px) {
   .hero {
-    min-height: 625px;
+    min-height: 0;
+    aspect-ratio: 375 / 440;
     padding-right: 17px;
     padding-left: 17px;
   }
@@ -1668,7 +2155,7 @@ footer button {
     font-size: 47px;
   }
 
-  .stage-nav span {
+  .stage-nav button {
     font-size: 9px;
   }
 

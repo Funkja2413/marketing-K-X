@@ -6,7 +6,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#24120d",
+  themeColor: "#18acee",
 };
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,32 +22,32 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL(origin),
-    title: "今晚开饭｜夏夜九味收藏计划",
-    description: "做任务、抽夜宵卡、集齐九味，领取夏夜好券。",
+    title: "暑期好运季｜夏天马上顺",
+    description: "两大暑期主题共用一套活动框架：做任务、抽卡收集、分档赢好券。",
     icons: {
-      icon: `${origin}/og.png`,
+      icon: `${origin}/hero-summer-base.webp`,
     },
     openGraph: {
-      title: "今晚开饭｜夏夜九味收藏计划",
-      description: "做任务 · 抽夜宵 · 赢好券",
+      title: "暑期好运季｜夏天马上顺",
+      description: "做任务 · 抽装备 · 收集好运 · 赢好券",
       url: origin,
-      siteName: "今晚开饭",
+      siteName: "暑期好运季",
       locale: "zh_CN",
       type: "website",
       images: [
         {
-          url: `${origin}/og.png`,
-          width: 1753,
-          height: 909,
-          alt: "今晚开饭夏夜集卡活动",
+          url: `${origin}/hero-summer-base.webp`,
+          width: 1159,
+          height: 1358,
+          alt: "夏天马上顺暑期收集活动",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "今晚开饭｜夏夜九味收藏计划",
-      description: "做任务 · 抽夜宵 · 赢好券",
-      images: [`${origin}/og.png`],
+      title: "暑期好运季｜夏天马上顺",
+      description: "做任务 · 抽装备 · 收集好运 · 赢好券",
+      images: [`${origin}/hero-summer-base.webp`],
     },
   };
 }
@@ -59,6 +59,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
+      <head>
+        <link
+          rel="preload"
+          as="image"
+          href="/hero-summer-base.webp"
+          type="image/webp"
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

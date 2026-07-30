@@ -44,8 +44,10 @@ type Coupon = {
   status: "unused" | "used";
 };
 
-type CampaignState = {
-  version: number;
+type ThemeId = "summer" | "night";
+
+type CampaignProgress = {
+  dailyCycle: string;
   drawBalance: number;
   duplicateStreak: number;
   cardCounts: Record<string, number>;
@@ -54,15 +56,49 @@ type CampaignState = {
   coupons: Coupon[];
 };
 
+type CampaignState = {
+  version: 2;
+  activeTheme: ThemeId;
+  themes: Record<ThemeId, CampaignProgress>;
+};
+
+type ThemeDefinition = {
+  id: ThemeId;
+  navLabel: string;
+  accessibleTitle: string;
+  heroImage: string;
+  heroMode: "summer-keyvisual" | "night-keyvisual";
+  collectionName: string;
+  cardNoun: string;
+  drawCta: string;
+  rewardVerb: string;
+  tasksTitle: string;
+  drawTabLabel: string;
+  energyTabLabel: string;
+  topicEyebrow: string;
+  topicTitle: string;
+  topicChips: string[];
+  inspirationCards: Array<{
+    emoji: string;
+    eyebrow: string;
+    title: string;
+    taskId: TaskId;
+  }>;
+  cards: CardDefinition[];
+  tiers: TierDefinition[];
+  tasks: TaskDefinition[];
+};
+
 type DrawResult = {
   cardId: string;
   isNew: boolean;
   newlyUnlocked: string[];
 };
 
-const STORAGE_KEY = "night-bites-campaign-v1";
+const STORAGE_KEY = "summer-campaign-multitheme-v2";
+const LEGACY_STORAGE_KEY = "night-bites-campaign-v1";
 
-const CARD_DEFINITIONS: CardDefinition[] = [
+const NIGHT_CARDS: CardDefinition[] = [
   {
     id: "hotpot",
     name: "沸腾火锅",
@@ -137,7 +173,7 @@ const CARD_DEFINITIONS: CardDefinition[] = [
   },
 ];
 
-const TIERS: TierDefinition[] = [
+const NIGHT_TIERS: TierDefinition[] = [
   {
     id: "tier-2",
     threshold: 2,
@@ -176,7 +212,7 @@ const TIERS: TierDefinition[] = [
   },
 ];
 
-const TASKS: TaskDefinition[] = [
+const NIGHT_TASKS: TaskDefinition[] = [
   {
     id: "browse",
     icon: "👀",
@@ -226,80 +262,405 @@ const TASKS: TaskDefinition[] = [
   },
 ];
 
-const INITIAL_STATE: CampaignState = {
-  version: 1,
-  drawBalance: 1,
-  duplicateStreak: 0,
-  cardCounts: {},
-  taskProgress: {
-    browse: 1,
-    post: 0,
-    share: 0,
-    store: 0,
-    gift: 0,
+const SUMMER_CARDS: CardDefinition[] = [
+  {
+    id: "watergun",
+    name: "鲨鲨水枪",
+    emoji: "🔫",
+    accent: "#38bdf8",
+    rarity: "普通",
+    weight: 1,
   },
-  claimedTiers: [],
-  coupons: [],
+  {
+    id: "watermelon",
+    name: "冰镇西瓜",
+    emoji: "🍉",
+    accent: "#77e36b",
+    rarity: "普通",
+    weight: 1,
+  },
+  {
+    id: "surfboard",
+    name: "顺风冲浪板",
+    emoji: "🏄",
+    accent: "#ffd84d",
+    rarity: "普通",
+    weight: 1,
+  },
+  {
+    id: "palmtree",
+    name: "海岛椰树",
+    emoji: "🌴",
+    accent: "#5de08c",
+    rarity: "普通",
+    weight: 1,
+  },
+  {
+    id: "floatie",
+    name: "好运泳圈",
+    emoji: "🛟",
+    accent: "#ff7791",
+    rarity: "普通",
+    weight: 1,
+  },
+  {
+    id: "sunglasses",
+    name: "高光墨镜",
+    emoji: "🕶️",
+    accent: "#7f9cff",
+    rarity: "普通",
+    weight: 0.95,
+  },
+  {
+    id: "icecream",
+    name: "浪花冰淇淋",
+    emoji: "🍦",
+    accent: "#ffb7dd",
+    rarity: "普通",
+    weight: 0.9,
+  },
+  {
+    id: "sunhat",
+    name: "遮阳幸运帽",
+    emoji: "👒",
+    accent: "#ffc85a",
+    rarity: "稀有",
+    weight: 0.55,
+  },
+  {
+    id: "luckyhorse",
+    name: "马上顺金牌",
+    emoji: "🏅",
+    accent: "#ccff39",
+    rarity: "稀有",
+    weight: 0.38,
+  },
+];
+
+const SUMMER_TIERS: TierDefinition[] = [
+  {
+    id: "tier-1",
+    threshold: 1,
+    amount: "3",
+    title: "清凉开运券",
+    condition: "满15元可用",
+    icon: "¥3",
+    kind: "coupon",
+  },
+  {
+    id: "tier-4",
+    threshold: 4,
+    amount: "12",
+    title: "玩水装备券",
+    condition: "满49元可用",
+    icon: "¥12",
+    kind: "coupon",
+  },
+  {
+    id: "tier-6",
+    threshold: 6,
+    amount: "23",
+    title: "一顺到底券",
+    condition: "满88元可用",
+    icon: "¥23",
+    kind: "coupon",
+  },
+  {
+    id: "tier-9",
+    threshold: 9,
+    amount: "限定礼",
+    title: "足金顺顺马抽签码",
+    condition: "集齐全套即可领取",
+    icon: "足金",
+    kind: "grand",
+  },
+];
+
+const SUMMER_TASKS: TaskDefinition[] = [
+  {
+    id: "browse",
+    icon: "👀",
+    title: "浏览夏天马上顺活动页",
+    description: "每日首次浏览，获得1次抽装备机会",
+    target: 1,
+    reward: 1,
+    action: "明日再来",
+  },
+  {
+    id: "post",
+    icon: "✨",
+    title: "为点亮过的避暑玩水地点投稿",
+    description: "每次模拟投稿，获得2次抽装备机会",
+    target: 3,
+    reward: 2,
+    action: "去投稿",
+    repeatable: true,
+  },
+  {
+    id: "share",
+    icon: "📍",
+    title: "到店点亮避暑玩水商户",
+    description: "每次模拟点亮，获得1次抽装备机会",
+    target: 2,
+    reward: 1,
+    action: "去点亮",
+    repeatable: true,
+  },
+  {
+    id: "store",
+    icon: "🧭",
+    title: "逛一逛夏日玩水灵感地图",
+    description: "完成一次探索，获得1次抽装备机会",
+    target: 1,
+    reward: 1,
+    action: "去发现",
+  },
+  {
+    id: "gift",
+    icon: "🎁",
+    title: "给朋友赠送一张装备卡",
+    description: "好友模拟领取后，获得1次抽装备机会",
+    target: 3,
+    reward: 1,
+    action: "去赠送",
+    repeatable: true,
+  },
+];
+
+const THEMES: Record<ThemeId, ThemeDefinition> = {
+  summer: {
+    id: "summer",
+    navLabel: "夏天马上顺",
+    accessibleTitle: "这夏夯爆了｜夏天马上顺",
+    heroImage: "/hero-summer-base.webp",
+    heroMode: "summer-keyvisual",
+    collectionName: "顺风装备册",
+    cardNoun: "装备卡",
+    drawCta: "抽装备 · 一顺到底",
+    rewardVerb: "兑顺顺券",
+    tasksTitle: "玩一夏，赚更多",
+    drawTabLabel: "抽装备",
+    energyTabLabel: "攒体力",
+    topicEyebrow: "SUMMER WATER TOPICS",
+    topicTitle: "暑期 #灵感话题",
+    topicChips: ["# 2026暑假接好运", "# 暑假快乐", "# 今年暑假去哪玩"],
+    inspirationCards: [
+      {
+        emoji: "🌅",
+        eyebrow: "晚霞打卡指南",
+        title: "晚霞就是天空的诗",
+        taskId: "post",
+      },
+      {
+        emoji: "🌊",
+        eyebrow: "扎进水里夏天",
+        title: "把清凉值拉满",
+        taskId: "store",
+      },
+    ],
+    cards: SUMMER_CARDS,
+    tiers: SUMMER_TIERS,
+    tasks: SUMMER_TASKS,
+  },
+  night: {
+    id: "night",
+    navLabel: "夏日夜食指南",
+    accessibleTitle: "今晚开饭｜夏夜九味收藏计划",
+    heroImage: "/og-night.webp",
+    heroMode: "night-keyvisual",
+    collectionName: "九味卡册",
+    cardNoun: "夜宵卡",
+    drawCta: "抽一张夜宵卡",
+    rewardVerb: "兑夜宵券",
+    tasksTitle: "玩一夏，抽更多",
+    drawTabLabel: "抽夜宵",
+    energyTabLabel: "攒体力",
+    topicEyebrow: "SUMMER NIGHT TOPICS",
+    topicTitle: "暑期 #灵感话题",
+    topicChips: [
+      "# 趁热吃顿夏夜小火锅",
+      "# 我拍到了夏天的味道",
+      "# 下班后的第一口快乐",
+    ],
+    inspirationCards: [
+      {
+        emoji: "🥘",
+        eyebrow: "深夜沸腾指南",
+        title: "这口热气，最懂夏夜",
+        taskId: "post",
+      },
+      {
+        emoji: "🍢",
+        eyebrow: "街角烟火地图",
+        title: "把城市吃到发光",
+        taskId: "store",
+      },
+    ],
+    cards: NIGHT_CARDS,
+    tiers: NIGHT_TIERS,
+    tasks: NIGHT_TASKS,
+  },
 };
 
-function countDistinctCards(cardCounts: Record<string, number>) {
-  return CARD_DEFINITIONS.filter((card) => (cardCounts[card.id] ?? 0) > 0)
-    .length;
+function getDailyCycle() {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
-function normalizeState(input: unknown): CampaignState {
-  if (!input || typeof input !== "object") return INITIAL_STATE;
-  const candidate = input as Partial<CampaignState>;
+function createInitialProgress(drawBalance = 1): CampaignProgress {
+  return {
+    dailyCycle: getDailyCycle(),
+    drawBalance,
+    duplicateStreak: 0,
+    cardCounts: {},
+    taskProgress: {
+      browse: 1,
+      post: 0,
+      share: 0,
+      store: 0,
+      gift: 0,
+    },
+    claimedTiers: [],
+    coupons: [],
+  };
+}
+
+function createInitialState(): CampaignState {
+  return {
+    version: 2,
+    activeTheme: "summer",
+    themes: {
+      summer: createInitialProgress(2),
+      night: createInitialProgress(1),
+    },
+  };
+}
+
+function countDistinctCards(
+  cardCounts: Record<string, number>,
+  cards: CardDefinition[],
+) {
+  return cards.filter((card) => (cardCounts[card.id] ?? 0) > 0).length;
+}
+
+function normalizeProgress(
+  input: unknown,
+  theme: ThemeDefinition,
+): CampaignProgress {
+  if (!input || typeof input !== "object") return createInitialProgress();
+  const candidate = input as Partial<CampaignProgress>;
+  const defaults = createInitialProgress();
+  const currentCycle = getDailyCycle();
+  const savedCycle =
+    typeof candidate.dailyCycle === "string"
+      ? candidate.dailyCycle
+      : currentCycle;
+  const isNewDailyCycle = savedCycle !== currentCycle;
   const cardCounts = Object.fromEntries(
-    CARD_DEFINITIONS.map((card) => [
+    theme.cards.map((card) => [
       card.id,
       Math.max(0, Number(candidate.cardCounts?.[card.id]) || 0),
     ]),
   );
   const taskProgress = Object.fromEntries(
-    TASKS.map((task) => [
+    theme.tasks.map((task) => [
       task.id,
-      Math.min(
-        task.target,
-        Math.max(0, Number(candidate.taskProgress?.[task.id]) || 0),
-      ),
+      isNewDailyCycle
+        ? defaults.taskProgress[task.id]
+        : Math.min(
+            task.target,
+            Math.max(
+              0,
+              candidate.taskProgress?.[task.id] == null
+                ? defaults.taskProgress[task.id]
+                : Number(candidate.taskProgress[task.id]) || 0,
+            ),
+          ),
     ]),
   ) as Record<TaskId, number>;
+  const claimedTiers = Array.isArray(candidate.claimedTiers)
+    ? Array.from(
+        new Set(
+          candidate.claimedTiers.filter((id) =>
+            theme.tiers.some((tier) => tier.id === id),
+          ),
+        ),
+      )
+    : [];
+  const validCoupons = Array.isArray(candidate.coupons)
+    ? candidate.coupons.filter(
+        (coupon): coupon is Coupon =>
+          Boolean(
+            coupon &&
+              typeof coupon.id === "string" &&
+              typeof coupon.tierId === "string",
+          ),
+      )
+    : [];
+  const coupons = Array.from(
+    new Map(validCoupons.map((coupon) => [coupon.id, coupon])).values(),
+  );
 
   return {
-    version: 1,
-    drawBalance: Math.max(0, Number(candidate.drawBalance) || 0),
+    dailyCycle: currentCycle,
+    drawBalance:
+      Math.max(0, Number(candidate.drawBalance) || 0) +
+      (isNewDailyCycle
+        ? (theme.tasks.find((task) => task.id === "browse")?.reward ?? 0)
+        : 0),
     duplicateStreak: Math.max(0, Number(candidate.duplicateStreak) || 0),
     cardCounts,
     taskProgress,
-    claimedTiers: Array.isArray(candidate.claimedTiers)
-      ? candidate.claimedTiers.filter((id) =>
-          TIERS.some((tier) => tier.id === id),
-        )
-      : [],
-    coupons: Array.isArray(candidate.coupons)
-      ? candidate.coupons.filter(
-          (coupon): coupon is Coupon =>
-            Boolean(
-              coupon &&
-                typeof coupon.id === "string" &&
-                typeof coupon.tierId === "string",
-            ),
-        )
-      : [],
+    claimedTiers,
+    coupons,
+  };
+}
+
+function normalizeState(input: unknown, legacyNight?: unknown): CampaignState {
+  if (!input || typeof input !== "object") {
+    const initial = createInitialState();
+    return {
+      ...initial,
+      themes: {
+        summer: createInitialProgress(2),
+        night: legacyNight
+          ? normalizeProgress(legacyNight, THEMES.night)
+          : createInitialProgress(1),
+      },
+    };
+  }
+  const candidate = input as Partial<CampaignState>;
+  const activeTheme: ThemeId =
+    candidate.activeTheme === "night" ? "night" : "summer";
+  return {
+    version: 2,
+    activeTheme,
+    themes: {
+      summer: candidate.themes?.summer
+        ? normalizeProgress(candidate.themes.summer, THEMES.summer)
+        : createInitialProgress(2),
+      night: candidate.themes?.night
+        ? normalizeProgress(candidate.themes.night, THEMES.night)
+        : createInitialProgress(1),
+    },
   };
 }
 
 function pickWeightedCard(
-  state: CampaignState,
+  state: CampaignProgress,
+  cards: CardDefinition[],
 ): { card: CardDefinition; isNew: boolean } {
-  const unowned = CARD_DEFINITIONS.filter(
+  const unowned = cards.filter(
     (card) => (state.cardCounts[card.id] ?? 0) === 0,
   );
   const shouldFavorNew =
     unowned.length > 0 &&
     (state.duplicateStreak >= 2 || Math.random() < 0.72);
-  const pool = shouldFavorNew ? unowned : CARD_DEFINITIONS;
+  const pool = shouldFavorNew ? unowned : cards;
   const totalWeight = pool.reduce((sum, card) => sum + card.weight, 0);
   let cursor = Math.random() * totalWeight;
   const card =
@@ -315,7 +676,8 @@ function pickWeightedCard(
 }
 
 export default function Home() {
-  const [state, setState] = useState<CampaignState>(INITIAL_STATE);
+  const [campaignState, setCampaignState] =
+    useState<CampaignState>(() => createInitialState());
   const [ready, setReady] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawResult, setDrawResult] = useState<DrawResult | null>(null);
@@ -330,10 +692,41 @@ export default function Home() {
   const taskSectionRef = useRef<HTMLElement | null>(null);
   const drawTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drawPendingRef = useRef(false);
+  const pendingTaskIdsRef = useRef<Set<string>>(new Set());
+  const claimedTierIdsRef = useRef<Set<string>>(new Set());
+  const giftClaimPendingRef = useRef(false);
+  const stateEpochRef = useRef(0);
+
+  const theme = THEMES[campaignState.activeTheme];
+  const state = campaignState.themes[campaignState.activeTheme];
+  const CARD_DEFINITIONS = theme.cards;
+  const TIERS = theme.tiers;
+  const TASKS = theme.tasks;
+
+  function setState(
+    update:
+      | CampaignProgress
+      | ((current: CampaignProgress) => CampaignProgress),
+  ) {
+    const targetTheme = campaignState.activeTheme;
+    setCampaignState((current) => {
+      const currentProgress = current.themes[targetTheme];
+      const nextProgress =
+        typeof update === "function" ? update(currentProgress) : update;
+      return {
+        ...current,
+        themes: {
+          ...current.themes,
+          [targetTheme]: nextProgress,
+        },
+      };
+    });
+  }
 
   const uniqueCount = useMemo(
-    () => countDistinctCards(state.cardCounts),
-    [state.cardCounts],
+    () => countDistinctCards(state.cardCounts, CARD_DEFINITIONS),
+    [CARD_DEFINITIONS, state.cardCounts],
   );
   const nextTier =
     TIERS.find((tier) => uniqueCount < tier.threshold) ?? TIERS[TIERS.length - 1];
@@ -342,9 +735,18 @@ export default function Home() {
     const hydrateFromStorage = () => {
       try {
         const saved = window.localStorage.getItem(STORAGE_KEY);
-        if (saved) setState(normalizeState(JSON.parse(saved)));
+        if (saved) {
+          setCampaignState(normalizeState(JSON.parse(saved)));
+        } else {
+          const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+          setCampaignState(
+            normalizeState(undefined, legacy ? JSON.parse(legacy) : undefined),
+          );
+        }
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+        setCampaignState(createInitialState());
       } finally {
         setReady(true);
       }
@@ -355,11 +757,34 @@ export default function Home() {
   useEffect(() => {
     if (!ready) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(campaignState));
     } catch {
       // The demo stays usable even if browser storage is unavailable.
     }
-  }, [ready, state]);
+  }, [campaignState, ready]);
+
+  useEffect(() => {
+    const refreshDailyTasks = () => {
+      const currentCycle = getDailyCycle();
+      setCampaignState((current) => {
+        const alreadyCurrent = Object.values(current.themes).every(
+          (progress) => progress.dailyCycle === currentCycle,
+        );
+        return alreadyCurrent ? current : normalizeState(current);
+      });
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshDailyTasks();
+    };
+    const intervalId = window.setInterval(refreshDailyTasks, 60_000);
+    window.addEventListener("focus", refreshDailyTasks);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshDailyTasks);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -381,16 +806,40 @@ export default function Home() {
     });
   }
 
+  function switchTheme(nextTheme: ThemeId) {
+    if (
+      nextTheme === campaignState.activeTheme ||
+      isDrawing ||
+      drawPendingRef.current
+    ) {
+      return;
+    }
+    setCampaignState((current) => ({
+      ...current,
+      activeTheme: nextTheme,
+    }));
+    setDrawResult(null);
+    setGiftCardId(null);
+    setGiftShared(false);
+    setActiveModal(null);
+    setTaskTab("draw");
+    setResetArmed(false);
+  }
+
   function handleDraw() {
-    if (!ready || isDrawing) return;
+    if (!ready || isDrawing || drawPendingRef.current) return;
     if (state.drawBalance <= 0) {
       announce("抽卡机会用完啦，完成任务可以继续抽");
       scrollToTasks();
       return;
     }
 
-    const beforeDistinct = countDistinctCards(state.cardCounts);
-    const { card, isNew } = pickWeightedCard(state);
+    const beforeDistinct = countDistinctCards(
+      state.cardCounts,
+      CARD_DEFINITIONS,
+    );
+    const { card, isNew } = pickWeightedCard(state, CARD_DEFINITIONS);
+    drawPendingRef.current = true;
     setIsDrawing(true);
 
     drawTimerRef.current = setTimeout(() => {
@@ -398,7 +847,7 @@ export default function Home() {
         ...state.cardCounts,
         [card.id]: (state.cardCounts[card.id] ?? 0) + 1,
       };
-      const afterDistinct = countDistinctCards(nextCounts);
+      const afterDistinct = countDistinctCards(nextCounts, CARD_DEFINITIONS);
       const newlyUnlocked = TIERS.filter(
         (tier) =>
           beforeDistinct < tier.threshold && afterDistinct >= tier.threshold,
@@ -414,11 +863,14 @@ export default function Home() {
         },
       }));
       setDrawResult({ cardId: card.id, isNew, newlyUnlocked });
+      drawPendingRef.current = false;
       setIsDrawing(false);
     }, 1050);
   }
 
   function completeTask(task: TaskDefinition) {
+    const taskLockKey = `${theme.id}:${task.id}`;
+    const operationEpoch = stateEpochRef.current;
     if (task.id === "browse") {
       announce("今日浏览奖励已经到账");
       return;
@@ -429,12 +881,18 @@ export default function Home() {
     }
 
     const progress = state.taskProgress[task.id] ?? 0;
+    if (pendingTaskIdsRef.current.has(taskLockKey)) return;
     if (progress >= task.target) {
       announce("这项任务已经完成");
       return;
     }
 
+    pendingTaskIdsRef.current.add(taskLockKey);
     const finish = () => {
+      if (operationEpoch !== stateEpochRef.current) {
+        pendingTaskIdsRef.current.delete(taskLockKey);
+        return;
+      }
       setState((current) => ({
         ...current,
         drawBalance: current.drawBalance + task.reward,
@@ -446,14 +904,20 @@ export default function Home() {
           ),
         },
       }));
-      announce(`任务完成，获得${task.reward}次抽卡机会`);
+      announce(`任务完成，获得${task.reward}次抽${theme.cardNoun}机会`);
+      window.setTimeout(() => {
+        pendingTaskIdsRef.current.delete(taskLockKey);
+      }, 300);
     };
 
-    if (task.id === "share") {
-      navigator.clipboard
-        ?.writeText(window.location.href)
-        .catch(() => undefined)
-        .finally(finish);
+    if (theme.id === "night" && task.id === "share") {
+      const clipboardWrite =
+        navigator.clipboard?.writeText?.(window.location.href);
+      if (clipboardWrite) {
+        clipboardWrite.catch(() => undefined).finally(finish);
+      } else {
+        finish();
+      }
       return;
     }
 
@@ -463,6 +927,7 @@ export default function Home() {
   function claimTier(tier: TierDefinition) {
     const unlocked = uniqueCount >= tier.threshold;
     const claimed = state.claimedTiers.includes(tier.id);
+    const tierLockKey = `${theme.id}:${tier.id}`;
 
     if (!unlocked) {
       announce(`还差${tier.threshold - uniqueCount}种卡即可解锁`);
@@ -472,6 +937,8 @@ export default function Home() {
       setActiveModal("prizes");
       return;
     }
+    if (claimedTierIdsRef.current.has(tierLockKey)) return;
+    claimedTierIdsRef.current.add(tierLockKey);
 
     const coupon: Coupon = {
       id: tier.id,
@@ -512,20 +979,21 @@ export default function Home() {
     setActiveModal(null);
     setDrawResult(null);
     setGiftShared(false);
+    giftClaimPendingRef.current = false;
     setGiftCardId(cardId);
   }
 
   function createGiftLink() {
     const card = CARD_DEFINITIONS.find((item) => item.id === giftCardId);
     if (!card) return;
-    const link = `${window.location.origin}/?gift=${card.id}`;
+    const link = `${window.location.origin}/?theme=${theme.id}&gift=${card.id}`;
     navigator.clipboard?.writeText(link).catch(() => undefined);
     setGiftShared(true);
     announce("赠卡链接已复制，演示中可直接模拟好友领取");
   }
 
   function simulateGiftClaim() {
-    if (!giftCardId || !giftShared) return;
+    if (!giftCardId || !giftShared || giftClaimPendingRef.current) return;
     const cardCount = state.cardCounts[giftCardId] ?? 0;
     if (cardCount <= 1) {
       announce("重复卡数量不足");
@@ -535,6 +1003,7 @@ export default function Home() {
 
     const currentProgress = state.taskProgress.gift;
     const canReward = currentProgress < 3;
+    giftClaimPendingRef.current = true;
     setState((current) => ({
       ...current,
       drawBalance: current.drawBalance + (canReward ? 1 : 0),
@@ -562,12 +1031,23 @@ export default function Home() {
       announce("再点一次确认重置体验数据");
       return;
     }
-    setState(INITIAL_STATE);
+    stateEpochRef.current += 1;
+    if (drawTimerRef.current) {
+      clearTimeout(drawTimerRef.current);
+      drawTimerRef.current = null;
+    }
+    setCampaignState(createInitialState());
+    setIsDrawing(false);
+    drawPendingRef.current = false;
+    pendingTaskIdsRef.current.clear();
+    claimedTierIdsRef.current.clear();
+    giftClaimPendingRef.current = false;
     setResetArmed(false);
     setActiveModal(null);
     setDrawResult(null);
     setGiftCardId(null);
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
     announce("体验数据已重置");
   }
 
@@ -577,27 +1057,64 @@ export default function Home() {
   const giftCard = giftCardId
     ? CARD_DEFINITIONS.find((card) => card.id === giftCardId)
     : null;
+  const heroTier =
+    [...TIERS]
+      .reverse()
+      .find((tier) => uniqueCount >= tier.threshold)?.threshold ?? 0;
+  const collectedHeroCards = CARD_DEFINITIONS.filter(
+    (card) => (state.cardCounts[card.id] ?? 0) > 0,
+  ).slice(-5);
 
   return (
-    <main className="campaign-shell">
-      <section className="hero" aria-labelledby="campaign-title">
-        <div className="hero-noise" aria-hidden="true" />
+    <main className={`campaign-shell theme-${theme.id}`}>
+      <section
+        className={`hero hero-${theme.heroMode}`}
+        aria-labelledby="campaign-title"
+        data-tier={heroTier}
+      >
+        <h1 id="campaign-title" className="sr-only">
+          {theme.accessibleTitle}
+        </h1>
+        <picture className="hero-media">
+          <img src={theme.heroImage} alt="" />
+        </picture>
+        <div className="hero-progress-visual" aria-hidden="true">
+          {collectedHeroCards.map((card, index) => (
+            <span
+              className={`hero-collected-card hero-collected-card-${index} ${
+                drawResult?.cardId === card.id ? "recent" : ""
+              }`}
+              key={card.id}
+              style={{ "--card-accent": card.accent } as React.CSSProperties}
+            >
+              {card.emoji}
+            </span>
+          ))}
+        </div>
         <div className="hero-topline">
-          <span className="date-chip">7.30—8.31</span>
           <span className="prototype-chip">交互原型 · 本地模拟</span>
         </div>
-        <div className="hero-copy">
-          <p>夏夜限定 · 九味收藏计划</p>
-          <h1 id="campaign-title">
-            今晚<span>开饭</span>
-          </h1>
-          <strong>集齐夜宵好味，赢夏夜好券</strong>
-        </div>
 
-        <nav className="stage-nav" aria-label="活动阶段">
-          <span>开饭预告</span>
-          <span className="active">九味卡册</span>
-          <span className="locked">终极夜宴 · 敬请期待</span>
+        <nav className="stage-nav" aria-label="活动主题">
+          <button
+            type="button"
+            className={theme.id === "summer" ? "active" : ""}
+            onClick={() => switchTheme("summer")}
+            aria-pressed={theme.id === "summer"}
+          >
+            夏天马上顺
+          </button>
+          <button
+            type="button"
+            className={theme.id === "night" ? "active" : ""}
+            onClick={() => switchTheme("night")}
+            aria-pressed={theme.id === "night"}
+          >
+            夏日夜食指南
+          </button>
+          <button type="button" className="locked" disabled>
+            敬请期待
+          </button>
         </nav>
 
         <div className="hero-actions">
@@ -608,18 +1125,18 @@ export default function Home() {
           >
             我的
             <br />
-            卡册
+            {theme.id === "summer" ? "装备" : "卡册"}
           </button>
           <button
             type="button"
             className={`draw-button ${isDrawing ? "drawing" : ""}`}
             onClick={handleDraw}
             disabled={!ready || isDrawing}
-            aria-label={`抽一张夜宵卡，剩余${state.drawBalance}次`}
+            aria-label={`${theme.drawCta}，剩余${state.drawBalance}次`}
             data-testid="draw-button"
           >
             <span className="draw-button-glow" aria-hidden="true" />
-            <span>{isDrawing ? "正在开卡…" : "抽一张夜宵卡"}</span>
+            <span>{isDrawing ? `正在抽${theme.cardNoun}…` : theme.drawCta}</span>
             <b>{state.drawBalance}</b>
           </button>
           <button
@@ -654,10 +1171,10 @@ export default function Home() {
       <section className="collection-panel" aria-labelledby="collection-title">
         <div className="collection-heading">
           <div>
-            <span>九味卡册</span>
+            <span>{theme.collectionName}</span>
             <h2 id="collection-title">
               {uniqueCount === 9
-                ? "全套集齐，今晚圆满"
+                ? "全套集齐，好运圆满"
                 : `再集 ${Math.max(0, nextTier.threshold - uniqueCount)} 种`}
             </h2>
             <p>
@@ -668,12 +1185,16 @@ export default function Home() {
           </div>
           <div className="collection-count">
             <strong>{uniqueCount}</strong>
-            <span>/ 9</span>
+            <span>/ {CARD_DEFINITIONS.length}</span>
           </div>
         </div>
 
         <div className="progress-track" aria-label={`已集齐${uniqueCount}种卡`}>
-          <span style={{ width: `${(uniqueCount / 9) * 100}%` }} />
+          <span
+            style={{
+              width: `${(uniqueCount / CARD_DEFINITIONS.length) * 100}%`,
+            }}
+          />
         </div>
 
         <div className="tier-row">
@@ -723,7 +1244,13 @@ export default function Home() {
                   {owned ? card.emoji : "?"}
                 </span>
                 <b>{owned ? card.name : "等待点亮"}</b>
-                <small>{owned ? card.rarity : "神秘夜味"}</small>
+                <small>
+                  {owned
+                    ? card.rarity
+                    : theme.id === "summer"
+                      ? "神秘装备"
+                      : "神秘夜味"}
+                </small>
               </button>
             );
           })}
@@ -738,7 +1265,7 @@ export default function Home() {
         </div>
         <div>
           <small>副玩法预告</small>
-          <h2>接金豆，兑加餐券</h2>
+          <h2>接金豆，{theme.rewardVerb}</h2>
           <p>攒体力玩法即将开放</p>
         </div>
         <button
@@ -759,7 +1286,7 @@ export default function Home() {
           <p>PLAY · EARN · COLLECT</p>
         </div>
         <h2 id="tasks-title">
-          玩一夏，<span>抽更多</span>
+          {theme.tasksTitle}
         </h2>
 
         <div className="task-tabs" role="tablist" aria-label="任务类型">
@@ -770,7 +1297,7 @@ export default function Home() {
             role="tab"
             aria-selected={taskTab === "draw"}
           >
-            抽夜宵
+            {theme.drawTabLabel}
           </button>
           <button
             type="button"
@@ -779,7 +1306,7 @@ export default function Home() {
             role="tab"
             aria-selected={taskTab === "energy"}
           >
-            攒体力 · 预告
+            {theme.energyTabLabel} · 预告
           </button>
         </div>
 
@@ -844,47 +1371,51 @@ export default function Home() {
               <span>●</span>
               <span>●</span>
             </div>
-            <h3>接金豆副玩法正在备餐</h3>
-            <p>后续可接入“任务得体力—小游戏接豆—金豆兑3元券”的独立循环。</p>
+            <h3>接金豆副玩法正在准备</h3>
+            <p>
+              后续可接入“任务得体力—小游戏接豆—金豆兑券”的独立循环。
+            </p>
             <button type="button" onClick={() => setTaskTab("draw")}>
-              先去抽夜宵
+              先去{theme.drawTabLabel}
             </button>
           </div>
         )}
       </section>
 
       <section className="topics-section" aria-labelledby="topics-title">
-        <p>SUMMER NIGHT TOPICS</p>
-        <h2 id="topics-title">
-          暑期 <span>#灵感话题</span>
-        </h2>
+        <p>{theme.topicEyebrow}</p>
+        <h2 id="topics-title">{theme.topicTitle}</h2>
         <div className="topic-chips">
-          <span># 趁热吃顿夏夜小火锅</span>
-          <span># 我拍到了夏天的味道</span>
-          <span># 下班后的第一口快乐</span>
+          {theme.topicChips.map((chip) => (
+            <span key={chip}>{chip}</span>
+          ))}
         </div>
         <div className="inspiration-grid">
-          <article className="inspiration-card hotpot">
-            <div aria-hidden="true">🥘</div>
-            <span>深夜沸腾指南</span>
-            <h3>这口热气，最懂夏夜</h3>
-            <button type="button" onClick={() => completeTask(TASKS[1])}>
-              发布同款灵感 →
-            </button>
-          </article>
-          <article className="inspiration-card street">
-            <div aria-hidden="true">🍢</div>
-            <span>街角烟火地图</span>
-            <h3>把城市吃到发光</h3>
-            <button type="button" onClick={() => completeTask(TASKS[3])}>
-              去发现好店 →
-            </button>
-          </article>
+          {theme.inspirationCards.map((item, index) => {
+            const task = TASKS.find((candidate) => candidate.id === item.taskId);
+            return (
+              <article
+                className={`inspiration-card inspiration-card-${index + 1}`}
+                key={item.title}
+              >
+                <div aria-hidden="true">{item.emoji}</div>
+                <span>{item.eyebrow}</span>
+                <h3>{item.title}</h3>
+                <button
+                  type="button"
+                  onClick={() => task && completeTask(task)}
+                  disabled={!task}
+                >
+                  {item.taskId === "post" ? "发布同款灵感" : "去发现更多"} →
+                </button>
+              </article>
+            );
+          })}
         </div>
       </section>
 
       <footer>
-        <div className="footer-mark">今晚开饭</div>
+        <div className="footer-mark">{theme.navLabel}</div>
         <p>本页面为活动机制交互原型，优惠券与任务均为本地模拟。</p>
         <button type="button" onClick={() => setActiveModal("rules")}>
           查看玩法与演示说明
@@ -908,7 +1439,9 @@ export default function Home() {
               ×
             </button>
             <p className="result-kicker">
-              {drawResult.isNew ? "NEW FLAVOR!" : "熟悉的夜味又来了"}
+              {drawResult.isNew
+                ? "NEW COLLECTION!"
+                : `熟悉的${theme.cardNoun}又来了`}
             </p>
             <div
               className="result-card-art"
@@ -920,7 +1453,7 @@ export default function Home() {
             <h2 id="draw-result-title">{resultCard.name}</h2>
             <p>
               {drawResult.isNew
-                ? `新卡已点亮，当前集齐${uniqueCount}/9种`
+                ? `新卡已点亮，当前集齐${uniqueCount}/${CARD_DEFINITIONS.length}种`
                 : `重复卡×${state.cardCounts[resultCard.id] ?? 1}，可赠送给朋友`}
             </p>
             {drawResult.newlyUnlocked.length > 0 && (
@@ -969,7 +1502,7 @@ export default function Home() {
               ×
             </button>
             <p className="sheet-kicker">MY COLLECTION</p>
-            <h2 id="cards-modal-title">我的九味卡册</h2>
+            <h2 id="cards-modal-title">我的{theme.collectionName}</h2>
             <p className="sheet-summary">
               已点亮{uniqueCount}种 · 重复卡可赠送，历史进度不会倒退
             </p>
@@ -983,7 +1516,13 @@ export default function Home() {
                     style={{ "--card-accent": card.accent } as React.CSSProperties}
                   >
                     <span>{count > 0 ? card.emoji : "?"}</span>
-                    <h3>{count > 0 ? card.name : "神秘夜味"}</h3>
+                    <h3>
+                      {count > 0
+                        ? card.name
+                        : theme.id === "summer"
+                          ? "神秘装备"
+                          : "神秘夜味"}
+                    </h3>
                     <small>{count > 0 ? `已有${count}张` : "尚未获得"}</small>
                     <button
                       type="button"
@@ -1024,7 +1563,9 @@ export default function Home() {
               <div className="empty-prizes">
                 <span>🎟️</span>
                 <h3>还没有奖品</h3>
-                <p>集齐2种卡即可领取第一张优惠券。</p>
+                <p>
+                  集齐{TIERS[0].threshold}种卡即可领取第一份奖励。
+                </p>
                 <button
                   type="button"
                   onClick={() => setActiveModal(null)}
@@ -1041,7 +1582,7 @@ export default function Home() {
                   >
                     <div className="coupon-value">
                       {coupon.tierId === "tier-9" ? (
-                        <strong>金勺</strong>
+                        <strong>{TIERS.at(-1)?.icon ?? "限定礼"}</strong>
                       ) : (
                         <>
                           <small>¥</small>
@@ -1094,15 +1635,23 @@ export default function Home() {
             <ol className="rules-list">
               <li>
                 <b>做任务</b>
-                <span>完成下方模拟任务，抽卡次数会自动到账。</span>
+                <span>
+                  完成下方模拟任务，抽{theme.cardNoun}次数会自动到账。
+                </span>
               </li>
               <li>
-                <b>抽夜宵卡</b>
+                <b>抽{theme.cardNoun}</b>
                 <span>每次消耗1次机会，随机获得9种卡之一。</span>
               </li>
               <li>
                 <b>集卡领奖</b>
-                <span>历史集齐2、4、7种可累计领取不同面额优惠券。</span>
+                <span>
+                  历史集齐
+                  {TIERS.filter((tier) => tier.kind === "coupon")
+                    .map((tier) => tier.threshold)
+                    .join("、")}
+                  种可累计领取不同面额优惠券。
+                </span>
               </li>
               <li>
                 <b>赠送重复卡</b>
