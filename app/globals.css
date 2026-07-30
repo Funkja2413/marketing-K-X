@@ -51,10 +51,12 @@ button:focus-visible {
 
 .campaign-shell {
   position: relative;
-  width: min(100%, 375px);
+  width: 100%;
+  max-width: 520px;
   min-height: 100vh;
   margin: 0 auto;
   overflow: hidden;
+  container-type: inline-size;
   background: var(--ink);
   box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
 }
@@ -1705,6 +1707,40 @@ footer button {
   color: #4a1f11;
 }
 
+.stage-nav.campaign-theme-tabs {
+  top: 25.18%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  z-index: 8;
+  width: 56%;
+  max-width: 235px;
+  min-height: 34px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background: rgba(230, 247, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(0, 75, 112, 0.16);
+  backdrop-filter: blur(12px);
+  transform: translateX(-50%);
+}
+
+.stage-nav.campaign-theme-tabs button,
+.theme-night .stage-nav.campaign-theme-tabs button {
+  min-height: 28px;
+  padding: 4px 6px;
+  background: transparent;
+  color: #5b879c;
+  font-size: 10px;
+  opacity: 1;
+}
+
+.stage-nav.campaign-theme-tabs button.active,
+.theme-night .stage-nav.campaign-theme-tabs button.active {
+  background: #fff;
+  color: #087bb4;
+  box-shadow: 0 3px 10px rgba(0, 92, 136, 0.16);
+}
+
 .hero-actions {
   z-index: 6;
   bottom: 14px;
@@ -1795,7 +1831,8 @@ footer button {
 
 .summer-map-cap {
   width: 100%;
-  height: 78px;
+  height: auto;
+  aspect-ratio: 375 / 78;
   overflow: hidden;
   background: #dfeef8;
 }
@@ -1809,8 +1846,8 @@ footer button {
 
 .theme-summer .hero {
   width: 100%;
-  height: 425px;
-  aspect-ratio: auto;
+  height: auto;
+  aspect-ratio: 375 / 425;
   padding: 0;
   overflow: visible;
   background: #aee9fb;
@@ -1823,7 +1860,7 @@ footer button {
   left: 0;
   z-index: 0;
   width: 100%;
-  height: 375px;
+  height: 88.2353%;
   background: #19a9ed;
 }
 
@@ -1839,32 +1876,8 @@ footer button {
   display: none;
 }
 
-.theme-summer .summer-stage-hotspots {
-  top: 107px;
-  right: 98px;
-  bottom: auto;
-  left: 102px;
-  z-index: 8;
-  min-height: 31px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  backdrop-filter: none;
-}
-
-.theme-summer .summer-stage-hotspots button {
-  min-height: 31px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: transparent;
-  box-shadow: none;
-  opacity: 0;
-}
-
 .theme-summer .floating-actions {
-  top: 105px;
+  top: 25%;
   right: 0;
   z-index: 9;
   gap: 0;
@@ -1882,14 +1895,14 @@ footer button {
 }
 
 .theme-summer .hero-actions {
-  top: 375px;
+  top: 88.2353%;
   right: 0;
   bottom: auto;
   left: 0;
   z-index: 7;
-  grid-template-columns: 55px 207px 55px;
-  gap: 29px;
-  height: 50px;
+  grid-template-columns: 14.6667% 55.2% 14.6667%;
+  gap: 0 7.7333%;
+  height: 11.7647%;
 }
 
 .theme-summer .side-action {
@@ -1939,7 +1952,7 @@ footer button {
 }
 
 .theme-summer .hero-collected-card.recent {
-  top: 315px;
+  top: 74.1%;
   left: 164px;
   z-index: 9;
   display: grid;

@@ -33,6 +33,8 @@ test("server-renders the Figma-based summer campaign shell", async () => {
   assert.match(html, /class="campaign-shell theme-summer"/);
   assert.match(html, /class="summer-map-cap"/);
   assert.match(html, /src="\/figma\/crops\/hero-scene\.webp"/);
+  assert.match(html, /class="stage-nav campaign-theme-tabs"/);
+  assert.match(html, /夏日夜食指南/);
   assert.match(html, /data-testid="draw-button"/);
   assert.match(html, /class="collection-panel"/);
   assert.match(html, /class="featured-task-rail"/);
@@ -58,7 +60,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(css, /Figma A1: 375px image-first summer campaign/);
   assert.match(
     css,
-    /\.campaign-shell\s*\{[^}]*width:\s*min\(100%,\s*375px\)/s,
+    /\.campaign-shell\s*\{[^}]*width:\s*100%[^}]*max-width:\s*520px/s,
   );
   assert.doesNotMatch(
     css,

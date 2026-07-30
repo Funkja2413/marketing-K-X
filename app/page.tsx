@@ -1271,47 +1271,27 @@ export default function Home() {
           </div>
         )}
 
-        {theme.id === "summer" ? (
-          <nav className="stage-nav summer-stage-hotspots" aria-label="活动主题">
-            <button
-              type="button"
-              className="active"
-              onClick={() => announce("当前已是夏天马上顺主题")}
-              aria-pressed="true"
-            >
-              夏天马上顺
-            </button>
-            <button
-              type="button"
-              className="locked"
-              onClick={() => switchTheme("night")}
-              aria-label="切换至夏日夜食指南主题"
-            >
-              敬请期待
-            </button>
-          </nav>
-        ) : (
-          <nav className="stage-nav" aria-label="活动主题">
-            <button
-              type="button"
-              onClick={() => switchTheme("summer")}
-              aria-pressed="false"
-            >
-              夏天马上顺
-            </button>
-            <button
-              type="button"
-              className="active"
-              onClick={() => switchTheme("night")}
-              aria-pressed="true"
-            >
-              夏日夜食指南
-            </button>
-            <button type="button" className="locked" disabled>
-              敬请期待
-            </button>
-          </nav>
-        )}
+        <nav
+          className="stage-nav campaign-theme-tabs"
+          aria-label="活动主题"
+        >
+          <button
+            type="button"
+            className={theme.id === "summer" ? "active" : ""}
+            onClick={() => switchTheme("summer")}
+            aria-pressed={theme.id === "summer"}
+          >
+            夏天马上顺
+          </button>
+          <button
+            type="button"
+            className={theme.id === "night" ? "active" : ""}
+            onClick={() => switchTheme("night")}
+            aria-pressed={theme.id === "night"}
+          >
+            夏日夜食指南
+          </button>
+        </nav>
 
         <div className="hero-actions">
           <button
