@@ -78,6 +78,8 @@ test("server-renders the unified summer campaign template", async () => {
   assert.match(html, /data-testid="draw-balance"/);
   assert.match(html, /抽装备 一顺到底/);
   assert.match(html, /class="featured-task-rail"/);
+  assert.match(html, />攒体力<\/button>/);
+  assert.doesNotMatch(html, /攒体力\s*·\s*预告/);
   assert.doesNotMatch(html, /\bcollection-count\b/);
   assert.doesNotMatch(html, /\bprogress-track\b/);
   assert.match(html, /扎进水里夏天（马上顺）/);
@@ -103,6 +105,11 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(page, /createFigmaFixtureState/);
   assert.match(page, /function pickWeightedCard/);
   assert.match(page, /function renderTaskCard/);
+  assert.match(page, /taskTab\s*===\s*["']energy["']/);
+  assert.match(page, /\$\{task\.reward\}点体力/);
+  assert.doesNotMatch(page, /\bcoming-card\b|\bcoming-visual\b/);
+  assert.doesNotMatch(page, /接金豆副玩法正在准备/);
+  assert.doesNotMatch(page, /\{theme\.energyTabLabel\}\s*·\s*预告/);
   assert.match(page, /handleDraw/);
   assert.match(page, /claimTier/);
   assert.match(page, /completeTask/);
@@ -216,6 +223,23 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
     css,
     /\.featured-task-rail\s*\{(?=[^}]*padding:\s*0\s+16px\s+5px)(?=[^}]*scroll-padding-inline:\s*16px)[^}]*\}/s,
   );
+  assert.match(
+    css,
+    /\.theme-summer\s+\.topic-chips\s*\{(?=[^}]*height:\s*74px)(?=[^}]*padding:\s*1px\s+16px\s+5px)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.theme-summer\s+\.inspiration-grid\s*\{(?=[^}]*padding:\s*0\s+16px\s+6px)(?=[^}]*scroll-padding-inline:\s*16px)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.tier:nth-child\(-n\s*\+\s*3\)[\s\S]*?\.tier-ticket\s*\{(?=[^}]*transform:\s*scale\(0\.82\))[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-reward-shelf\s+\.card-scroller\s*\{[^}]*bottom:\s*7\.8%/s,
+  );
+  assert.doesNotMatch(css, /\.coming-card\b|\.coming-visual\b/);
   assert.doesNotMatch(css, /\.collection-count\b/);
   assert.doesNotMatch(css, /\.progress-track\b/);
 

@@ -556,8 +556,7 @@ button:focus-visible {
     linear-gradient(110deg, #773c26, #5a2a1b);
 }
 
-.bean-orbit,
-.coming-visual {
+.bean-orbit {
   position: relative;
   display: grid;
   width: 54px;
@@ -568,8 +567,7 @@ button:focus-visible {
   background: rgba(26, 15, 9, 0.27);
 }
 
-.bean-orbit::before,
-.coming-visual::before {
+.bean-orbit::before {
   position: absolute;
   width: 24px;
   height: 24px;
@@ -579,26 +577,22 @@ button:focus-visible {
   line-height: 24px;
 }
 
-.bean-orbit span,
-.coming-visual span {
+.bean-orbit span {
   position: absolute;
   color: var(--lime);
   font-size: 10px;
 }
 
-.bean-orbit span:nth-child(1),
-.coming-visual span:nth-child(1) {
+.bean-orbit span:nth-child(1) {
   top: 4px;
 }
 
-.bean-orbit span:nth-child(2),
-.coming-visual span:nth-child(2) {
+.bean-orbit span:nth-child(2) {
   right: 3px;
   bottom: 8px;
 }
 
-.bean-orbit span:nth-child(3),
-.coming-visual span:nth-child(3) {
+.bean-orbit span:nth-child(3) {
   bottom: 5px;
   left: 6px;
 }
@@ -796,42 +790,6 @@ button:focus-visible {
   color: rgba(255, 255, 255, 0.82);
   cursor: not-allowed;
   box-shadow: none;
-}
-
-.coming-card {
-  display: grid;
-  justify-items: center;
-  margin-top: 16px;
-  padding: 38px 24px;
-  border: 1px solid rgba(255, 240, 212, 0.12);
-  border-radius: 25px;
-  background: linear-gradient(145deg, #6b3422, #452015);
-  text-align: center;
-}
-
-.coming-card h3 {
-  margin: 18px 0 7px;
-  font-size: 20px;
-}
-
-.coming-card p {
-  max-width: 320px;
-  margin: 0;
-  color: rgba(255, 240, 212, 0.62);
-  font-size: 12px;
-  line-height: 1.65;
-}
-
-.coming-card button {
-  min-height: 44px;
-  margin-top: 20px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--lime);
-  color: #23170e;
-  font-weight: 900;
-  cursor: pointer;
 }
 
 .topics-section {
@@ -2401,16 +2359,6 @@ footer button {
   background: #ffaaa3;
 }
 
-.theme-summer .coming-card {
-  border: 0;
-  background: rgba(255, 255, 255, 0.9);
-  color: #0b5775;
-}
-
-.theme-summer .coming-card p {
-  color: #7195a4;
-}
-
 .theme-summer .campaign-content-world {
   position: relative;
   min-height: 1283px;
@@ -2452,10 +2400,11 @@ footer button {
   grid-auto-flow: column;
   grid-template-rows: repeat(2, 31px);
   gap: 6px 12px;
-  height: 70px;
+  height: 74px;
   margin: 0;
-  padding: 0 18px 4px;
+  padding: 1px 16px 5px;
   overflow-x: auto;
+  scroll-padding-inline: 16px;
   scrollbar-width: none;
 }
 
@@ -2487,8 +2436,9 @@ footer button {
   grid-template-columns: none;
   gap: 12px;
   margin-top: 8px;
-  padding: 0 0 6px 74px;
+  padding: 0 16px 6px;
   overflow-x: auto;
+  scroll-padding-inline: 16px;
   scrollbar-width: none;
   scroll-snap-type: x mandatory;
 }
@@ -2507,7 +2457,7 @@ footer button {
   background: #fff;
   color: #111820;
   box-shadow: none;
-  scroll-snap-align: center;
+  scroll-snap-align: start;
 }
 
 .theme-summer .inspiration-media,
@@ -3355,6 +3305,14 @@ footer button {
   font-weight: 950;
 }
 
+.campaign-template
+  .campaign-reward-shelf
+  .tier:nth-child(-n + 3)
+  .tier-ticket {
+  transform: scale(0.82);
+  transform-origin: top center;
+}
+
 .campaign-template .campaign-reward-shelf .tier.unlocked .tier-ticket,
 .campaign-template .campaign-reward-shelf .tier.claimed .tier-ticket {
   border: 0;
@@ -3382,7 +3340,7 @@ footer button {
 .campaign-template .campaign-reward-shelf .card-scroller {
   position: absolute;
   right: 0;
-  bottom: 4.8%;
+  bottom: 7.8%;
   left: 2.8%;
   display: grid;
   grid-auto-columns: 16.6%;

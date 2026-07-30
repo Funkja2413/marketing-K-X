@@ -1284,6 +1284,13 @@ export default function Home() {
           : complete
             ? "已达上限"
             : task.action;
+    const description =
+      taskTab === "energy"
+        ? task.description.replace(
+            /(获得|即得)\d+次(?:抽[^，。]*?)?机会/,
+            `$1${task.reward}点体力`,
+          )
+        : task.description;
 
     return (
       <article
@@ -1301,7 +1308,7 @@ export default function Home() {
               {progress}/{task.target}
             </span>
           </div>
-          <p>{task.description}</p>
+          <p>{description}</p>
           <div className="task-progress" aria-hidden="true">
             <span
               style={{
@@ -1443,43 +1450,26 @@ export default function Home() {
             role="tab"
             aria-selected={taskTab === "energy"}
           >
-            {theme.energyTabLabel} · 预告
+            {theme.energyTabLabel}
           </button>
         </div>
 
-        {taskTab === "draw" ? (
-          theme.id === "summer" ? (
-            <>
-              <div className="featured-task-rail">
-                {TASKS.slice(0, 2).map((task) =>
-                  renderTaskCard(task, "featured"),
-                )}
-              </div>
-              <div className="task-list task-list-compact">
-                {[TASKS[2], TASKS[0], TASKS[3], TASKS[4]].map((task) =>
-                  renderTaskCard(task, "compact"),
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="task-list">
-              {TASKS.map((task) => renderTaskCard(task, "default"))}
+        {theme.id === "summer" ? (
+          <>
+            <div className="featured-task-rail">
+              {TASKS.slice(0, 2).map((task) =>
+                renderTaskCard(task, "featured"),
+              )}
             </div>
-          )
+            <div className="task-list task-list-compact">
+              {[TASKS[2], TASKS[0], TASKS[3], TASKS[4]].map((task) =>
+                renderTaskCard(task, "compact"),
+              )}
+            </div>
+          </>
         ) : (
-          <div className="coming-card">
-            <div className="coming-visual" aria-hidden="true">
-              <span>●</span>
-              <span>●</span>
-              <span>●</span>
-            </div>
-            <h3>接金豆副玩法正在准备</h3>
-            <p>
-              后续可接入“任务得体力—小游戏接豆—金豆兑券”的独立循环。
-            </p>
-            <button type="button" onClick={() => setTaskTab("draw")}>
-              先去{theme.drawTabLabel}
-            </button>
+          <div className="task-list">
+            {TASKS.map((task) => renderTaskCard(task, "default"))}
           </div>
         )}
       </section>
