@@ -6,6 +6,7 @@ type CardDefinition = {
   id: string;
   name: string;
   emoji: string;
+  image?: string;
   accent: string;
   rarity: "普通" | "稀有";
   weight: number;
@@ -80,6 +81,7 @@ type ThemeDefinition = {
   topicChips: string[];
   inspirationCards: Array<{
     emoji: string;
+    image?: string;
     eyebrow: string;
     title: string;
     taskId: TaskId;
@@ -267,6 +269,7 @@ const SUMMER_CARDS: CardDefinition[] = [
     id: "watergun",
     name: "鲨鲨水枪",
     emoji: "🔫",
+    image: "/figma/equipment-water-gun.webp",
     accent: "#38bdf8",
     rarity: "普通",
     weight: 1,
@@ -275,6 +278,7 @@ const SUMMER_CARDS: CardDefinition[] = [
     id: "watermelon",
     name: "冰镇西瓜",
     emoji: "🍉",
+    image: "/figma/equipment-watermelon-bucket.webp",
     accent: "#77e36b",
     rarity: "普通",
     weight: 1,
@@ -283,6 +287,7 @@ const SUMMER_CARDS: CardDefinition[] = [
     id: "surfboard",
     name: "顺风冲浪板",
     emoji: "🏄",
+    image: "/figma/equipment-paddle-board.webp",
     accent: "#ffd84d",
     rarity: "普通",
     weight: 1,
@@ -291,6 +296,7 @@ const SUMMER_CARDS: CardDefinition[] = [
     id: "palmtree",
     name: "海岛椰树",
     emoji: "🌴",
+    image: "/figma/equipment-palm-tree.webp",
     accent: "#5de08c",
     rarity: "普通",
     weight: 1,
@@ -299,14 +305,16 @@ const SUMMER_CARDS: CardDefinition[] = [
     id: "floatie",
     name: "好运泳圈",
     emoji: "🛟",
+    image: "/figma/equipment-pineapple-float.webp",
     accent: "#ff7791",
     rarity: "普通",
     weight: 1,
   },
   {
-    id: "sunglasses",
-    name: "高光墨镜",
-    emoji: "🕶️",
+    id: "deckchair",
+    name: "躺赢沙滩椅",
+    emoji: "⛱️",
+    image: "/figma/equipment-sun-chair.webp",
     accent: "#7f9cff",
     rarity: "普通",
     weight: 0.95,
@@ -378,15 +386,6 @@ const SUMMER_TIERS: TierDefinition[] = [
 
 const SUMMER_TASKS: TaskDefinition[] = [
   {
-    id: "browse",
-    icon: "👀",
-    title: "浏览夏天马上顺活动页",
-    description: "每日首次浏览，获得1次抽装备机会",
-    target: 1,
-    reward: 1,
-    action: "明日再来",
-  },
-  {
     id: "post",
     icon: "✨",
     title: "为点亮过的避暑玩水地点投稿",
@@ -398,22 +397,23 @@ const SUMMER_TASKS: TaskDefinition[] = [
   },
   {
     id: "share",
-    icon: "📍",
-    title: "到店点亮避暑玩水商户",
-    description: "每次模拟点亮，获得1次抽装备机会",
+    icon: "📸",
+    title: "带定位&话题发布玩水灵感",
+    description: "带#顺风顺水的夏天发布，即得2次机会",
     target: 2,
-    reward: 1,
-    action: "去点亮",
+    reward: 2,
+    action: "去投稿",
     repeatable: true,
   },
   {
     id: "store",
-    icon: "🧭",
-    title: "逛一逛夏日玩水灵感地图",
-    description: "完成一次探索，获得1次抽装备机会",
-    target: 1,
+    icon: "✨",
+    title: "到店点亮避暑玩水商户",
+    description: "每次点亮即得1张玩水装备卡",
+    target: 6,
     reward: 1,
-    action: "去发现",
+    action: "去点亮",
+    repeatable: true,
   },
   {
     id: "gift",
@@ -425,6 +425,15 @@ const SUMMER_TASKS: TaskDefinition[] = [
     action: "去赠送",
     repeatable: true,
   },
+  {
+    id: "browse",
+    icon: "👀",
+    title: "浏览本玩水活动页",
+    description: "每日首次浏览即得1次抽装备机会",
+    target: 1,
+    reward: 1,
+    action: "明日再来",
+  },
 ];
 
 const THEMES: Record<ThemeId, ThemeDefinition> = {
@@ -432,7 +441,7 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     id: "summer",
     navLabel: "夏天马上顺",
     accessibleTitle: "这夏夯爆了｜夏天马上顺",
-    heroImage: "/hero-summer-base.webp",
+    heroImage: "/figma/crops/hero-scene.webp",
     heroMode: "summer-keyvisual",
     collectionName: "顺风装备册",
     cardNoun: "装备卡",
@@ -443,16 +452,32 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     energyTabLabel: "攒体力",
     topicEyebrow: "SUMMER WATER TOPICS",
     topicTitle: "暑期 #灵感话题",
-    topicChips: ["# 2026暑假接好运", "# 暑假快乐", "# 今年暑假去哪玩"],
+    topicChips: [
+      "# 2026暑假接好运",
+      "# 暑假快乐",
+      "# 今年暑假去哪玩",
+      "# 暑假快乐",
+      "# 今年暑期去哪玩",
+      "# 2026暑假接好运",
+    ],
     inspirationCards: [
       {
+        emoji: "🍉",
+        image: "/figma/topic-hotpot-card.webp",
+        eyebrow: "清凉美食指南",
+        title: "把夏天吃进这一口",
+        taskId: "store",
+      },
+      {
         emoji: "🌅",
+        image: "/figma/topic-sunset-card.webp",
         eyebrow: "晚霞打卡指南",
         title: "晚霞就是天空的诗",
         taskId: "post",
       },
       {
         emoji: "🌊",
+        image: "/figma/topic-lake-card.webp",
         eyebrow: "扎进水里夏天",
         title: "把清凉值拉满",
         taskId: "store",
@@ -502,6 +527,53 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
   },
 };
 
+const SUMMER_VENUES = [
+  {
+    image: "/figma/content-card-lions.webp",
+    location: "上海动物园",
+    title: "元旦来动物园打卡啦～",
+  },
+  {
+    image: "/figma/content-card-cabin.webp",
+    location: "世博文化公园",
+    title: "2026元旦许愿接龙！",
+  },
+  {
+    image: "/figma/content-card-lions.webp",
+    location: "上海动物园",
+    title: "元旦来动物园打卡啦～",
+  },
+  {
+    image: "/figma/content-card-cabin.webp",
+    location: "世博文化公园",
+    title: "2026元旦许愿接龙！",
+  },
+];
+
+function CardArtwork({
+  card,
+  visible = true,
+}: {
+  card: CardDefinition;
+  visible?: boolean;
+}) {
+  if (card.image) {
+    return (
+      <img
+        className="card-art-image"
+        src={card.image}
+        alt=""
+        aria-hidden="true"
+        data-visible={visible}
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
+
+  return <>{visible ? card.emoji : "?"}</>;
+}
+
 function getDailyCycle() {
   return new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Shanghai",
@@ -538,6 +610,32 @@ function createInitialState(): CampaignState {
       night: createInitialProgress(1),
     },
   };
+}
+
+function createFigmaFixtureState(): CampaignState {
+  const state = createInitialState();
+  state.themes.summer = {
+    ...state.themes.summer,
+    drawBalance: 99,
+    cardCounts: {
+      watergun: 5,
+      watermelon: 3,
+      surfboard: 1,
+    },
+    claimedTiers: ["tier-1"],
+    coupons: [
+      {
+        id: "figma-tier-1",
+        tierId: "tier-1",
+        title: "清凉开运券",
+        amount: "3",
+        condition: "满15元可用",
+        expiresAt: "2026-08-31",
+        status: "unused",
+      },
+    ],
+  };
+  return state;
 }
 
 function countDistinctCards(
@@ -697,6 +795,7 @@ export default function Home() {
   const claimedTierIdsRef = useRef<Set<string>>(new Set());
   const giftClaimPendingRef = useRef(false);
   const stateEpochRef = useRef(0);
+  const fixtureModeRef = useRef(false);
 
   const theme = THEMES[campaignState.activeTheme];
   const state = campaignState.themes[campaignState.activeTheme];
@@ -734,6 +833,14 @@ export default function Home() {
   useEffect(() => {
     const hydrateFromStorage = () => {
       try {
+        if (
+          new URLSearchParams(window.location.search).get("fixture") ===
+          "figma"
+        ) {
+          fixtureModeRef.current = true;
+          setCampaignState(createFigmaFixtureState());
+          return;
+        }
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved) {
           setCampaignState(normalizeState(JSON.parse(saved)));
@@ -755,7 +862,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || fixtureModeRef.current) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(campaignState));
     } catch {
@@ -1065,8 +1172,70 @@ export default function Home() {
     (card) => (state.cardCounts[card.id] ?? 0) > 0,
   ).slice(-5);
 
+  function renderTaskCard(
+    task: TaskDefinition,
+    variant: "featured" | "compact" | "default",
+  ) {
+    const progress = state.taskProgress[task.id] ?? 0;
+    const complete = progress >= task.target;
+    const duplicates = CARD_DEFINITIONS.some(
+      (card) => (state.cardCounts[card.id] ?? 0) > 1,
+    );
+    const disabled =
+      task.id === "browse"
+        ? true
+        : complete && !task.repeatable
+          ? true
+          : task.id === "gift" && !duplicates;
+    const actionLabel =
+      task.id === "gift" && !duplicates
+        ? "暂无重复卡"
+        : complete && !task.repeatable
+          ? task.action
+          : complete
+            ? "已达上限"
+            : task.action;
+
+    return (
+      <article className={`task-card task-card-${variant}`} key={task.id}>
+        <div className="task-icon" aria-hidden="true">
+          {task.icon}
+        </div>
+        <div className="task-copy">
+          <div className="task-title-row">
+            <h3>{task.title}</h3>
+            <span>
+              {progress}/{task.target}
+            </span>
+          </div>
+          <p>{task.description}</p>
+          <div className="task-progress" aria-hidden="true">
+            <span
+              style={{
+                width: `${Math.min(100, (progress / task.target) * 100)}%`,
+              }}
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => completeTask(task)}
+          disabled={disabled}
+          aria-label={`${task.title}，${complete ? "已完成" : task.action}`}
+        >
+          {actionLabel}
+        </button>
+      </article>
+    );
+  }
+
   return (
     <main className={`campaign-shell theme-${theme.id}`}>
+      {theme.id === "summer" && (
+        <div className="summer-map-cap" aria-hidden="true">
+          <img src="/figma/crops/map-cap.png" alt="" decoding="async" />
+        </div>
+      )}
       <section
         className={`hero hero-${theme.heroMode}`}
         aria-labelledby="campaign-title"
@@ -1076,7 +1245,12 @@ export default function Home() {
           {theme.accessibleTitle}
         </h1>
         <picture className="hero-media">
-          <img src={theme.heroImage} alt="" />
+          <img
+            src={theme.heroImage}
+            alt=""
+            decoding="async"
+            fetchPriority="high"
+          />
         </picture>
         <div className="hero-progress-visual" aria-hidden="true">
           {collectedHeroCards.map((card, index) => (
@@ -1087,35 +1261,57 @@ export default function Home() {
               key={card.id}
               style={{ "--card-accent": card.accent } as React.CSSProperties}
             >
-              {card.emoji}
+              <CardArtwork card={card} />
             </span>
           ))}
         </div>
-        <div className="hero-topline">
-          <span className="prototype-chip">交互原型 · 本地模拟</span>
-        </div>
+        {theme.id === "night" && (
+          <div className="hero-topline">
+            <span className="prototype-chip">交互原型 · 本地模拟</span>
+          </div>
+        )}
 
-        <nav className="stage-nav" aria-label="活动主题">
-          <button
-            type="button"
-            className={theme.id === "summer" ? "active" : ""}
-            onClick={() => switchTheme("summer")}
-            aria-pressed={theme.id === "summer"}
-          >
-            夏天马上顺
-          </button>
-          <button
-            type="button"
-            className={theme.id === "night" ? "active" : ""}
-            onClick={() => switchTheme("night")}
-            aria-pressed={theme.id === "night"}
-          >
-            夏日夜食指南
-          </button>
-          <button type="button" className="locked" disabled>
-            敬请期待
-          </button>
-        </nav>
+        {theme.id === "summer" ? (
+          <nav className="stage-nav summer-stage-hotspots" aria-label="活动主题">
+            <button
+              type="button"
+              className="active"
+              onClick={() => announce("当前已是夏天马上顺主题")}
+              aria-pressed="true"
+            >
+              夏天马上顺
+            </button>
+            <button
+              type="button"
+              className="locked"
+              onClick={() => switchTheme("night")}
+              aria-label="切换至夏日夜食指南主题"
+            >
+              敬请期待
+            </button>
+          </nav>
+        ) : (
+          <nav className="stage-nav" aria-label="活动主题">
+            <button
+              type="button"
+              onClick={() => switchTheme("summer")}
+              aria-pressed="false"
+            >
+              夏天马上顺
+            </button>
+            <button
+              type="button"
+              className="active"
+              onClick={() => switchTheme("night")}
+              aria-pressed="true"
+            >
+              夏日夜食指南
+            </button>
+            <button type="button" className="locked" disabled>
+              敬请期待
+            </button>
+          </nav>
+        )}
 
         <div className="hero-actions">
           <button
@@ -1175,12 +1371,17 @@ export default function Home() {
             <h2 id="collection-title">
               {uniqueCount === 9
                 ? "全套集齐，好运圆满"
-                : `再集 ${Math.max(0, nextTier.threshold - uniqueCount)} 种`}
+                : `${theme.id === "summer" ? "再抽" : "再集"} ${Math.max(
+                    0,
+                    nextTier.threshold - uniqueCount,
+                  )} 种`}
             </h2>
             <p>
               {uniqueCount === 9
                 ? "终极纪念礼已解锁"
-                : `解锁${nextTier.title}`}
+                : theme.id === "summer"
+                  ? `兑${nextTier.amount}元顺顺券`
+                  : `解锁${nextTier.title}`}
             </p>
           </div>
           <div className="collection-count">
@@ -1213,7 +1414,20 @@ export default function Home() {
                   claimed ? "已领取" : unlocked ? "可领取" : "未解锁"
                 }`}
               >
-                <span className="tier-ticket">{tier.icon}</span>
+                <span className="tier-ticket">
+                  {theme.id === "summer" && tier.kind === "grand" ? (
+                    <img
+                      className="tier-prize-image"
+                      src="/figma/reward-gold-horse.webp"
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    tier.icon
+                  )}
+                </span>
                 <b>{tier.threshold}种</b>
                 <small>
                   {claimed ? "已领取" : unlocked ? "点击领取" : "未解锁"}
@@ -1241,7 +1455,7 @@ export default function Home() {
               >
                 {count > 1 && <span className="card-count">×{count}</span>}
                 <span className="card-emoji" aria-hidden="true">
-                  {owned ? card.emoji : "?"}
+                  <CardArtwork card={card} visible={owned} />
                 </span>
                 <b>{owned ? card.name : "等待点亮"}</b>
                 <small>
@@ -1259,20 +1473,45 @@ export default function Home() {
 
       <section className="energy-teaser" aria-label="金豆副玩法预告">
         <div className="bean-orbit" aria-hidden="true">
-          <span>●</span>
-          <span>●</span>
-          <span>●</span>
+          {theme.id === "summer" ? (
+            <img
+              src="/figma/mascot-side-horse.webp"
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <>
+              <span>●</span>
+              <span>●</span>
+              <span>●</span>
+            </>
+          )}
         </div>
         <div>
-          <small>副玩法预告</small>
-          <h2>接金豆，{theme.rewardVerb}</h2>
-          <p>攒体力玩法即将开放</p>
+          <small>{theme.id === "summer" ? "金豆副玩法" : "副玩法预告"}</small>
+          <h2>
+            {theme.id === "summer"
+              ? "冲浪得金豆，好礼兑不停"
+              : `接金豆，${theme.rewardVerb}`}
+          </h2>
+          <p>
+            {theme.id === "summer"
+              ? "已有99999🟡，冲一冲兑50元券 ›"
+              : "攒体力玩法即将开放"}
+          </p>
         </div>
         <button
           type="button"
           onClick={() => announce("副玩法将在第二版开放")}
         >
-          预告
+          {theme.id === "summer" ? (
+            <>
+              冲!<b>1</b>
+            </>
+          ) : (
+            "预告"
+          )}
         </button>
       </section>
 
@@ -1311,59 +1550,24 @@ export default function Home() {
         </div>
 
         {taskTab === "draw" ? (
-          <div className="task-list">
-            {TASKS.map((task) => {
-              const progress = state.taskProgress[task.id] ?? 0;
-              const complete = progress >= task.target;
-              const duplicates = CARD_DEFINITIONS.some(
-                (card) => (state.cardCounts[card.id] ?? 0) > 1,
-              );
-              const disabled =
-                task.id === "browse"
-                  ? true
-                  : complete && !task.repeatable
-                    ? true
-                    : task.id === "gift" && !duplicates;
-
-              return (
-                <article className="task-card" key={task.id}>
-                  <div className="task-icon" aria-hidden="true">
-                    {task.icon}
-                  </div>
-                  <div className="task-copy">
-                    <div className="task-title-row">
-                      <h3>{task.title}</h3>
-                      <span>
-                        {progress}/{task.target}
-                      </span>
-                    </div>
-                    <p>{task.description}</p>
-                    <div className="task-progress">
-                      <span
-                        style={{
-                          width: `${Math.min(100, (progress / task.target) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => completeTask(task)}
-                    disabled={disabled}
-                    aria-label={`${task.title}，${complete ? "已完成" : task.action}`}
-                  >
-                    {task.id === "gift" && !duplicates
-                      ? "暂无重复卡"
-                      : complete && !task.repeatable
-                        ? task.action
-                        : complete
-                          ? "已达上限"
-                          : task.action}
-                  </button>
-                </article>
-              );
-            })}
-          </div>
+          theme.id === "summer" ? (
+            <>
+              <div className="featured-task-rail">
+                {TASKS.slice(0, 2).map((task) =>
+                  renderTaskCard(task, "featured"),
+                )}
+              </div>
+              <div className="task-list task-list-compact">
+                {[TASKS[2], TASKS[0], TASKS[3], TASKS[4]].map((task) =>
+                  renderTaskCard(task, "compact"),
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="task-list">
+              {TASKS.map((task) => renderTaskCard(task, "default"))}
+            </div>
+          )
         ) : (
           <div className="coming-card">
             <div className="coming-visual" aria-hidden="true">
@@ -1382,12 +1586,13 @@ export default function Home() {
         )}
       </section>
 
+      <div className="campaign-content-world">
       <section className="topics-section" aria-labelledby="topics-title">
         <p>{theme.topicEyebrow}</p>
         <h2 id="topics-title">{theme.topicTitle}</h2>
         <div className="topic-chips">
-          {theme.topicChips.map((chip) => (
-            <span key={chip}>{chip}</span>
+          {theme.topicChips.map((chip, index) => (
+            <span key={`${chip}-${index}`}>{chip}</span>
           ))}
         </div>
         <div className="inspiration-grid">
@@ -1398,7 +1603,18 @@ export default function Home() {
                 className={`inspiration-card inspiration-card-${index + 1}`}
                 key={item.title}
               >
-                <div aria-hidden="true">{item.emoji}</div>
+                <div className="inspiration-media" aria-hidden="true">
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  ) : (
+                    item.emoji
+                  )}
+                </div>
                 <span>{item.eyebrow}</span>
                 <h3>{item.title}</h3>
                 <button
@@ -1414,12 +1630,92 @@ export default function Home() {
         </div>
       </section>
 
-      <footer>
-        <div className="footer-mark">{theme.navLabel}</div>
-        <p>本页面为活动机制交互原型，优惠券与任务均为本地模拟。</p>
-        <button type="button" onClick={() => setActiveModal("rules")}>
-          查看玩法与演示说明
-        </button>
+      {theme.id === "summer" && (
+        <section
+          className="discovery-section"
+          aria-labelledby="discovery-title"
+        >
+          <div className="discovery-heading">
+            <small>热门投稿　 HOT!!　🔥</small>
+            <h2 id="discovery-title">扎进水里夏天（马上顺）</h2>
+          </div>
+          <div className="venue-grid">
+            {SUMMER_VENUES.map((venue, index) => (
+              <article className="venue-card" key={`${venue.location}-${index}`}>
+                <div className="venue-media">
+                  <img
+                    src={venue.image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span>⌖ {venue.location}</span>
+                </div>
+                <h3>{venue.title}</h3>
+                <div className="venue-meta">
+                  <img
+                    className="venue-avatar"
+                    src="/figma/content-avatar.png"
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <span>小九兄弟</span>
+                  <span>♡ 92.4万</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => announce(`已打开${venue.location}灵感`)}
+                  aria-label={`查看${venue.location}：${venue.title}`}
+                />
+              </article>
+            ))}
+          </div>
+          <button
+            className="more-activities"
+            type="button"
+            onClick={() => announce("更多精彩活动即将上线")}
+          >
+            更多精彩活动
+          </button>
+          <button
+            className="campaign-banner-slot"
+            type="button"
+            onClick={() => announce("品牌联合活动位")}
+            aria-label="品牌联合活动"
+          />
+        </section>
+      )}
+      </div>
+
+      <footer className={theme.id === "summer" ? "summer-footer" : ""}>
+        {theme.id === "summer" ? (
+          <>
+            <img
+              className="brand-logo"
+              src="/figma/crops/brand-logo.png"
+              alt="抖音生活服务，让每次心动都值得"
+              loading="lazy"
+              decoding="async"
+            />
+            <button
+              className="footer-rules-entry"
+              type="button"
+              onClick={() => setActiveModal("rules")}
+            >
+              玩法与演示说明
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="footer-mark">{theme.navLabel}</div>
+            <p>本页面为活动机制交互原型，优惠券与任务均为本地模拟。</p>
+            <button type="button" onClick={() => setActiveModal("rules")}>
+              查看玩法与演示说明
+            </button>
+          </>
+        )}
       </footer>
 
       {drawResult && resultCard && (
@@ -1447,7 +1743,9 @@ export default function Home() {
               className="result-card-art"
               style={{ "--card-accent": resultCard.accent } as React.CSSProperties}
             >
-              <span>{resultCard.emoji}</span>
+              <span>
+                <CardArtwork card={resultCard} />
+              </span>
               <small>{resultCard.rarity}</small>
             </div>
             <h2 id="draw-result-title">{resultCard.name}</h2>
@@ -1515,7 +1813,9 @@ export default function Home() {
                     key={card.id}
                     style={{ "--card-accent": card.accent } as React.CSSProperties}
                   >
-                    <span>{count > 0 ? card.emoji : "?"}</span>
+                    <span>
+                      <CardArtwork card={card} visible={count > 0} />
+                    </span>
                     <h3>
                       {count > 0
                         ? card.name
@@ -1695,7 +1995,9 @@ export default function Home() {
               className="gift-card-visual"
               style={{ "--card-accent": giftCard.accent } as React.CSSProperties}
             >
-              <span>{giftCard.emoji}</span>
+              <span>
+                <CardArtwork card={giftCard} />
+              </span>
             </div>
             <p className="result-kicker">PASS THE FLAVOR</p>
             <h2 id="gift-modal-title">把「{giftCard.name}」送给朋友</h2>

@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "暑期好运季｜夏天马上顺",
     description: "两大暑期主题共用一套活动框架：做任务、抽卡收集、分档赢好券。",
     icons: {
-      icon: `${origin}/hero-summer-base.webp`,
+      icon: `${origin}/figma/crops/hero-scene.webp`,
     },
     openGraph: {
       title: "暑期好运季｜夏天马上顺",
@@ -36,9 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [
         {
-          url: `${origin}/hero-summer-base.webp`,
-          width: 1159,
-          height: 1358,
+          url: `${origin}/figma/crops/hero-scene.webp`,
+          width: 1125,
+          height: 1125,
           alt: "夏天马上顺暑期收集活动",
         },
       ],
@@ -47,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "暑期好运季｜夏天马上顺",
       description: "做任务 · 抽装备 · 收集好运 · 赢好券",
-      images: [`${origin}/hero-summer-base.webp`],
+      images: [`${origin}/figma/crops/hero-scene.webp`],
     },
   };
 }
@@ -63,7 +63,7 @@ export default function RootLayout({
         <link
           rel="preload"
           as="image"
-          href="/hero-summer-base.webp"
+          href="/figma/crops/hero-scene.webp"
           type="image/webp"
         />
       </head>
