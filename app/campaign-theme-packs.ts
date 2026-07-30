@@ -8,6 +8,8 @@ export type CampaignHeroMedia =
       src: string;
       fit?: "cover" | "contain";
       position?: string;
+      sourceWidth?: number;
+      sourceHeight?: number;
     }
   | {
       type: "video";
@@ -15,6 +17,8 @@ export type CampaignHeroMedia =
       poster?: string;
       fit?: "cover" | "contain";
       position?: string;
+      sourceWidth?: number;
+      sourceHeight?: number;
     };
 
 export type CampaignThemePack = {
@@ -72,6 +76,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
         src: "/theme-assets/summer/hero-scene-v2.png",
         fit: "cover",
         position: "center top",
+        sourceWidth: 375,
+        sourceHeight: 474,
       },
       grandRewardImage: "/figma/reward-gold-horse.webp",
     },
@@ -107,6 +113,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
         src: "/theme-assets/night/hero-scene.webp",
         fit: "contain",
         position: "center top",
+        sourceWidth: 1125,
+        sourceHeight: 1125,
       },
     },
     colors: {

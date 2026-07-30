@@ -36,6 +36,7 @@ export type StageCard = {
 type CampaignStageProps = {
   activeTheme: ThemeId;
   pack: CampaignThemePack;
+  showHeroMeasurements?: boolean;
   tabs: ThemeTab[];
   accessibleTitle: string;
   heroTier: number;
@@ -60,6 +61,45 @@ type CampaignStageProps = {
   onTierSelect: (tierId: string) => void;
   onCardSelect: (cardId: string) => void;
 };
+
+const HERO_DESIGN_WIDTH = 375;
+const HERO_DESIGN_HEIGHT = 425;
+
+function getHeroMediaMeasurement(media: CampaignHeroMedia) {
+  const sourceWidth = media.sourceWidth;
+  const sourceHeight = media.sourceHeight;
+  const fit = media.fit ?? "cover";
+
+  if (!sourceWidth || !sourceHeight) {
+    return {
+      sourceLabel: "素材尺寸未登记",
+      renderLabel: `${fit} · ${media.position ?? "center"}`,
+      edgeLabel: "按容器实时适配",
+    };
+  }
+
+  const widthScale = HERO_DESIGN_WIDTH / sourceWidth;
+  const heightScale = HERO_DESIGN_HEIGHT / sourceHeight;
+  const scale =
+    fit === "contain"
+      ? Math.min(widthScale, heightScale)
+      : Math.max(widthScale, heightScale);
+  const renderedWidth = Math.round(sourceWidth * scale);
+  const renderedHeight = Math.round(sourceHeight * scale);
+  const verticalDelta = renderedHeight - HERO_DESIGN_HEIGHT;
+  const edgeLabel =
+    verticalDelta > 0
+      ? `底部裁切 ${verticalDelta}px`
+      : verticalDelta < 0
+        ? `底部背景填充 ${Math.abs(verticalDelta)}px`
+        : "高度完整贴合";
+
+  return {
+    sourceLabel: `素材 ${sourceWidth}×${sourceHeight}`,
+    renderLabel: `渲染 ${renderedWidth}×${renderedHeight} · ${fit} · 顶对齐`,
+    edgeLabel,
+  };
+}
 
 function CampaignHeroMediaSlot({ media }: { media: CampaignHeroMedia }) {
   const mediaStyle: CSSProperties = {
@@ -99,6 +139,7 @@ function CampaignHeroMediaSlot({ media }: { media: CampaignHeroMedia }) {
 export function CampaignStage({
   activeTheme,
   pack,
+  showHeroMeasurements = false,
   tabs,
   accessibleTitle,
   heroTier,
@@ -126,6 +167,7 @@ export function CampaignStage({
   const collectionHeadingMatch = collectionHeading.match(
     /^(.*?)(\d+)(.*)$/,
   );
+  const heroMediaMeasurement = getHeroMediaMeasurement(pack.assets.heroMedia);
 
   return (
     <section
@@ -155,6 +197,11 @@ export function CampaignStage({
                 decoding="async"
               />
             </>
+          )}
+          {showHeroMeasurements && (
+            <div className="campaign-map-measurement">
+              375 设计基准 · 地图层 375×78 · Hero 从 Y=78 开始
+            </div>
           )}
         </div>
 
@@ -244,6 +291,72 @@ export function CampaignStage({
               </button>
             </div>
           </div>
+
+          {showHeroMeasurements && (
+            <div
+              className="campaign-hero-measurement-overlay"
+              data-testid="hero-measurement-overlay"
+              data-hero-ratio="375/425"
+              data-transition-inset="52%"
+              aria-hidden="true"
+            >
+              <div className="hero-measure-frame" />
+              <div className="hero-measure-width">
+                <span>375</span>
+              </div>
+              <div className="hero-measure-height">
+                <span>425</span>
+              </div>
+              <div className="hero-measure-radius">
+                顶部圆角 R30（375 基准）
+              </div>
+              <div className="hero-measure-safe-zone">
+                <span>关键内容安全区 375×375</span>
+              </div>
+              <div className="hero-measure-transition-zone">
+                <span className="hero-measure-transition-start">
+                  渐变 Mask 起点 · Y221 · Hero 52%
+                </span>
+                <span className="hero-measure-stop hero-measure-stop-18">
+                  12% 页面色 · Y258
+                </span>
+                <span className="hero-measure-stop hero-measure-stop-52">
+                  52% 页面色 · Y327
+                </span>
+                <span className="hero-measure-stop hero-measure-stop-80">
+                  88% 页面色 · Y384
+                </span>
+                <span className="hero-measure-stop hero-measure-stop-100">
+                  纯页面色 · Y425
+                </span>
+              </div>
+              <div className="hero-measure-action-zone">
+                <span>实时按钮层 · Y375–425 · 50px</span>
+              </div>
+              <dl className="hero-measure-info">
+                <div>
+                  <dt>标注基准</dt>
+                  <dd>375px 设计画布</dd>
+                </div>
+                <div>
+                  <dt>Hero 容器</dt>
+                  <dd>375×425 · 15:17</dd>
+                </div>
+                <div>
+                  <dt>图片源</dt>
+                  <dd>{heroMediaMeasurement.sourceLabel}</dd>
+                </div>
+                <div>
+                  <dt>填充方式</dt>
+                  <dd>{heroMediaMeasurement.renderLabel}</dd>
+                </div>
+                <div>
+                  <dt>底部结果</dt>
+                  <dd>{heroMediaMeasurement.edgeLabel}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
         </section>
       </div>
 

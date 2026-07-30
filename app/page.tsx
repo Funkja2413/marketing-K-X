@@ -906,6 +906,7 @@ export default function Home() {
   const [taskTab, setTaskTab] = useState<"draw" | "energy">("draw");
   const [toast, setToast] = useState("");
   const [resetArmed, setResetArmed] = useState(false);
+  const [showHeroMeasurements, setShowHeroMeasurements] = useState(false);
   const taskSectionRef = useRef<HTMLElement | null>(null);
   const drawTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -953,9 +954,12 @@ export default function Home() {
   useEffect(() => {
     const hydrateFromStorage = () => {
       try {
+        const searchParams = new URLSearchParams(window.location.search);
+        setShowHeroMeasurements(
+          searchParams.get("inspectHero") === "1",
+        );
         if (
-          new URLSearchParams(window.location.search).get("fixture") ===
-          "figma"
+          searchParams.get("fixture") === "figma"
         ) {
           fixtureModeRef.current = true;
           setCampaignState(createFigmaFixtureState());
@@ -1440,6 +1444,7 @@ export default function Home() {
       <CampaignStage
         activeTheme={theme.id}
         pack={pack}
+        showHeroMeasurements={showHeroMeasurements}
         tabs={stageTabs}
         accessibleTitle={theme.accessibleTitle}
         heroTier={heroTier}

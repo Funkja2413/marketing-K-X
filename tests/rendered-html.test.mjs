@@ -71,6 +71,7 @@ test("server-renders the unified summer campaign template", async () => {
     /\bcampaign-hero-media-layer\b[\s\S]*\bcampaign-hero-transition-layer\b[\s\S]*\bcampaign-hero-effect-layer\b[\s\S]*\bcampaign-hero-ui-layer\b/,
   );
   assert.match(html, /class="stage-nav campaign-theme-tabs"/);
+  assert.doesNotMatch(html, /hero-measurement-overlay/);
   assert.match(html, /data-testid="theme-tab-summer"/);
   assert.match(html, /data-testid="theme-tab-night"/);
   assert.match(html, /夏日夜食指南/);
@@ -123,6 +124,14 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(page, /completeTask/);
   assert.match(page, /getThemePackStyle/);
   assert.match(page, /<CampaignStage/);
+  assert.match(
+    page,
+    /searchParams\.get\(["']inspectHero["']\)\s*===\s*["']1["']/,
+  );
+  assert.match(
+    page,
+    /showHeroMeasurements=\{showHeroMeasurements\}/,
+  );
   assert.match(page, /\bactivityBanners\.map\(/);
 
   const postHeroStart = page.indexOf("<CampaignStage");
@@ -163,7 +172,11 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(themePacks, /type:\s*["']video["']/);
   assert.match(
     themePacks,
-    /src:\s*["']\/theme-assets\/summer\/hero-scene-v2\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["']/,
+    /src:\s*["']\/theme-assets\/summer\/hero-scene-v2\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*375[\s\S]*?sourceHeight:\s*474/,
+  );
+  assert.match(
+    themePacks,
+    /src:\s*["']\/theme-assets\/night\/hero-scene\.webp["'][\s\S]*?fit:\s*["']contain["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*1125[\s\S]*?sourceHeight:\s*1125/,
   );
   assert.doesNotMatch(themePacks, /\bheroImage\b/);
   assert.match(
@@ -198,6 +211,12 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(campaignStage, /\bplaysInline\b/);
   assert.match(campaignStage, /data-testid=\{`theme-tab-\$\{tab\.id\}`\}/);
   assert.match(campaignStage, /data-testid="draw-balance"/);
+  assert.match(
+    campaignStage,
+    /data-testid="hero-measurement-overlay"/,
+  );
+  assert.match(campaignStage, /data-hero-ratio="375\/425"/);
+  assert.match(campaignStage, /data-transition-inset="52%"/);
   assert.doesNotMatch(campaignStage, /\bcollectionEyebrow\b/);
   assert.match(campaignStage, /collectionHeadingMatch/);
   assert.match(campaignStage, /<em>\{collectionHeadingMatch\[2\]\}<\/em>/);
@@ -224,6 +243,14 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(
     css,
     /\.campaign-template\s+\.campaign-hero\s*\{(?=[^}]*aspect-ratio:\s*375\s*\/\s*425)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-hero-transition-layer\s*\{(?=[^}]*inset:\s*52%\s+0\s+0)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-hero-measurement-overlay\s*\{(?=[^}]*position:\s*absolute)(?=[^}]*inset:\s*0)(?=[^}]*pointer-events:\s*none)[^}]*\}/s,
   );
   assert.match(
     css,
