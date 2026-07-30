@@ -221,6 +221,27 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   );
   assert.match(
     css,
+    /\.campaign-template\s+\.campaign-reward-shelf::before\s*\{(?=[^}]*top:\s*36%)(?=[^}]*background:\s*color-mix)(?=[^}]*border:\s*clamp\()[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-reward-shelf::after\s*\{(?=[^}]*width:\s*33\.5%)(?=[^}]*height:\s*49%)(?=[^}]*background:\s*var\(--stage-surface\))[^}]*\}/s,
+  );
+  for (const interactiveLayer of [
+    "collection-heading",
+    "tier-row",
+    "card-scroller",
+  ]) {
+    assert.match(
+      css,
+      new RegExp(
+        `\\.campaign-template\\s+\\.campaign-reward-shelf\\s+\\.${interactiveLayer}\\s*\\{[^}]*z-index:\\s*2`,
+        "s",
+      ),
+    );
+  }
+  assert.match(
+    css,
     /\.featured-task-rail\s*\{(?=[^}]*padding:\s*0\s+16px\s+5px)(?=[^}]*scroll-padding-inline:\s*16px)[^}]*\}/s,
   );
   assert.match(
