@@ -1829,6 +1829,9 @@ footer button {
   box-shadow: 0 0 80px rgba(8, 108, 154, 0.22);
 }
 
+/* Legacy top-stage rules are isolated from the reusable CampaignStage.
+   They remain only as a fallback for old markup without campaign-template. */
+@scope (.campaign-shell:not(.campaign-template)) {
 .summer-map-cap {
   width: 100%;
   height: auto;
@@ -2160,6 +2163,19 @@ footer button {
   border: 2px solid white;
   background: #baff20;
   font-size: 10px;
+}
+}
+
+.card-art-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.card-art-image[data-visible="false"] {
+  opacity: 0.2;
+  filter: grayscale(1) saturate(0.1) contrast(0.75);
 }
 
 .theme-summer .energy-teaser {
@@ -2952,4 +2968,516 @@ footer button {
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* Unified campaign-stage geometry.
+   Theme packs may change assets and tokens, but never these measurements. */
+.campaign-shell.campaign-template {
+  background: var(--stage-page);
+  color: var(--stage-text);
+}
+
+.campaign-template .campaign-stage {
+  position: relative;
+  width: 100%;
+  background: var(--stage-page);
+  color: var(--stage-text);
+}
+
+.campaign-template .campaign-top-cap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 375 / 78;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--stage-top-cap) 88%, white), var(--stage-top-cap));
+}
+
+.campaign-template .campaign-top-cap.is-plain::after {
+  position: absolute;
+  inset: 16% 6%;
+  content: "";
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--stage-accent) 16%, transparent),
+      transparent
+    );
+  opacity: 0.6;
+}
+
+.campaign-template .campaign-top-cap img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.campaign-template .campaign-hero {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  aspect-ratio: 375 / 425;
+  padding: 0;
+  overflow: visible;
+  isolation: isolate;
+  background: var(--stage-hero);
+}
+
+.campaign-template .campaign-hero::before,
+.campaign-template .campaign-hero::after {
+  display: none;
+}
+
+.campaign-template .campaign-hero-media {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 88.2353%;
+  overflow: hidden;
+  background: var(--stage-hero);
+}
+
+.campaign-template .campaign-hero-media::before,
+.campaign-template .campaign-hero-media::after {
+  display: none;
+}
+
+.campaign-template .campaign-hero-media img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: none;
+}
+
+.campaign-template .campaign-hero .campaign-theme-tabs,
+.campaign-template.theme-night .campaign-hero .campaign-theme-tabs {
+  position: absolute;
+  top: 25.18%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  z-index: 8;
+  display: flex;
+  width: 56%;
+  max-width: 290px;
+  min-height: clamp(32px, 9.067cqw, 44px);
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--stage-tab-active-surface) 82%, transparent);
+  border-radius: 999px;
+  background: var(--stage-tab-surface);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--stage-hero) 32%, transparent);
+  backdrop-filter: blur(12px);
+  transform: translateX(-50%);
+}
+
+.campaign-template .campaign-hero .campaign-theme-tabs button,
+.campaign-template.theme-night .campaign-hero .campaign-theme-tabs button {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--stage-tab-text);
+  font-size: clamp(9px, 2.667cqw, 13px);
+  font-weight: 850;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 1;
+  cursor: pointer;
+}
+
+.campaign-template .campaign-hero .campaign-theme-tabs button.active,
+.campaign-template.theme-night .campaign-hero .campaign-theme-tabs button.active {
+  background: var(--stage-tab-active-surface);
+  color: var(--stage-tab-active-text);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--stage-hero) 36%, transparent);
+}
+
+.campaign-template .campaign-hero .campaign-action-bar {
+  position: absolute;
+  top: 88.2353%;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  z-index: 7;
+  display: grid;
+  grid-template-columns: 14.6667% 55.2% 14.6667%;
+  align-items: center;
+  gap: 0 7.7333%;
+  width: 100%;
+  height: 11.7647%;
+}
+
+.campaign-template .campaign-action-bar .side-action {
+  width: 100%;
+  min-height: 0;
+  height: 84%;
+  padding: 4px 2px;
+  border: 0;
+  background: var(--stage-side-action);
+  color: var(--stage-side-action-text);
+  font-size: clamp(10px, 2.933cqw, 15px);
+  font-weight: 900;
+  line-height: 1.05;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stage-accent) 16%, transparent);
+}
+
+.campaign-template .campaign-action-bar .side-action.left {
+  border-radius: 0 999px 999px 0;
+}
+
+.campaign-template .campaign-action-bar .side-action.right {
+  border-radius: 999px 0 0 999px;
+}
+
+.campaign-template .campaign-action-bar .draw-button {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  height: calc(100% - 4px);
+  padding: 0 12% 0 7%;
+  overflow: visible;
+  border: 2px solid rgba(255, 255, 255, 0.74);
+  border-radius: 999px;
+  background-color: var(--stage-action-start);
+  background-image:
+    var(--stage-action-image),
+    linear-gradient(180deg, var(--stage-action-start), var(--stage-action-end));
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: var(--stage-accent-text);
+  font-size: clamp(15px, 5.333cqw, 25px);
+  font-weight: 950;
+  line-height: 1;
+  box-shadow:
+    0 4px 0 var(--stage-action-shadow),
+    inset 0 2px rgba(255, 255, 255, 0.24);
+}
+
+.campaign-template .campaign-action-bar .draw-button b {
+  position: absolute;
+  top: -18%;
+  right: -1px;
+  display: grid;
+  min-width: clamp(25px, 7.733cqw, 40px);
+  height: clamp(25px, 7.733cqw, 40px);
+  padding: 0 4px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 999px;
+  background: var(--stage-count-badge);
+  color: #15120a;
+  font-size: clamp(11px, 3.733cqw, 18px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.campaign-template .campaign-hero .floating-actions {
+  position: absolute;
+  top: 25%;
+  right: 0;
+  left: auto;
+  z-index: 9;
+  display: grid;
+  gap: 2px;
+}
+
+.campaign-template .campaign-hero .floating-actions button {
+  width: clamp(28px, 8cqw, 42px);
+  min-height: clamp(39px, 12cqw, 62px);
+  padding: 4px 2px;
+  border: 1px solid color-mix(in srgb, var(--stage-tab-active-surface) 36%, transparent);
+  border-radius: 12px 0 0 12px;
+  background: var(--stage-tab-surface);
+  color: var(--stage-tab-text);
+  font-size: clamp(9px, 2.667cqw, 13px);
+  font-weight: 850;
+  backdrop-filter: blur(10px);
+}
+
+.campaign-template .campaign-hero .hero-collected-card {
+  display: none;
+}
+
+.campaign-template .campaign-hero .hero-collected-card.recent {
+  top: 73%;
+  left: 43.7%;
+  z-index: 9;
+  display: grid;
+  width: clamp(42px, 12.8cqw, 66px);
+  height: clamp(42px, 12.8cqw, 66px);
+}
+
+.campaign-template .campaign-reward-shelf {
+  position: relative;
+  z-index: 6;
+  width: calc(100% - 20px);
+  height: auto;
+  aspect-ratio: 355 / 166;
+  margin: 0 10px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: clamp(18px, 6.133cqw, 30px);
+  background-color: var(--stage-surface);
+  background-image: var(--stage-reward-shelf-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: var(--stage-text);
+  box-shadow: none;
+}
+
+.campaign-template .campaign-reward-shelf .collection-heading {
+  position: absolute;
+  top: 5.4%;
+  left: 4.2%;
+  display: block;
+  width: 27.6%;
+  padding: 0;
+}
+
+.campaign-template
+  .campaign-reward-shelf
+  .collection-heading
+  > div:first-child
+  > span {
+  display: block;
+  overflow: hidden;
+  color: var(--stage-accent);
+  font-size: clamp(7px, 2.133cqw, 11px);
+  font-weight: 950;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-template .campaign-reward-shelf .collection-heading h2 {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--stage-text);
+  font-size: clamp(15px, 4.8cqw, 24px);
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-template .campaign-reward-shelf .collection-heading p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--stage-muted);
+  font-size: clamp(9px, 2.667cqw, 13px);
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-template .campaign-reward-shelf .collection-count {
+  position: absolute;
+  top: 14.4cqw;
+  left: 0;
+  display: flex;
+  align-items: baseline;
+  color: var(--stage-muted);
+}
+
+.campaign-template .campaign-reward-shelf .collection-count strong {
+  color: var(--stage-accent);
+  font-size: clamp(16px, 5.333cqw, 26px);
+}
+
+.campaign-template .campaign-reward-shelf .collection-count span {
+  font-size: clamp(8px, 2.4cqw, 12px);
+}
+
+.campaign-template .campaign-reward-shelf .progress-track {
+  position: absolute;
+  top: 49.4%;
+  left: 4.2%;
+  width: 25.4%;
+  height: 3px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--stage-muted) 25%, transparent);
+  opacity: 1;
+}
+
+.campaign-template .campaign-reward-shelf .progress-track span {
+  background: linear-gradient(90deg, var(--stage-accent), var(--stage-count-badge));
+}
+
+.campaign-template .campaign-reward-shelf .tier-row {
+  position: absolute;
+  top: 4.8%;
+  right: 2%;
+  left: 31.8%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55%;
+  height: 30.7%;
+  margin: 0;
+}
+
+.campaign-template .campaign-reward-shelf .tier {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 0 1px;
+  border: 0;
+  background: transparent;
+  color: var(--stage-muted);
+}
+
+.campaign-template .campaign-reward-shelf .tier-ticket {
+  display: grid;
+  width: 100%;
+  min-height: 0;
+  height: 64%;
+  place-items: center;
+  border: 0;
+  border-radius: 7px;
+  background-color: color-mix(in srgb, var(--stage-action-start) 22%, var(--stage-surface));
+  background-image:
+    var(--stage-tier-frame-image),
+    radial-gradient(circle at 0 50%, var(--stage-surface) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 100% 50%, var(--stage-surface) 0 3px, transparent 3.5px);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: color-mix(in srgb, var(--stage-text) 42%, transparent);
+  font-size: clamp(10px, 3.2cqw, 16px);
+  font-weight: 950;
+}
+
+.campaign-template .campaign-reward-shelf .tier.unlocked .tier-ticket,
+.campaign-template .campaign-reward-shelf .tier.claimed .tier-ticket {
+  border: 0;
+  background-color: var(--stage-action-end);
+  color: var(--stage-accent-text);
+  box-shadow: 0 3px 7px color-mix(in srgb, var(--stage-action-end) 28%, transparent);
+}
+
+.campaign-template .campaign-reward-shelf .tier b {
+  font-size: clamp(8px, 2.667cqw, 13px);
+  line-height: 1;
+}
+
+.campaign-template .campaign-reward-shelf .tier small {
+  display: none;
+}
+
+.campaign-template .campaign-reward-shelf .tier-prize-image {
+  display: block;
+  width: 78%;
+  height: 92%;
+  object-fit: contain;
+}
+
+.campaign-template .campaign-reward-shelf .card-scroller {
+  position: absolute;
+  right: 0;
+  bottom: 4.8%;
+  left: 2.8%;
+  display: grid;
+  grid-auto-columns: 16.6%;
+  grid-auto-flow: column;
+  gap: 1.4%;
+  height: 43.4%;
+  margin: 0;
+  padding: 0 2.8% 0 0;
+  overflow-x: auto;
+}
+
+.campaign-template .campaign-reward-shelf .food-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  padding: 3px;
+  overflow: hidden;
+  border: 2px solid var(--stage-card-border);
+  border-radius: clamp(8px, 2.933cqw, 14px);
+  background-color: var(--stage-card-missing);
+  color: var(--stage-muted);
+  filter: none;
+}
+
+.campaign-template .campaign-reward-shelf .food-card.owned {
+  border-color: color-mix(in srgb, var(--stage-accent) 56%, white);
+  background-color: var(--stage-card-owned);
+  background-image:
+    var(--stage-card-owned-frame-image),
+    radial-gradient(
+      circle at 50% 30%,
+      color-mix(in srgb, var(--card-accent) 40%, transparent),
+      transparent 66%
+    );
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: var(--stage-text);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.54),
+    inset 0 -8px 15px color-mix(in srgb, var(--stage-accent) 18%, transparent);
+}
+
+.campaign-template .campaign-reward-shelf .food-card.missing {
+  border-color: var(--stage-card-border);
+  background-color: var(--stage-card-missing);
+  background-image: var(--stage-card-missing-frame-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: var(--stage-muted);
+  filter: none;
+}
+
+.campaign-template .campaign-reward-shelf .food-card b,
+.campaign-template .campaign-reward-shelf .food-card small {
+  display: none;
+}
+
+.campaign-template .campaign-reward-shelf .card-emoji,
+.campaign-template .campaign-reward-shelf .food-card.missing .card-emoji {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: clamp(24px, 8cqw, 40px);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+}
+
+.campaign-template .campaign-reward-shelf .card-art-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.campaign-template .campaign-reward-shelf .card-count {
+  top: -1px;
+  right: -1px;
+  min-width: clamp(20px, 6.667cqw, 32px);
+  padding: 2px 4px;
+  border: 2px solid var(--stage-surface);
+  background: var(--stage-count-badge);
+  font-size: clamp(8px, 2.667cqw, 13px);
 }

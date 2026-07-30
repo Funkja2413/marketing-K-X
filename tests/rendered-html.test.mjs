@@ -23,20 +23,32 @@ async function render(pathname = "/") {
   );
 }
 
-test("server-renders the Figma-based summer campaign shell", async () => {
+test("server-renders the unified summer campaign template", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<title>暑期好运季｜夏天马上顺<\/title>/i);
-  assert.match(html, /class="campaign-shell theme-summer"/);
-  assert.match(html, /class="summer-map-cap"/);
+  assert.match(
+    html,
+    /class="campaign-shell campaign-template theme-summer"/,
+  );
+  assert.match(html, /class="campaign-stage"/);
+  assert.match(html, /class="campaign-top-cap has-art"/);
+  assert.match(html, /class="hero campaign-hero"/);
+  assert.match(html, /class="hero-actions campaign-action-bar"/);
+  assert.match(
+    html,
+    /class="collection-panel campaign-reward-shelf"/,
+  );
   assert.match(html, /src="\/figma\/crops\/hero-scene\.webp"/);
   assert.match(html, /class="stage-nav campaign-theme-tabs"/);
+  assert.match(html, /data-testid="theme-tab-summer"/);
+  assert.match(html, /data-testid="theme-tab-night"/);
   assert.match(html, /夏日夜食指南/);
   assert.match(html, /data-testid="draw-button"/);
-  assert.match(html, /class="collection-panel"/);
+  assert.match(html, /data-testid="draw-balance"/);
   assert.match(html, /class="featured-task-rail"/);
   assert.match(html, /扎进水里夏天（马上顺）/);
   assert.match(html, /抖音生活服务，让每次心动都值得/);
@@ -44,8 +56,10 @@ test("server-renders the Figma-based summer campaign shell", async () => {
 });
 
 test("keeps the campaign mechanics and local Figma assets wired", async () => {
-  const [page, css] = await Promise.all([
+  const [page, campaignStage, themePacks, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/campaign-stage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/campaign-theme-packs.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
@@ -57,6 +71,15 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(page, /handleDraw/);
   assert.match(page, /claimTier/);
   assert.match(page, /completeTask/);
+  assert.match(page, /getThemePackStyle/);
+  assert.match(page, /<CampaignStage/);
+  assert.match(themePacks, /export type CampaignThemePack/);
+  assert.match(themePacks, /export const THEME_PACKS/);
+  assert.match(themePacks, /export function getThemePackStyle/);
+  assert.match(campaignStage, /export function CampaignStage/);
+  assert.match(campaignStage, /className="campaign-stage"/);
+  assert.match(campaignStage, /data-testid=\{`theme-tab-\$\{tab\.id\}`\}/);
+  assert.match(campaignStage, /data-testid="draw-balance"/);
   assert.match(css, /Figma A1: 375px image-first summer campaign/);
   assert.match(
     css,
@@ -67,6 +90,23 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
     /\.campaign-shell\.theme-summer\s*\{[^}]*\bwidth:/s,
   );
   assert.match(css, /background:\s*url\("\/figma\/svg-07\.svg"\)/);
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-hero\s*\{[^}]*aspect-ratio:\s*375\s*\/\s*425/s,
+  );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-reward-shelf\s*\{[^}]*aspect-ratio:\s*355\s*\/\s*166/s,
+  );
+
+  assert.doesNotMatch(page, /\bheroMode\b/);
+  assert.doesNotMatch(page, /\bheroImage\b/);
+  assert.doesNotMatch(page, /uniqueCount\s*===\s*9/);
+  assert.doesNotMatch(
+    page,
+    /coupon\.tierId\s*===\s*["']tier-9["']/,
+  );
+  assert.doesNotMatch(page, /随机获得9种卡/);
 
   await Promise.all(
     [
@@ -76,6 +116,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
       "../public/figma/equipment-water-gun.webp",
       "../public/figma/topic-sunset-card.webp",
       "../public/figma/content-card-lions.webp",
+      "../public/theme-assets/night/hero-scene.webp",
     ].map((asset) => access(new URL(asset, import.meta.url))),
   );
 });

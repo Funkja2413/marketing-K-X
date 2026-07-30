@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CampaignStage,
+  type StageCard,
+  type StageTier,
+} from "./campaign-stage";
+import {
+  getThemePackStyle,
+  THEME_PACKS,
+  type ThemeId,
+} from "./campaign-theme-packs";
 
 type CardDefinition = {
   id: string;
@@ -45,8 +55,6 @@ type Coupon = {
   status: "unused" | "used";
 };
 
-type ThemeId = "summer" | "night";
-
 type CampaignProgress = {
   dailyCycle: string;
   drawBalance: number;
@@ -67,9 +75,11 @@ type ThemeDefinition = {
   id: ThemeId;
   navLabel: string;
   accessibleTitle: string;
-  heroImage: string;
-  heroMode: "summer-keyvisual" | "night-keyvisual";
   collectionName: string;
+  collectionEntryLabel: string;
+  collectionProgressVerb: string;
+  collectionRewardMode: "amount" | "title";
+  missingCardLabel: string;
   cardNoun: string;
   drawCta: string;
   rewardVerb: string;
@@ -409,7 +419,7 @@ const SUMMER_TASKS: TaskDefinition[] = [
     id: "store",
     icon: "✨",
     title: "到店点亮避暑玩水商户",
-    description: "每次点亮即得1张玩水装备卡",
+    description: "每次点亮即得1次抽装备机会",
     target: 6,
     reward: 1,
     action: "去点亮",
@@ -441,9 +451,11 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     id: "summer",
     navLabel: "夏天马上顺",
     accessibleTitle: "这夏夯爆了｜夏天马上顺",
-    heroImage: "/figma/crops/hero-scene.webp",
-    heroMode: "summer-keyvisual",
     collectionName: "顺风装备册",
+    collectionEntryLabel: "装备",
+    collectionProgressVerb: "再抽",
+    collectionRewardMode: "amount",
+    missingCardLabel: "神秘装备",
     cardNoun: "装备卡",
     drawCta: "抽装备 · 一顺到底",
     rewardVerb: "兑顺顺券",
@@ -491,9 +503,11 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     id: "night",
     navLabel: "夏日夜食指南",
     accessibleTitle: "今晚开饭｜夏夜九味收藏计划",
-    heroImage: "/og-night.webp",
-    heroMode: "night-keyvisual",
     collectionName: "九味卡册",
+    collectionEntryLabel: "卡册",
+    collectionProgressVerb: "再集",
+    collectionRewardMode: "title",
+    missingCardLabel: "神秘夜味",
     cardNoun: "夜宵卡",
     drawCta: "抽一张夜宵卡",
     rewardVerb: "兑夜宵券",
@@ -526,6 +540,8 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
     tasks: NIGHT_TASKS,
   },
 };
+
+const THEME_ORDER: ThemeId[] = ["summer", "night"];
 
 const SUMMER_VENUES = [
   {
@@ -798,6 +814,7 @@ export default function Home() {
   const fixtureModeRef = useRef(false);
 
   const theme = THEMES[campaignState.activeTheme];
+  const pack = THEME_PACKS[theme.id];
   const state = campaignState.themes[campaignState.activeTheme];
   const CARD_DEFINITIONS = theme.cards;
   const TIERS = theme.tiers;
@@ -1143,7 +1160,11 @@ export default function Home() {
       clearTimeout(drawTimerRef.current);
       drawTimerRef.current = null;
     }
-    setCampaignState(createInitialState());
+    setCampaignState(
+      fixtureModeRef.current
+        ? createFigmaFixtureState()
+        : createInitialState(),
+    );
     setIsDrawing(false);
     drawPendingRef.current = false;
     pendingTaskIdsRef.current.clear();
@@ -1153,8 +1174,10 @@ export default function Home() {
     setActiveModal(null);
     setDrawResult(null);
     setGiftCardId(null);
-    window.localStorage.removeItem(STORAGE_KEY);
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    if (!fixtureModeRef.current) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
     announce("体验数据已重置");
   }
 
@@ -1171,6 +1194,72 @@ export default function Home() {
   const collectedHeroCards = CARD_DEFINITIONS.filter(
     (card) => (state.cardCounts[card.id] ?? 0) > 0,
   ).slice(-5);
+  const collectionComplete = uniqueCount === CARD_DEFINITIONS.length;
+  const collectionHeading = collectionComplete
+    ? "全套集齐，好运圆满"
+    : `${theme.collectionProgressVerb} ${Math.max(
+        0,
+        nextTier.threshold - uniqueCount,
+      )} 种`;
+  const collectionSubheading = collectionComplete
+    ? "终极纪念礼已解锁"
+    : theme.collectionRewardMode === "amount"
+      ? `兑${nextTier.amount}元顺顺券`
+      : `解锁${nextTier.title}`;
+  const stageTabs = THEME_ORDER.map((themeId) => ({
+    id: themeId,
+    label: THEMES[themeId].navLabel,
+  }));
+  const stageTiers: StageTier[] = TIERS.map((tier) => {
+    const unlocked = uniqueCount >= tier.threshold;
+    const claimed = state.claimedTiers.includes(tier.id);
+    return {
+      id: tier.id,
+      threshold: tier.threshold,
+      title: tier.title,
+      statusLabel: claimed ? "已领取" : unlocked ? "点击领取" : "未解锁",
+      unlocked,
+      claimed,
+      visual:
+        tier.kind === "grand" && pack.assets.grandRewardImage ? (
+          <img
+            className="tier-prize-image"
+            src={pack.assets.grandRewardImage}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+          />
+        ) : (
+          tier.icon
+        ),
+    };
+  });
+  const stageCards: StageCard[] = CARD_DEFINITIONS.map((card) => {
+    const count = state.cardCounts[card.id] ?? 0;
+    const owned = count > 0;
+    return {
+      id: card.id,
+      name: card.name,
+      count,
+      owned,
+      rarity: card.rarity,
+      missingLabel: theme.missingCardLabel,
+      accent: card.accent,
+      art: <CardArtwork card={card} visible={owned} />,
+    };
+  });
+  const stageHeroCards = collectedHeroCards.map((card, index) => (
+    <span
+      className={`hero-collected-card hero-collected-card-${index} ${
+        drawResult?.cardId === card.id ? "recent" : ""
+      }`}
+      key={card.id}
+      style={{ "--card-accent": card.accent } as React.CSSProperties}
+    >
+      <CardArtwork card={card} />
+    </span>
+  ));
 
   function renderTaskCard(
     task: TaskDefinition,
@@ -1197,7 +1286,11 @@ export default function Home() {
             : task.action;
 
     return (
-      <article className={`task-card task-card-${variant}`} key={task.id}>
+      <article
+        className={`task-card task-card-${variant}`}
+        data-testid={`task-${theme.id}-${task.id}-${variant}`}
+        key={`${task.id}-${variant}`}
+      >
         <div className="task-icon" aria-hidden="true">
           {task.icon}
         </div>
@@ -1230,226 +1323,54 @@ export default function Home() {
   }
 
   return (
-    <main className={`campaign-shell theme-${theme.id}`}>
-      {theme.id === "summer" && (
-        <div className="summer-map-cap" aria-hidden="true">
-          <img src="/figma/crops/map-cap.png" alt="" decoding="async" />
-        </div>
-      )}
-      <section
-        className={`hero hero-${theme.heroMode}`}
-        aria-labelledby="campaign-title"
-        data-tier={heroTier}
-      >
-        <h1 id="campaign-title" className="sr-only">
-          {theme.accessibleTitle}
-        </h1>
-        <picture className="hero-media">
-          <img
-            src={theme.heroImage}
-            alt=""
-            decoding="async"
-            fetchPriority="high"
-          />
-        </picture>
-        <div className="hero-progress-visual" aria-hidden="true">
-          {collectedHeroCards.map((card, index) => (
-            <span
-              className={`hero-collected-card hero-collected-card-${index} ${
-                drawResult?.cardId === card.id ? "recent" : ""
-              }`}
-              key={card.id}
-              style={{ "--card-accent": card.accent } as React.CSSProperties}
-            >
-              <CardArtwork card={card} />
-            </span>
-          ))}
-        </div>
-        {theme.id === "night" && (
-          <div className="hero-topline">
-            <span className="prototype-chip">交互原型 · 本地模拟</span>
-          </div>
-        )}
-
-        <nav
-          className="stage-nav campaign-theme-tabs"
-          aria-label="活动主题"
-        >
-          <button
-            type="button"
-            className={theme.id === "summer" ? "active" : ""}
-            onClick={() => switchTheme("summer")}
-            aria-pressed={theme.id === "summer"}
-          >
-            夏天马上顺
-          </button>
-          <button
-            type="button"
-            className={theme.id === "night" ? "active" : ""}
-            onClick={() => switchTheme("night")}
-            aria-pressed={theme.id === "night"}
-          >
-            夏日夜食指南
-          </button>
-        </nav>
-
-        <div className="hero-actions">
-          <button
-            type="button"
-            className="side-action left"
-            onClick={() => setActiveModal("cards")}
-          >
-            我的
-            <br />
-            {theme.id === "summer" ? "装备" : "卡册"}
-          </button>
-          <button
-            type="button"
-            className={`draw-button ${isDrawing ? "drawing" : ""}`}
-            onClick={handleDraw}
-            disabled={!ready || isDrawing}
-            aria-label={`${theme.drawCta}，剩余${state.drawBalance}次`}
-            data-testid="draw-button"
-          >
-            <span className="draw-button-glow" aria-hidden="true" />
-            <span>{isDrawing ? `正在抽${theme.cardNoun}…` : theme.drawCta}</span>
-            <b>{state.drawBalance}</b>
-          </button>
-          <button
-            type="button"
-            className="side-action right"
-            onClick={() => setActiveModal("prizes")}
-          >
-            我的
-            <br />
-            奖品
-          </button>
-        </div>
-
-        <div className="floating-actions">
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard
-                ?.writeText(window.location.href)
-                .catch(() => undefined);
-              announce("活动链接已复制");
-            }}
-          >
-            分享
-          </button>
-          <button type="button" onClick={() => setActiveModal("rules")}>
-            规则
-          </button>
-        </div>
-      </section>
-
-      <section className="collection-panel" aria-labelledby="collection-title">
-        <div className="collection-heading">
-          <div>
-            <span>{theme.collectionName}</span>
-            <h2 id="collection-title">
-              {uniqueCount === 9
-                ? "全套集齐，好运圆满"
-                : `${theme.id === "summer" ? "再抽" : "再集"} ${Math.max(
-                    0,
-                    nextTier.threshold - uniqueCount,
-                  )} 种`}
-            </h2>
-            <p>
-              {uniqueCount === 9
-                ? "终极纪念礼已解锁"
-                : theme.id === "summer"
-                  ? `兑${nextTier.amount}元顺顺券`
-                  : `解锁${nextTier.title}`}
-            </p>
-          </div>
-          <div className="collection-count">
-            <strong>{uniqueCount}</strong>
-            <span>/ {CARD_DEFINITIONS.length}</span>
-          </div>
-        </div>
-
-        <div className="progress-track" aria-label={`已集齐${uniqueCount}种卡`}>
-          <span
-            style={{
-              width: `${(uniqueCount / CARD_DEFINITIONS.length) * 100}%`,
-            }}
-          />
-        </div>
-
-        <div className="tier-row">
-          {TIERS.map((tier) => {
-            const unlocked = uniqueCount >= tier.threshold;
-            const claimed = state.claimedTiers.includes(tier.id);
-            return (
-              <button
-                type="button"
-                className={`tier ${unlocked ? "unlocked" : ""} ${
-                  claimed ? "claimed" : ""
-                }`}
-                key={tier.id}
-                onClick={() => claimTier(tier)}
-                aria-label={`${tier.threshold}种卡奖励：${tier.title}，${
-                  claimed ? "已领取" : unlocked ? "可领取" : "未解锁"
-                }`}
-              >
-                <span className="tier-ticket">
-                  {theme.id === "summer" && tier.kind === "grand" ? (
-                    <img
-                      className="tier-prize-image"
-                      src="/figma/reward-gold-horse.webp"
-                      alt=""
-                      aria-hidden="true"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    tier.icon
-                  )}
-                </span>
-                <b>{tier.threshold}种</b>
-                <small>
-                  {claimed ? "已领取" : unlocked ? "点击领取" : "未解锁"}
-                </small>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="card-scroller">
-          {CARD_DEFINITIONS.map((card) => {
-            const count = state.cardCounts[card.id] ?? 0;
-            const owned = count > 0;
-            return (
-              <button
-                type="button"
-                className={`food-card ${owned ? "owned" : "missing"}`}
-                key={card.id}
-                style={{ "--card-accent": card.accent } as React.CSSProperties}
-                onClick={() => {
-                  setActiveModal("cards");
-                  if (count > 1) announce(`${card.name}有${count - 1}张可赠送`);
-                }}
-                aria-label={`${card.name}，${owned ? `已有${count}张` : "未获得"}`}
-              >
-                {count > 1 && <span className="card-count">×{count}</span>}
-                <span className="card-emoji" aria-hidden="true">
-                  <CardArtwork card={card} visible={owned} />
-                </span>
-                <b>{owned ? card.name : "等待点亮"}</b>
-                <small>
-                  {owned
-                    ? card.rarity
-                    : theme.id === "summer"
-                      ? "神秘装备"
-                      : "神秘夜味"}
-                </small>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+    <main
+      className={`campaign-shell campaign-template theme-${theme.id}`}
+      style={getThemePackStyle(pack)}
+    >
+      <CampaignStage
+        activeTheme={theme.id}
+        pack={pack}
+        tabs={stageTabs}
+        accessibleTitle={theme.accessibleTitle}
+        heroTier={heroTier}
+        heroCards={stageHeroCards}
+        collectionEntryLabel={theme.collectionEntryLabel}
+        drawLabel={theme.drawCta}
+        drawingLabel={`正在抽${theme.cardNoun}…`}
+        drawBalance={state.drawBalance}
+        ready={ready}
+        isDrawing={isDrawing}
+        collectionTitleId="collection-title"
+        collectionEyebrow={theme.collectionName}
+        collectionHeading={collectionHeading}
+        collectionSubheading={collectionSubheading}
+        uniqueCount={uniqueCount}
+        totalCards={CARD_DEFINITIONS.length}
+        tiers={stageTiers}
+        cards={stageCards}
+        onSwitchTheme={switchTheme}
+        onOpenCollection={() => setActiveModal("cards")}
+        onDraw={handleDraw}
+        onOpenPrizes={() => setActiveModal("prizes")}
+        onShare={() => {
+          navigator.clipboard
+            ?.writeText(window.location.href)
+            .catch(() => undefined);
+          announce("活动链接已复制");
+        }}
+        onOpenRules={() => setActiveModal("rules")}
+        onTierSelect={(tierId) => {
+          const tier = TIERS.find((item) => item.id === tierId);
+          if (tier) claimTier(tier);
+        }}
+        onCardSelect={(cardId) => {
+          const card = CARD_DEFINITIONS.find((item) => item.id === cardId);
+          if (!card) return;
+          const count = state.cardCounts[card.id] ?? 0;
+          setActiveModal("cards");
+          if (count > 1) announce(`${card.name}有${count - 1}张可赠送`);
+        }}
+      />
 
       <section className="energy-teaser" aria-label="金豆副玩法预告">
         <div className="bean-orbit" aria-hidden="true">
@@ -1797,11 +1718,7 @@ export default function Home() {
                       <CardArtwork card={card} visible={count > 0} />
                     </span>
                     <h3>
-                      {count > 0
-                        ? card.name
-                        : theme.id === "summer"
-                          ? "神秘装备"
-                          : "神秘夜味"}
+                      {count > 0 ? card.name : theme.missingCardLabel}
                     </h3>
                     <small>{count > 0 ? `已有${count}张` : "尚未获得"}</small>
                     <button
@@ -1861,8 +1778,12 @@ export default function Home() {
                     key={coupon.id}
                   >
                     <div className="coupon-value">
-                      {coupon.tierId === "tier-9" ? (
-                        <strong>{TIERS.at(-1)?.icon ?? "限定礼"}</strong>
+                      {TIERS.find((tier) => tier.id === coupon.tierId)?.kind ===
+                      "grand" ? (
+                        <strong>
+                          {TIERS.find((tier) => tier.id === coupon.tierId)
+                            ?.icon ?? "限定礼"}
+                        </strong>
                       ) : (
                         <>
                           <small>¥</small>
@@ -1921,7 +1842,10 @@ export default function Home() {
               </li>
               <li>
                 <b>抽{theme.cardNoun}</b>
-                <span>每次消耗1次机会，随机获得9种卡之一。</span>
+                <span>
+                  每次消耗1次机会，随机获得{CARD_DEFINITIONS.length}
+                  种卡之一。
+                </span>
               </li>
               <li>
                 <b>集卡领奖</b>
@@ -1945,6 +1869,7 @@ export default function Home() {
               type="button"
               className={`reset-button ${resetArmed ? "armed" : ""}`}
               onClick={resetExperience}
+              data-testid="reset-experience"
             >
               {resetArmed ? "确认重置全部体验数据" : "重置体验数据"}
             </button>
@@ -1986,7 +1911,12 @@ export default function Home() {
               张；赠出后会保留至少1张，集卡进度不倒退。
             </p>
             {!giftShared ? (
-              <button type="button" className="primary" onClick={createGiftLink}>
+              <button
+                type="button"
+                className="primary"
+                onClick={createGiftLink}
+                data-testid="gift-create"
+              >
                 生成并复制赠卡链接
               </button>
             ) : (
@@ -1996,6 +1926,7 @@ export default function Home() {
                   type="button"
                   className="primary"
                   onClick={simulateGiftClaim}
+                  data-testid="gift-claim"
                 >
                   模拟好友已领取
                 </button>
