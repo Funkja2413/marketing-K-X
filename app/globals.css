@@ -3196,7 +3196,6 @@ footer button {
 .campaign-template .campaign-reward-shelf {
   position: relative;
   z-index: 6;
-  isolation: isolate;
   width: calc(100% - 20px);
   height: auto;
   aspect-ratio: 355 / 166;
@@ -3214,47 +3213,10 @@ footer button {
   box-shadow: none;
 }
 
-.campaign-template .campaign-reward-shelf::before,
-.campaign-template .campaign-reward-shelf::after {
-  position: absolute;
-  pointer-events: none;
-  content: "";
-}
-
-.campaign-template .campaign-reward-shelf::before {
-  top: 36%;
-  right: 1.4%;
-  bottom: 2.4%;
-  left: 1.4%;
-  z-index: 0;
-  border: clamp(5px, 1.6cqw, 8px) solid var(--stage-surface);
-  border-radius:
-    clamp(28px, 9.6cqw, 48px)
-    clamp(28px, 9.6cqw, 48px)
-    clamp(14px, 4.8cqw, 24px)
-    clamp(14px, 4.8cqw, 24px);
-  background: color-mix(
-    in srgb,
-    var(--stage-card-owned) 28%,
-    var(--stage-surface)
-  );
-}
-
-.campaign-template .campaign-reward-shelf::after {
-  top: 0;
-  left: 0;
-  z-index: 1;
-  width: 33.5%;
-  height: 49%;
-  border-radius: 0 0 clamp(36px, 11.2cqw, 56px);
-  background: var(--stage-surface);
-}
-
 .campaign-template .campaign-reward-shelf .collection-heading {
   position: absolute;
   top: 5.4%;
   left: 4.2%;
-  z-index: 2;
   display: block;
   width: 27.6%;
   padding: 0;
@@ -3290,7 +3252,6 @@ footer button {
   top: 4.8%;
   right: 2%;
   left: 31.8%;
-  z-index: 2;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.55%;
@@ -3366,7 +3327,6 @@ footer button {
   right: 0;
   bottom: 7.8%;
   left: 2.8%;
-  z-index: 2;
   display: grid;
   grid-auto-columns: 16.6%;
   grid-auto-flow: column;
