@@ -693,6 +693,44 @@ const FEATURED_TASK_IDS: TaskId[] = ["post", "share"];
 const COMPACT_TASK_IDS: TaskId[] = ["store", "post", "gift", "browse"];
 
 export const ACTIVE_SKIN_STORAGE_KEY = "campaign-active-skin-v1";
+const PREVIEW_ASSET_DB_NAME = "campaign-studio-assets-v1";
+const PREVIEW_ASSET_STORE = "assets";
+const PREVIEW_ASSET_REF_PREFIX = "idb://";
+
+type PreviewCachedAsset = {
+  id: string;
+  blob: Blob;
+};
+
+let previewAssetDbPromise: Promise<IDBDatabase> | null = null;
+
+function openPreviewAssetDb() {
+  if (previewAssetDbPromise) return previewAssetDbPromise;
+  previewAssetDbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+    const request = window.indexedDB.open(PREVIEW_ASSET_DB_NAME, 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return previewAssetDbPromise;
+}
+
+function getPreviewAssetId(src?: string) {
+  return src?.startsWith(PREVIEW_ASSET_REF_PREFIX)
+    ? src.slice(PREVIEW_ASSET_REF_PREFIX.length)
+    : undefined;
+}
+
+async function getPreviewCachedAsset(assetId: string) {
+  const database = await openPreviewAssetDb();
+  return new Promise<PreviewCachedAsset | undefined>((resolve, reject) => {
+    const request = database
+      .transaction(PREVIEW_ASSET_STORE, "readonly")
+      .objectStore(PREVIEW_ASSET_STORE)
+      .get(assetId) as IDBRequest<PreviewCachedAsset | undefined>;
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
 
 export type CampaignSkinDraft = {
   version: 1;
@@ -780,6 +818,68 @@ function isCampaignSkinDraft(input: unknown): input is CampaignSkinDraft {
       candidate.content &&
       candidate.pack,
   );
+}
+
+async function resolvePreviewAssetUrl(
+  src?: string,
+  assetId?: string,
+) {
+  const resolvedAssetId = assetId ?? getPreviewAssetId(src);
+  if (!resolvedAssetId) return src;
+  try {
+    const cached = await getPreviewCachedAsset(resolvedAssetId);
+    return cached ? URL.createObjectURL(cached.blob) : src;
+  } catch {
+    return src;
+  }
+}
+
+async function resolveCampaignSkinPreviewAssets(
+  sourceSkin: CampaignSkinDraft,
+) {
+  const skin = JSON.parse(
+    JSON.stringify(sourceSkin),
+  ) as CampaignSkinDraft;
+  const heroMedia = skin.pack.assets.heroMedia;
+  heroMedia.src =
+    (await resolvePreviewAssetUrl(heroMedia.src, heroMedia.assetId)) ??
+    heroMedia.src;
+
+  for (const card of skin.content.cards) {
+    card.image = await resolvePreviewAssetUrl(
+      card.image,
+      card.imageAssetId,
+    );
+  }
+
+  const composition = skin.pack.assets.collectionHeroComposition;
+  if (!composition) return skin;
+  for (const layer of composition.layers) {
+    if (layer.media) {
+      layer.media.src =
+        (await resolvePreviewAssetUrl(
+          layer.media.src,
+          layer.media.assetId,
+        )) ?? layer.media.src;
+    }
+    if (layer.transitionMedia) {
+      layer.transitionMedia.src =
+        (await resolvePreviewAssetUrl(
+          layer.transitionMedia.src,
+          layer.transitionMedia.assetId,
+        )) ?? layer.transitionMedia.src;
+      if (
+        layer.transitionMedia.type === "video" &&
+        layer.transitionMedia.poster
+      ) {
+        layer.transitionMedia.poster = await resolvePreviewAssetUrl(
+          layer.transitionMedia.poster,
+          layer.transitionMedia.posterAssetId,
+        );
+      }
+    }
+  }
+  return skin;
 }
 
 function CardArtwork({
@@ -1173,7 +1273,7 @@ export function CampaignExperience({
     TIERS.find((tier) => uniqueCount < tier.threshold) ?? TIERS[TIERS.length - 1];
 
   useEffect(() => {
-    const hydrateFromStorage = () => {
+    const hydrateFromStorage = async () => {
       if (!persistProgress) {
         setReady(true);
         return;
@@ -1199,12 +1299,32 @@ export function CampaignExperience({
         if (savedSkin) {
           const parsedSkin: unknown = JSON.parse(savedSkin);
           if (isCampaignSkinDraft(parsedSkin)) {
-            storedSkin = parsedSkin;
+            storedSkin = await resolveCampaignSkinPreviewAssets(
+              parsedSkin,
+            );
             const nextConfiguration =
-              createConfigurationFromSkin(parsedSkin);
+              createConfigurationFromSkin(storedSkin);
             storedThemes = nextConfiguration.themes;
             storedThemePacks = nextConfiguration.themePacks;
             setAppliedConfiguration(nextConfiguration);
+            const previewTransitionCard = searchParams.get(
+              "previewTransitionCard",
+            );
+            if (previewTransitionCard) {
+              const previewLayer =
+                storedSkin.pack.assets.collectionHeroComposition?.layers.find(
+                  (layer) =>
+                    layer.cardId === previewTransitionCard &&
+                    layer.presentation === "video-transition" &&
+                    layer.transitionMedia?.src,
+                );
+              if (previewLayer?.transitionMedia) {
+                setActiveHeroTransition({
+                  cardId: previewLayer.cardId,
+                  media: previewLayer.transitionMedia,
+                });
+              }
+            }
           }
         }
         const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -1237,7 +1357,7 @@ export function CampaignExperience({
         setReady(true);
       }
     };
-    window.queueMicrotask(hydrateFromStorage);
+    window.queueMicrotask(() => void hydrateFromStorage());
   }, [initialTheme, persistProgress]);
 
   useEffect(() => {

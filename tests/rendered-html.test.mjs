@@ -244,7 +244,17 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     /localStorage\.getItem\(\s*ACTIVE_SKIN_STORAGE_KEY\s*,?\s*\)/,
   );
   assert.match(page, /isCampaignSkinDraft\(parsedSkin\)/);
-  assert.match(page, /createConfigurationFromSkin\(parsedSkin\)/);
+  assert.match(page, /function resolveCampaignSkinPreviewAssets\s*\(/);
+  assert.match(page, /window\.indexedDB\.open\(PREVIEW_ASSET_DB_NAME/);
+  assert.match(
+    page,
+    /storedSkin\s*=\s*await resolveCampaignSkinPreviewAssets\(/,
+  );
+  assert.match(
+    page,
+    /searchParams\.get\(\s*["']previewTransitionCard["']/,
+  );
+  assert.match(page, /createConfigurationFromSkin\(storedSkin\)/);
   assert.match(page, /export default function Home\s*\(\)/);
   assert.match(page, /return <CampaignExperience \/>/);
 
@@ -262,6 +272,14 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /shouldMigrateLegacySummerHero/);
   assert.match(studio, /function importDraft\s*\(/);
   assert.match(studio, /function exportActive\s*\(/);
+  assert.match(studio, /function persistActivePreviewDraft\s*\(/);
+  assert.match(studio, /function openActivityPreview\s*\(/);
+  assert.match(studio, /onClick=\{openActivityPreview\}/);
+  assert.match(studio, /previewTransitionCard/);
+  assert.match(
+    studio,
+    /serializeDraftAssets\(\[activeDraft\]\)\[0\]/,
+  );
   assert.match(studio, /function uploadTier\s*\(/);
   assert.match(studio, /function updateHeroLayer\s*\(/);
   assert.match(studio, /function uploadHeroLayer\s*\(/);

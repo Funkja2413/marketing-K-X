@@ -121,7 +121,12 @@ function getStudioAssetRef(assetId: string) {
 
 function createStudioAssetId(
   draftId: string,
-  slot: "card" | "hero-layer" | "transition" | "transition-poster",
+  slot:
+    | "hero"
+    | "card"
+    | "hero-layer"
+    | "transition"
+    | "transition-poster",
   entityId: string,
 ) {
   return `${draftId}:${slot}:${entityId}`;
@@ -825,6 +830,22 @@ async function hydrateAndCacheDraftAssets(
 ) {
   const drafts = cloneValue(sourceDrafts);
   for (const draft of drafts) {
+    const heroMedia = draft.pack.assets.heroMedia;
+    if (heroMedia.src) {
+      const assetId =
+        heroMedia.assetId ??
+        getStudioAssetIdFromRef(heroMedia.src) ??
+        createStudioAssetId(draft.id, "hero", "main");
+      try {
+        const src = await cacheStudioSource(assetId, heroMedia.src);
+        if (src && !src.startsWith(STUDIO_ASSET_REF_PREFIX)) {
+          heroMedia.src = src;
+          heroMedia.assetId = assetId;
+        }
+      } catch {
+        // Preserve the original public or inline source when caching fails.
+      }
+    }
     for (const card of draft.content.cards) {
       const assetId =
         card.imageAssetId ??
@@ -913,6 +934,11 @@ async function hydrateAndCacheDraftAssets(
 function serializeDraftAssets(sourceDrafts: CampaignSkinDraft[]) {
   const drafts = cloneValue(sourceDrafts);
   for (const draft of drafts) {
+    if (draft.pack.assets.heroMedia.assetId) {
+      draft.pack.assets.heroMedia.src = getStudioAssetRef(
+        draft.pack.assets.heroMedia.assetId,
+      );
+    }
     for (const card of draft.content.cards) {
       if (card.imageAssetId) {
         card.image = getStudioAssetRef(card.imageAssetId);
@@ -944,6 +970,14 @@ function serializeDraftAssets(sourceDrafts: CampaignSkinDraft[]) {
 
 async function materializeDraftAssets(sourceDraft: CampaignSkinDraft) {
   const draft = cloneValue(sourceDraft);
+  if (draft.pack.assets.heroMedia.assetId) {
+    const cached = await getStudioCachedAsset(
+      draft.pack.assets.heroMedia.assetId,
+    );
+    if (cached) {
+      draft.pack.assets.heroMedia.src = await blobToDataUrl(cached.blob);
+    }
+  }
   for (const card of draft.content.cards) {
     if (!card.imageAssetId) continue;
     const cached = await getStudioCachedAsset(card.imageAssetId);
@@ -2637,17 +2671,46 @@ export default function CampaignStudio() {
     setMessage("方案已删除");
   }
 
-  async function applyActive() {
+  function persistActivePreviewDraft() {
     try {
-      const portableDraft = await materializeDraftAssets(activeDraft);
+      const previewDraft = serializeDraftAssets([activeDraft])[0];
+      if (!previewDraft) throw new Error("活动配置不存在");
       window.localStorage.setItem(
         ACTIVE_SKIN_STORAGE_KEY,
-        JSON.stringify(portableDraft),
+        JSON.stringify(previewDraft),
       );
-      setMessage("已应用到活动页；打开或刷新活动页即可查看");
+      return true;
     } catch {
-      setMessage("应用失败：草稿素材体积超过浏览器容量");
+      setMessage("活动预览配置保存失败");
+      return false;
     }
+  }
+
+  function applyActive() {
+    if (!persistActivePreviewDraft()) return;
+    setMessage("已应用到活动页；打开或刷新活动页即可查看");
+  }
+
+  function openActivityPreview() {
+    if (!persistActivePreviewDraft()) return;
+    const previewParams = new URLSearchParams({
+      studioPreview: String(Date.now()),
+    });
+    if (
+      selectedHeroLayer?.presentation === "video-transition" &&
+      selectedHeroLayer.transitionMedia?.src
+    ) {
+      previewParams.set(
+        "previewTransitionCard",
+        selectedHeroLayer.cardId,
+      );
+    }
+    window.open(
+      `/?${previewParams.toString()}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+    setMessage("已保存当前配置并打开活动预览");
   }
 
   async function exportActive() {
@@ -2698,15 +2761,20 @@ export default function CampaignStudio() {
     reader.readAsText(file);
   }
 
-  function uploadHero(event: ChangeEvent<HTMLInputElement>) {
+  async function uploadHero(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const src = String(reader.result);
+    try {
+      const assetId = createStudioAssetId(
+        activeDraft.id,
+        "hero",
+        "main",
+      );
+      const src = await cacheStudioFile(assetId, file);
       const isVideo = file.type.startsWith("video/");
       if (isVideo) {
+        const size = await readVideoSize(src);
         updateActive((draft) => ({
           ...draft,
           pack: {
@@ -2716,41 +2784,41 @@ export default function CampaignStudio() {
               heroMedia: {
                 type: "video",
                 src,
+                assetId,
                 fit: "cover",
                 position: "center top",
+                sourceWidth: size.width,
+                sourceHeight: size.height,
               },
             },
           },
         }));
-        setMessage("Hero 视频已载入预览");
+        setMessage("Hero 视频已载入，可直接打开活动页预览");
         return;
       }
-      const image = new Image();
-      image.onload = () => {
-        updateActive((draft) => ({
-          ...draft,
-          pack: {
-            ...draft.pack,
-            assets: {
-              ...draft.pack.assets,
-              heroMedia: {
-                type: "image",
-                src,
-                fit: "cover",
-                position: "center top",
-                sourceWidth: image.naturalWidth,
-                sourceHeight: image.naturalHeight,
-              },
+      const size = await readImageSize(src);
+      updateActive((draft) => ({
+        ...draft,
+        pack: {
+          ...draft.pack,
+          assets: {
+            ...draft.pack.assets,
+            heroMedia: {
+              type: "image",
+              src,
+              assetId,
+              fit: "cover",
+              position: "center top",
+              sourceWidth: size.width,
+              sourceHeight: size.height,
             },
           },
-        }));
-        setMessage(
-          `Hero 图片已载入：${image.naturalWidth}×${image.naturalHeight}`,
-        );
-      };
-      image.src = src;
-    };
-    reader.readAsDataURL(file);
+        },
+      }));
+      setMessage(`Hero 图片已载入：${size.width}×${size.height}`);
+    } catch {
+      setMessage("Hero 素材读取失败");
+    }
   }
 
   async function uploadCard(
@@ -3119,7 +3187,7 @@ export default function CampaignStudio() {
             </button>
             <button
               type="button"
-              onClick={() => window.open("/", "_blank", "noopener,noreferrer")}
+              onClick={openActivityPreview}
             >
               打开活动页
             </button>
