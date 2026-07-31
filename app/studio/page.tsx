@@ -441,6 +441,15 @@ export default function CampaignStudio() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    fitModeRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      setCanvasZoom(calculateCanvasFitZoom());
+      setCanvasPan({ x: 0, y: 0 });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeId]);
+
   function clampCanvasZoom(value: number) {
     return Math.min(
       CANVAS_MAX_ZOOM,

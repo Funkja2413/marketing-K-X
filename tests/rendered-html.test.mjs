@@ -303,6 +303,10 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /isTypingTarget\(event\.target\)/);
   assert.match(studio, /!event\.ctrlKey\s*&&\s*!event\.metaKey/);
   assert.match(
+    studio,
+    /fitModeRef\.current\s*=\s*true[\s\S]*?requestAnimationFrame\([\s\S]*?setCanvasZoom\(calculateCanvasFitZoom\(\)\)[\s\S]*?setCanvasPan\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)[\s\S]*?\},\s*\[activeId\]\)/,
+  );
+  assert.match(
     css,
     /\.studio-shell\s*\{(?=[^}]*position:\s*fixed)(?=[^}]*inset:\s*0)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
   );
