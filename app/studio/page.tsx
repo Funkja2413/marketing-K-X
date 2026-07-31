@@ -32,11 +32,12 @@ const DEFAULT_UPDATED_AT = "2026-07-31T00:00:00.000Z";
 const CANVAS_MIN_ZOOM = 0.4;
 const CANVAS_MAX_ZOOM = 1.25;
 
-type StudioLibraryMode = "schemes" | "ai";
 type AiStatus = "idle" | "generating" | "ready";
+type StudioCanvasMode = "page" | "flow";
 
 type AiTarget = {
   draftId: string;
+  pageId: string;
   kind: "hero" | "card" | "reward";
   moduleId: "M1" | "M2";
   slotId: string;
@@ -57,7 +58,33 @@ type AiCandidate = {
   target: AiTarget | null;
 };
 
+type AiReference = {
+  id: string;
+  name: string;
+  src: string;
+  width: number;
+  height: number;
+};
+
+type AiCandidateGroup = {
+  id: string;
+  draftId: string;
+  pageId: string;
+  prompt: string;
+  target: AiTarget | null;
+  references: AiReference[];
+  candidates: AiCandidate[];
+  position: { x: number; y: number };
+  collapsed: boolean;
+};
+
+type SelectedAiAsset = {
+  groupId: string;
+  candidateId: string;
+};
+
 type AiTrial = {
+  groupId: string;
   target: AiTarget;
   candidate: AiCandidate;
 };
@@ -66,6 +93,108 @@ type AiCommitHistory = {
   draftId: string;
   before: CampaignSkinDraft;
 };
+
+type CampaignPageNode = {
+  id: string;
+  order: string;
+  name: string;
+  route: string;
+  kind: "screen" | "overlay";
+  template: "loading" | "character-select" | "campaign" | "standard";
+  status: "ready" | "draft";
+};
+
+type CampaignFlowEdge = {
+  id: string;
+  fromPageId: string;
+  eventKey: string;
+  targetPageId: string;
+  navigation: "push" | "replace" | "overlay" | "back";
+  transition: "fade" | "slide" | "none";
+};
+
+const CAMPAIGN_PAGES: CampaignPageNode[] = [
+  {
+    id: "loading",
+    order: "01",
+    name: "开场 Loading",
+    route: "#/loading",
+    kind: "screen",
+    template: "loading",
+    status: "draft",
+  },
+  {
+    id: "character-select",
+    order: "02",
+    name: "角色选择",
+    route: "#/character",
+    kind: "screen",
+    template: "character-select",
+    status: "draft",
+  },
+  {
+    id: "campaign-main",
+    order: "03",
+    name: "活动主页",
+    route: "#/campaign",
+    kind: "screen",
+    template: "campaign",
+    status: "ready",
+  },
+  {
+    id: "prizes",
+    order: "04",
+    name: "我的奖品",
+    route: "#/prizes",
+    kind: "screen",
+    template: "standard",
+    status: "draft",
+  },
+  {
+    id: "rules",
+    order: "05",
+    name: "活动规则",
+    route: "#/rules",
+    kind: "overlay",
+    template: "standard",
+    status: "draft",
+  },
+];
+
+const CAMPAIGN_FLOW_EDGES: CampaignFlowEdge[] = [
+  {
+    id: "loading-ready",
+    fromPageId: "loading",
+    eventKey: "assets.ready",
+    targetPageId: "character-select",
+    navigation: "replace",
+    transition: "fade",
+  },
+  {
+    id: "character-confirm",
+    fromPageId: "character-select",
+    eventKey: "confirm.click",
+    targetPageId: "campaign-main",
+    navigation: "replace",
+    transition: "slide",
+  },
+  {
+    id: "campaign-prizes",
+    fromPageId: "campaign-main",
+    eventKey: "prize.click",
+    targetPageId: "prizes",
+    navigation: "push",
+    transition: "slide",
+  },
+  {
+    id: "campaign-rules",
+    fromPageId: "campaign-main",
+    eventKey: "rules.click",
+    targetPageId: "rules",
+    navigation: "overlay",
+    transition: "fade",
+  },
+];
 
 type PackColorKey = keyof CampaignThemePack["colors"];
 type PackAssetKey = Exclude<
@@ -128,6 +257,7 @@ const KNOWN_ASSET_SIZES: Record<
 function createHeroAiTarget(draft: CampaignSkinDraft): AiTarget {
   return {
     draftId: draft.id,
+    pageId: "campaign-main",
     kind: "hero",
     moduleId: "M1",
     slotId: "m1.hero-media",
@@ -146,6 +276,7 @@ function createCardAiTarget(
   if (!card) return null;
   return {
     draftId: draft.id,
+    pageId: "campaign-main",
     kind: "card",
     moduleId: "M2",
     slotId: `m2.card.${card.id}`,
@@ -165,6 +296,7 @@ function createRewardAiTarget(
   if (!tier) return null;
   return {
     draftId: draft.id,
+    pageId: "campaign-main",
     kind: "reward",
     moduleId: "M2",
     slotId: `m2.reward.${tier.id}`,
@@ -546,18 +678,26 @@ export default function CampaignStudio() {
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState("修改会即时出现在手机预览中");
   const [importError, setImportError] = useState("");
-  const [libraryMode, setLibraryMode] =
-    useState<StudioLibraryMode>("ai");
   const [h5EditMode, setH5EditMode] = useState(true);
+  const [canvasMode, setCanvasMode] =
+    useState<StudioCanvasMode>("page");
+  const [selectedPageId, setSelectedPageId] =
+    useState("campaign-main");
+  const [flowEdges, setFlowEdges] = useState<CampaignFlowEdge[]>(
+    () => cloneValue(CAMPAIGN_FLOW_EDGES),
+  );
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
   const [aiPrompt, setAiPrompt] = useState(
     "生成一张更有冲浪速度感的夏日首焦，保留当前 IP 和标题",
   );
   const [aiStatus, setAiStatus] = useState<AiStatus>("idle");
-  const [aiCandidates, setAiCandidates] = useState<AiCandidate[]>([]);
-  const [selectedCandidateId, setSelectedCandidateId] = useState<
-    string | null
-  >(null);
+  const [aiReferences, setAiReferences] = useState<AiReference[]>([]);
+  const [lastAiPrompt, setLastAiPrompt] = useState("");
+  const [aiCandidateGroups, setAiCandidateGroups] = useState<
+    AiCandidateGroup[]
+  >([]);
+  const [selectedAiAsset, setSelectedAiAsset] =
+    useState<SelectedAiAsset | null>(null);
   const [aiTrial, setAiTrial] = useState<AiTrial | null>(null);
   const [adoptedCandidateId, setAdoptedCandidateId] = useState<
     string | null
@@ -571,6 +711,7 @@ export default function CampaignStudio() {
   const fitModeRef = useRef(true);
   const previewWorldRef = useRef<HTMLDivElement>(null);
   const phoneStageRef = useRef<HTMLDivElement>(null);
+  const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const aiJobIdRef = useRef(0);
   const aiTimerRef = useRef<number | null>(null);
   const canvasDragRef = useRef<{
@@ -580,11 +721,17 @@ export default function CampaignStudio() {
     panX: number;
     panY: number;
   } | null>(null);
+  const candidateGroupDragRef = useRef<{
+    pointerId: number;
+    groupId: string;
+    startX: number;
+    startY: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const activeDraft =
     drafts.find((draft) => draft.id === activeId) ?? drafts[0];
-  const activeDraftRef = useRef(activeDraft);
-  activeDraftRef.current = activeDraft;
   const previewDraft = useMemo(() => {
     if (!aiTrial || aiTrial.target.draftId !== activeDraft.id) {
       return activeDraft;
@@ -599,10 +746,20 @@ export default function CampaignStudio() {
     () => createConfigurationFromSkin(previewDraft),
     [previewDraft],
   );
-  const selectedCandidate =
-    aiCandidates.find((candidate) => candidate.id === selectedCandidateId) ??
-    null;
-  const inspectorOpen = h5EditMode && !selectedCandidate;
+  const selectedCandidateGroup = selectedAiAsset
+    ? aiCandidateGroups.find(
+        (group) => group.id === selectedAiAsset.groupId,
+      ) ?? null
+    : null;
+  const selectedCandidate = selectedCandidateGroup
+    ? selectedCandidateGroup.candidates.find(
+        (candidate) => candidate.id === selectedAiAsset?.candidateId,
+      ) ?? null
+    : null;
+  const selectedPage =
+    CAMPAIGN_PAGES.find((page) => page.id === selectedPageId) ??
+    CAMPAIGN_PAGES[2];
+  const inspectorOpen = true;
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
     if (!activeDraft.pack.assets.heroMedia.src) issues.push("缺少 Hero");
@@ -716,7 +873,7 @@ export default function CampaignStudio() {
       setCanvasPan({ x: 0, y: 0 });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [activeId]);
+  }, [activeId, canvasMode]);
 
   useEffect(() => {
     aiJobIdRef.current += 1;
@@ -725,10 +882,11 @@ export default function CampaignStudio() {
       aiTimerRef.current = null;
     }
     const frame = window.requestAnimationFrame(() => {
-      setAiTarget(createHeroAiTarget(activeDraftRef.current));
+      setAiTarget(null);
       setAiStatus("idle");
-      setAiCandidates([]);
-      setSelectedCandidateId(null);
+      setAiCandidateGroups([]);
+      setSelectedAiAsset(null);
+      setAiReferences([]);
       setAiTrial(null);
       setAdoptedCandidateId(null);
     });
@@ -828,6 +986,80 @@ export default function CampaignStudio() {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  }
+
+  function handleCandidateGroupPointerDown(
+    event: ReactPointerEvent<HTMLElement>,
+    group: AiCandidateGroup,
+  ) {
+    if (event.button !== 0 || spaceHeldRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    candidateGroupDragRef.current = {
+      pointerId: event.pointerId,
+      groupId: group.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      x: group.position.x,
+      y: group.position.y,
+    };
+  }
+
+  function handleCandidateGroupPointerMove(
+    event: ReactPointerEvent<HTMLElement>,
+  ) {
+    const drag = candidateGroupDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setAiCandidateGroups((current) =>
+      current.map((group) =>
+        group.id === drag.groupId
+          ? {
+              ...group,
+              position: {
+                x: drag.x + event.clientX - drag.startX,
+                y: drag.y + event.clientY - drag.startY,
+              },
+            }
+          : group,
+      ),
+    );
+  }
+
+  function handleCandidateGroupPointerEnd(
+    event: ReactPointerEvent<HTMLElement>,
+  ) {
+    const drag = candidateGroupDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    candidateGroupDragRef.current = null;
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function toggleCandidateGroup(groupId: string) {
+    setAiCandidateGroups((current) =>
+      current.map((group) =>
+        group.id === groupId
+          ? { ...group, collapsed: !group.collapsed }
+          : group,
+      ),
+    );
+  }
+
+  function updateFlowEdge(
+    edgeId: string,
+    patch: Partial<CampaignFlowEdge>,
+  ) {
+    setFlowEdges((current) =>
+      current.map((edge) =>
+        edge.id === edgeId ? { ...edge, ...patch } : edge,
+      ),
+    );
+    setMessage("页面跳转草稿已更新；发布前会校验不可达页面与循环");
   }
 
   function updateActive(
@@ -993,14 +1225,47 @@ export default function CampaignStudio() {
 
   function selectAiTarget(target: AiTarget | null) {
     setAiTarget(target);
-    setLibraryMode("ai");
-    setSelectedCandidateId(null);
+    setSelectedAiAsset(null);
     setH5EditMode(true);
+    setCanvasMode("page");
     if (target) {
-      setMessage(`生成目标已锁定为「${target.label}」`);
+      setSelectedPageId(target.pageId);
+      setMessage(`已把「${target.label}」约束挂到左侧 Chat`);
     } else {
       setMessage("已切换为自由生成；候选不会自动写入 H5");
     }
+    window.requestAnimationFrame(() => aiPromptRef.current?.focus());
+  }
+
+  async function handleAiReferenceUpload(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const files = Array.from(event.target.files ?? []).slice(0, 4);
+    event.target.value = "";
+    if (files.length === 0) return;
+    try {
+      const assets = await Promise.all(
+        files.map(async (file, index) => {
+          const asset = await readImageAsset(file);
+          return {
+            id: `reference-${Date.now()}-${index}`,
+            name: file.name,
+            ...asset,
+          };
+        }),
+      );
+      setAiReferences((current) => [...current, ...assets].slice(0, 4));
+      setMessage(`已添加 ${assets.length} 张参考图到本次生成上下文`);
+      window.requestAnimationFrame(() => aiPromptRef.current?.focus());
+    } catch {
+      setMessage("参考图读取失败，请使用常见图片格式");
+    }
+  }
+
+  function removeAiReference(referenceId: string) {
+    setAiReferences((current) =>
+      current.filter((reference) => reference.id !== referenceId),
+    );
   }
 
   function runAiGeneration() {
@@ -1010,9 +1275,11 @@ export default function CampaignStudio() {
     aiJobIdRef.current = jobId;
     const draftSnapshot = cloneValue(activeDraft);
     const targetSnapshot = aiTarget ? { ...aiTarget } : null;
+    const references = cloneValue(aiReferences);
+    const pageId = targetSnapshot?.pageId ?? selectedPageId;
     setAiStatus("generating");
-    setAiCandidates([]);
-    setSelectedCandidateId(null);
+    setLastAiPrompt(prompt);
+    setSelectedAiAsset(null);
     setAiTrial(null);
     setAdoptedCandidateId(null);
     setMessage(
@@ -1029,13 +1296,32 @@ export default function CampaignStudio() {
         draftSnapshot,
         targetSnapshot,
       );
-      setAiCandidates(candidates);
-      setSelectedCandidateId(candidates[0]?.id ?? null);
+      const canvasWidth = previewWorldRef.current?.clientWidth ?? 1200;
+      const leftRoom = Math.max(0, (canvasWidth - 395) / 2);
+      const groupX =
+        leftRoom >= 430 ? -448 : -Math.max(24, leftRoom - 14);
+      setAiCandidateGroups((current) => [
+        ...current,
+        {
+          id: `candidate-group-${jobId}-${Date.now()}`,
+          draftId: draftSnapshot.id,
+          pageId,
+          prompt,
+          target: targetSnapshot,
+          references,
+          candidates,
+          position: {
+            x: groupX + (current.length % 2) * 22,
+            y: 56 + current.length * 226,
+          },
+          collapsed: false,
+        },
+      ]);
       setAiStatus("ready");
       setMessage(
         targetSnapshot
-          ? `已生成 3 个「${targetSnapshot.label}」候选，请在 Canvas 中试用`
-          : "已生成 3 个未绑定素材，请在 Canvas 中指定目标",
+          ? `已把 3 个「${targetSnapshot.label}」候选作为一组放进 Canvas`
+          : "已把 3 个自由素材作为一组放进 Canvas",
       );
       aiTimerRef.current = null;
     }, 850);
@@ -1043,6 +1329,7 @@ export default function CampaignStudio() {
 
   function tryAiCandidate(
     candidate: AiCandidate,
+    groupId: string,
     forcedTarget?: AiTarget,
   ) {
     const target = candidate.target ?? forcedTarget ?? aiTarget;
@@ -1056,14 +1343,21 @@ export default function CampaignStudio() {
     }
     const boundCandidate =
       candidate.target === target ? candidate : { ...candidate, target };
-    setAiCandidates((current) =>
-      current.map((item) =>
-        item.id === candidate.id ? boundCandidate : item,
+    setAiCandidateGroups((current) =>
+      current.map((group) =>
+        group.id === groupId
+          ? {
+              ...group,
+              candidates: group.candidates.map((item) =>
+                item.id === candidate.id ? boundCandidate : item,
+              ),
+            }
+          : group,
       ),
     );
     setAiTarget(target);
-    setAiTrial({ target, candidate: boundCandidate });
-    setSelectedCandidateId(candidate.id);
+    setAiTrial({ groupId, target, candidate: boundCandidate });
+    setSelectedAiAsset({ groupId, candidateId: candidate.id });
     setMessage(`正在 H5 中临时试用「${candidate.label}」`);
   }
 
@@ -1334,174 +1628,38 @@ export default function CampaignStudio() {
           <p>用生成目标连接 Chat、Canvas 与活动模块。</p>
         </header>
 
-        <div className="studio-left-tabs" role="tablist" aria-label="左侧工作区">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={libraryMode === "ai"}
-            onClick={() => setLibraryMode("ai")}
-            data-testid="studio-left-mode-ai"
-          >
-            AI 生成
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={libraryMode === "schemes"}
-            onClick={() => setLibraryMode("schemes")}
-            data-testid="studio-left-mode-schemes"
-          >
-            方案
-          </button>
-        </div>
-
-        <div
-          className="studio-library-mode"
-          hidden={libraryMode !== "schemes"}
-        >
-        <div className="studio-create-row">
-          <button type="button" onClick={() => addFromTheme("summer")}>
-            + 夏日方案
-          </button>
-          <button type="button" onClick={() => addFromTheme("night")}>
-            + 夜食方案
-          </button>
-        </div>
-
-        <div className="studio-draft-list" aria-label="主题方案">
-          {drafts.map((draft) => (
-            <button
-              type="button"
-              className={draft.id === activeDraft.id ? "active" : ""}
-              onClick={() => setActiveId(draft.id)}
-              key={draft.id}
-            >
-              <i
-                style={{ background: draft.pack.colors.accent }}
-                aria-hidden="true"
-              />
-              <span>
-                <strong>{draft.name}</strong>
-                <small>
-                  {draft.baseTheme === "summer" ? "夏日模板" : "夜食模板"}
-                </small>
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="studio-library-actions">
-          <button type="button" onClick={duplicateActive}>
-            复制当前方案
-          </button>
-          <label className="studio-file-button">
-            导入 JSON
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={importDraft}
-              data-testid="config-import-input"
-            />
-          </label>
-          <button
-            type="button"
-            className="danger"
-            onClick={deleteActive}
-            disabled={drafts.length <= 1}
-          >
-            删除
-          </button>
-        </div>
-        {importError && (
-          <p className="studio-error" data-testid="config-error">
-            导入失败：{importError}
-          </p>
-        )}
-        </div>
-
         <div
           className="studio-ai-chat"
-          hidden={libraryMode !== "ai"}
           data-testid="studio-ai-chat"
+          data-panel="chat"
         >
-          <div
-            className={`studio-ai-target-card ${
-              aiTarget ? "targeted" : "unbound"
-            }`}
-            data-testid="studio-ai-target"
-          >
-            <small>当前生成目标</small>
-            {aiTarget ? (
-              <>
-                <strong>{aiTarget.label}</strong>
-                <span>
-                  {aiTarget.displaySize} → {aiTarget.outputSize}
-                </span>
-                <span>{aiTarget.accepts}</span>
-                <button
-                  type="button"
-                  onClick={() => selectAiTarget(null)}
-                >
-                  清除目标，改为自由生成
-                </button>
-              </>
-            ) : (
-              <>
-                <strong>未绑定页面目标</strong>
-                <span>生成结果会先作为独立素材进入 Canvas。</span>
-              </>
-            )}
-          </div>
-
-          <div className="studio-ai-quick-targets">
-            <span>快速选择目标</span>
-            <div>
-              <button
-                type="button"
-                onClick={() =>
-                  selectAiTarget(createHeroAiTarget(activeDraft))
-                }
-              >
-                M1 Hero
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  selectAiTarget(createCardAiTarget(activeDraft))
-                }
-              >
-                M2 首张卡
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  selectAiTarget(createRewardAiTarget(activeDraft))
-                }
-              >
-                M2 大奖
-              </button>
-            </div>
-          </div>
-
           <div className="studio-ai-thread" aria-live="polite">
             <div className="studio-ai-message assistant">
-              <small>AI 助手</small>
+              <small>Campaign Copilot</small>
               <p>
-                我会读取目标容器的尺寸、媒体类型、安全区和当前主题，
-                生成结果统一放进中间 Canvas。
+                从右侧模块点击“AI 生成”后，容器规则会作为约束胶囊进入输入框。
+                你可以继续补充描述或参考图，结果会成为 Canvas 里的素材组。
               </p>
             </div>
+            {lastAiPrompt && (
+              <div className="studio-ai-message user">
+                <small>你 · {aiTarget?.label ?? "自由素材"}</small>
+                <p>{lastAiPrompt}</p>
+              </div>
+            )}
             {aiStatus === "generating" && (
               <div className="studio-ai-message assistant generating">
                 <small>生成任务</small>
-                <p>正在编译容器契约并自动处理素材…</p>
+                <p>
+                  正在读取尺寸、安全区、当前主题与 {aiReferences.length} 张参考图…
+                </p>
               </div>
             )}
             {aiStatus === "ready" && (
               <div className="studio-ai-message assistant">
                 <small>生成完成</small>
                 <p>
-                  3 个候选已经放到 Canvas。先试用，确认后才会写入草稿。
+                  新候选已打成一组放进 Canvas；点击其中一张即可出现快捷工具。
                 </p>
               </div>
             )}
@@ -1509,29 +1667,113 @@ export default function CampaignStudio() {
 
           <form
             className="studio-ai-composer"
+            data-testid="studio-ai-composer"
             onSubmit={(event) => {
               event.preventDefault();
               runAiGeneration();
             }}
           >
-            <label htmlFor="studio-ai-prompt">描述你想要的素材</label>
-            <textarea
-              id="studio-ai-prompt"
-              value={aiPrompt}
-              onChange={(event) => setAiPrompt(event.target.value)}
-              rows={4}
-            />
-            <button
-              type="submit"
-              disabled={aiStatus === "generating"}
-              data-testid="studio-ai-generate"
-            >
-              {aiStatus === "generating"
-                ? "正在生成候选…"
-                : aiTarget
-                  ? `为 ${aiTarget.moduleId} 生成`
-                  : "自由生成素材"}
-            </button>
+            <div className="studio-ai-composer-box">
+              <div className="studio-ai-context-row">
+                {aiTarget ? (
+                  <span
+                    className="studio-ai-target-pill"
+                    data-testid="studio-ai-target-pill"
+                    title={`${aiTarget.displaySize} → ${aiTarget.outputSize} · ${aiTarget.accepts}`}
+                  >
+                    <b>模块约束</b>
+                    {aiTarget.label}
+                    <i>{aiTarget.outputSize}</i>
+                    <button
+                      type="button"
+                      onClick={() => selectAiTarget(null)}
+                      aria-label="移除生成目标约束"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : (
+                  <span
+                    className="studio-ai-target-pill free"
+                    data-testid="studio-ai-target-pill"
+                  >
+                    <b>自由素材</b>
+                    不自动回填 H5
+                  </span>
+                )}
+              </div>
+
+              {aiReferences.length > 0 && (
+                <div
+                  className="studio-ai-reference-list"
+                  data-testid="studio-ai-reference-list"
+                >
+                  {aiReferences.map((reference) => (
+                    <span key={reference.id}>
+                      <img src={reference.src} alt="" />
+                      <small>{reference.name}</small>
+                      <button
+                        type="button"
+                        onClick={() => removeAiReference(reference.id)}
+                        aria-label={`移除参考图 ${reference.name}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <label className="studio-sr-only" htmlFor="studio-ai-prompt">
+                描述你想要的素材
+              </label>
+              <textarea
+                id="studio-ai-prompt"
+                ref={aiPromptRef}
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                placeholder="描述画面、动作、风格，Shift + Enter 换行"
+                rows={4}
+                data-testid="studio-ai-prompt"
+              />
+
+              <div className="studio-ai-composer-actions">
+                <label className="studio-ai-reference-button">
+                  <span aria-hidden="true">＋</span>
+                  添加参考图
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleAiReferenceUpload}
+                    data-testid="studio-ai-reference-input"
+                  />
+                </label>
+                <small>最多 4 张</small>
+                <button
+                  type="submit"
+                  disabled={aiStatus === "generating"}
+                  data-testid="studio-ai-generate"
+                  aria-label={
+                    aiStatus === "generating"
+                      ? "正在生成候选"
+                      : "开始生成候选"
+                  }
+                >
+                  {aiStatus === "generating" ? "···" : "↑"}
+                </button>
+              </div>
+            </div>
             <small>体验版使用现有素材模拟生成，验证完整交互闭环。</small>
           </form>
         </div>
@@ -1540,16 +1782,46 @@ export default function CampaignStudio() {
       <section className="studio-canvas">
         <header className="studio-toolbar">
           <div>
-            <small>实时手机预览</small>
-            <strong>{activeDraft.name}</strong>
+            <small>
+              {canvasMode === "page" ? "页面画布" : "页面与跳转流程"}
+            </small>
+            <strong>
+              {activeDraft.name} · {selectedPage.name}
+            </strong>
           </div>
           <div className="studio-toolbar-actions">
+            <div
+              className="studio-canvas-mode-toggle"
+              role="tablist"
+              aria-label="Canvas 视图"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={canvasMode === "page"}
+                onClick={() => setCanvasMode("page")}
+              >
+                页面编辑
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={canvasMode === "flow"}
+                onClick={() => {
+                  setCanvasMode("flow");
+                  setSelectedAiAsset(null);
+                }}
+                data-testid="studio-page-flow-entry"
+              >
+                页面流程
+              </button>
+            </div>
             <button
               type="button"
               className={h5EditMode ? "active" : ""}
               onClick={() => {
                 setH5EditMode((current) => !current);
-                setSelectedCandidateId(null);
+                setSelectedAiAsset(null);
               }}
               data-testid="studio-h5-edit-toggle"
             >
@@ -1585,80 +1857,6 @@ export default function CampaignStudio() {
           onPointerUp={handleCanvasPointerEnd}
           onPointerCancel={handleCanvasPointerEnd}
         >
-          {aiCandidates.length > 0 && (
-            <aside
-              className="studio-ai-candidate-dock"
-              data-testid="studio-ai-candidate-dock"
-              aria-label="AI 生成候选"
-            >
-              <header>
-                <div>
-                  <small>Canvas Assets</small>
-                  <strong>生成候选</strong>
-                </div>
-                <span>{aiCandidates.length}</span>
-              </header>
-              <div className="studio-ai-candidate-list">
-                {aiCandidates.map((candidate, index) => {
-                  const isSelected = candidate.id === selectedCandidateId;
-                  const isTrying =
-                    candidate.id === aiTrial?.candidate.id;
-                  const isAdopted =
-                    candidate.id === adoptedCandidateId;
-                  return (
-                    <article
-                      className={[
-                        isSelected ? "selected" : "",
-                        isTrying ? "trying" : "",
-                        isAdopted ? "adopted" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      key={candidate.id}
-                    >
-                      <button
-                        type="button"
-                        className="studio-ai-candidate-preview"
-                        onClick={() =>
-                          setSelectedCandidateId(candidate.id)
-                        }
-                      >
-                        <img src={candidate.src} alt="" />
-                        <span>
-                          <b>0{index + 1} · {candidate.label}</b>
-                          <small>
-                            {candidate.target?.label ?? "未绑定素材"}
-                          </small>
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="studio-ai-candidate-use"
-                        onClick={() =>
-                          tryAiCandidate(
-                            candidate,
-                            candidate.target
-                              ? undefined
-                              : aiTarget ??
-                                  createHeroAiTarget(activeDraft),
-                          )
-                        }
-                      >
-                        {isTrying
-                          ? "试用中"
-                          : isAdopted
-                            ? "已确认"
-                            : candidate.target
-                              ? "在 H5 中试用"
-                              : "绑定并试用"}
-                      </button>
-                    </article>
-                  );
-                })}
-              </div>
-            </aside>
-          )}
-
           {selectedCandidate && (
             <div
               className="studio-asset-quickbar"
@@ -1675,6 +1873,7 @@ export default function CampaignStudio() {
                 onClick={() =>
                   tryAiCandidate(
                     selectedCandidate,
+                    selectedCandidateGroup?.id ?? "",
                     selectedCandidate.target
                       ? undefined
                       : aiTarget ?? createHeroAiTarget(activeDraft),
@@ -1683,12 +1882,20 @@ export default function CampaignStudio() {
               >
                 {selectedCandidate.target ? "试用" : "绑定到 H5"}
               </button>
-              <button type="button" onClick={runAiGeneration}>
-                重新生成
+              <button
+                type="button"
+                onClick={() =>
+                  selectAiTarget(
+                    selectedCandidate.target ??
+                      createHeroAiTarget(activeDraft),
+                  )
+                }
+              >
+                继续生成
               </button>
               <button
                 type="button"
-                onClick={() => setSelectedCandidateId(null)}
+                onClick={() => setSelectedAiAsset(null)}
               >
                 关闭工具
               </button>
@@ -1760,18 +1967,131 @@ export default function CampaignStudio() {
             }}
           >
             <div
+              className="studio-ai-candidate-groups"
+              data-testid="studio-ai-candidate-groups"
+              hidden={canvasMode !== "page" || aiCandidateGroups.length === 0}
+              aria-label="Canvas 中的 AI 素材组"
+            >
+              {aiCandidateGroups.map((group, groupIndex) => (
+                <section
+                  className={`studio-ai-candidate-group ${
+                    group.collapsed ? "collapsed" : ""
+                  }`}
+                  data-candidate-group-id={group.id}
+                  data-target-kind={group.target?.kind ?? "free"}
+                  style={{
+                    transform: `translate3d(${group.position.x}px, ${group.position.y}px, 0)`,
+                    zIndex: 4 + groupIndex,
+                  }}
+                  key={group.id}
+                >
+                  <header>
+                    <div
+                      className="studio-ai-candidate-drag-handle"
+                      onPointerDown={(event) =>
+                        handleCandidateGroupPointerDown(event, group)
+                      }
+                      onPointerMove={handleCandidateGroupPointerMove}
+                      onPointerUp={handleCandidateGroupPointerEnd}
+                      onPointerCancel={handleCandidateGroupPointerEnd}
+                      title="拖动素材组"
+                    >
+                      <i aria-hidden="true">⠿</i>
+                      <span>
+                        <small>AI 素材组 · {group.pageId}</small>
+                        <strong>
+                          {group.target?.label ?? "自由生成"} ·{" "}
+                          {group.candidates.length} 个候选
+                        </strong>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleCandidateGroup(group.id)}
+                      aria-expanded={!group.collapsed}
+                    >
+                      {group.collapsed ? "展开" : "收起"}
+                    </button>
+                  </header>
+
+                  {!group.collapsed && (
+                    <>
+                      <div className="studio-ai-candidate-grid">
+                        {group.candidates.map((candidate, index) => {
+                          const isSelected =
+                            selectedAiAsset?.groupId === group.id &&
+                            selectedAiAsset.candidateId === candidate.id;
+                          const isTrying =
+                            group.id === aiTrial?.groupId &&
+                            candidate.id === aiTrial.candidate.id;
+                          const isAdopted =
+                            candidate.id === adoptedCandidateId;
+                          return (
+                            <button
+                              type="button"
+                              className={[
+                                "studio-ai-candidate-tile",
+                                isSelected ? "selected" : "",
+                                isTrying ? "trying" : "",
+                                isAdopted ? "adopted" : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setSelectedAiAsset({
+                                  groupId: group.id,
+                                  candidateId: candidate.id,
+                                });
+                              }}
+                              key={candidate.id}
+                            >
+                              <span className="studio-ai-candidate-image">
+                                <img
+                                  src={candidate.src}
+                                  alt=""
+                                  draggable={false}
+                                />
+                                <i>0{index + 1}</i>
+                              </span>
+                              <span>
+                                <strong>{candidate.label}</strong>
+                                <small>
+                                  {candidate.width} × {candidate.height}
+                                </small>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <footer>
+                        <span title={group.prompt}>{group.prompt}</span>
+                        <small>
+                          {group.references.length > 0
+                            ? `${group.references.length} 张参考图`
+                            : "无参考图"}
+                        </small>
+                      </footer>
+                    </>
+                  )}
+                </section>
+              ))}
+            </div>
+
+            <div
               className="studio-phone-stage"
-              ref={phoneStageRef}
+              ref={canvasMode === "page" ? phoneStageRef : undefined}
               data-testid="studio-phone-stage"
               data-canvas-zoom={canvasZoom.toFixed(2)}
               data-h5-mode={h5EditMode ? "edit" : "preview"}
+              hidden={canvasMode !== "page"}
               style={
                 {
                   "--studio-canvas-scale": canvasZoom,
                 } as CSSProperties
               }
             >
-              {h5EditMode && (
+              {h5EditMode && selectedPageId === "campaign-main" && (
                 <nav
                   className="studio-h5-target-toolbar"
                   aria-label="H5 可生成目标"
@@ -1804,9 +2124,15 @@ export default function CampaignStudio() {
                 </nav>
               )}
               <div className="studio-phone-label">
-                <span>画布 375 × 875 px · 9:21</span>
+                <span>
+                  {selectedPage.order} · {selectedPage.name} · 375 × 875 px · 9:21
+                </span>
                 <b>
-                  {activeDraft.baseTheme === "summer" ? "夏日" : "夜食"}
+                  {selectedPage.kind === "overlay"
+                    ? "浮层"
+                    : selectedPage.status === "ready"
+                      ? "已配置"
+                      : "待搭建"}
                 </b>
               </div>
               <div
@@ -1817,20 +2143,176 @@ export default function CampaignStudio() {
                   if (!h5EditMode) return;
                   event.preventDefault();
                   event.stopPropagation();
-                  setSelectedCandidateId(null);
+                  setSelectedAiAsset(null);
                   setMessage(
-                    "H5 已进入编辑态；请选择上方 M1/M2 目标或使用右侧模块配置",
+                    selectedPageId === "campaign-main"
+                      ? "H5 已进入编辑态；请选择上方 M1/M2 目标或使用右侧模块配置"
+                      : `已选中「${selectedPage.name}」页面画布`,
                   );
                 }}
               >
-                <CampaignExperience
-                  key={activeDraft.id}
-                  configuration={runtimeConfiguration}
-                  initialTheme={activeDraft.baseTheme}
-                  persistProgress={false}
-                  fixture
-                />
+                {selectedPageId === "campaign-main" ? (
+                  <CampaignExperience
+                    key={activeDraft.id}
+                    configuration={runtimeConfiguration}
+                    initialTheme={activeDraft.baseTheme}
+                    persistProgress={false}
+                    fixture
+                  />
+                ) : (
+                  <div
+                    className={`studio-page-placeholder ${selectedPage.template}`}
+                    data-testid="studio-page-placeholder"
+                  >
+                    <div className="studio-page-placeholder-map" />
+                    <div className="studio-page-placeholder-content">
+                      <small>{selectedPage.route}</small>
+                      <b>{selectedPage.name}</b>
+                      {selectedPage.template === "loading" && (
+                        <>
+                          <span className="studio-page-loader" />
+                          <p>资源加载完成后自动进入角色选择</p>
+                        </>
+                      )}
+                      {selectedPage.template === "character-select" && (
+                        <>
+                          <p>选择与你同行的夏日角色</p>
+                          <div className="studio-character-options">
+                            <i>🐴</i>
+                            <i>🦀</i>
+                            <i>🦈</i>
+                          </div>
+                          <button type="button">确认角色</button>
+                        </>
+                      )}
+                      {selectedPage.id === "prizes" && (
+                        <>
+                          <p>奖券与实物奖励列表</p>
+                          <div className="studio-placeholder-list">
+                            <i />
+                            <i />
+                            <i />
+                          </div>
+                        </>
+                      )}
+                      {selectedPage.id === "rules" && (
+                        <>
+                          <p>以 overlay 方式覆盖当前页面，并保留返回路径。</p>
+                          <div className="studio-placeholder-copy" />
+                        </>
+                      )}
+                      <span className="studio-page-placeholder-note">
+                        页面模板已进入项目；内容模块可继续配置
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+
+            <div
+              className="studio-page-flow-stage"
+              ref={canvasMode === "flow" ? phoneStageRef : undefined}
+              hidden={canvasMode !== "flow"}
+              style={
+                {
+                  "--studio-canvas-scale": canvasZoom,
+                } as CSSProperties
+              }
+              data-testid="studio-page-flow-canvas"
+            >
+              <header>
+                <span>
+                  <small>Campaign flow</small>
+                  <strong>页面与跳转</strong>
+                </span>
+                <b>1 个起始页 · 5 个页面 · 4 条边</b>
+              </header>
+
+              <div className="studio-flow-trunk">
+                {CAMPAIGN_PAGES.slice(0, 3).map((page, index) => {
+                  const edge = flowEdges.find(
+                    (item) => item.fromPageId === page.id,
+                  );
+                  return (
+                    <div className="studio-flow-step" key={page.id}>
+                      <button
+                        type="button"
+                        className={
+                          selectedPageId === page.id ? "active" : ""
+                        }
+                        onClick={() => setSelectedPageId(page.id)}
+                        onDoubleClick={() => {
+                          setSelectedPageId(page.id);
+                          setCanvasMode("page");
+                        }}
+                      >
+                        <span className={`studio-flow-thumb ${page.template}`}>
+                          {page.id === "campaign-main" ? (
+                            <img
+                              src={activeDraft.pack.assets.heroMedia.src}
+                              alt=""
+                            />
+                          ) : (
+                            <i aria-hidden="true">
+                              {page.template === "loading" ? "···" : "角色"}
+                            </i>
+                          )}
+                        </span>
+                        <span>
+                          <small>
+                            {page.order} · {page.kind}
+                          </small>
+                          <strong>{page.name}</strong>
+                          <i>{page.route}</i>
+                        </span>
+                      </button>
+                      {index < 2 && edge && (
+                        <span className="studio-flow-edge">
+                          <small>{edge.eventKey}</small>
+                          <b>{edge.navigation} →</b>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="studio-flow-branches">
+                <span className="studio-flow-branch-origin">
+                  <b>活动主页事件</b>
+                  <small>组件只暴露稳定 eventKey，不绑定 CSS selector</small>
+                </span>
+                {CAMPAIGN_PAGES.slice(3).map((page) => {
+                  const edge = flowEdges.find(
+                    (item) => item.targetPageId === page.id,
+                  );
+                  return (
+                    <button
+                      type="button"
+                      className={selectedPageId === page.id ? "active" : ""}
+                      onClick={() => setSelectedPageId(page.id)}
+                      onDoubleClick={() => {
+                        setSelectedPageId(page.id);
+                        setCanvasMode("page");
+                      }}
+                      key={page.id}
+                    >
+                      <span>
+                        <small>
+                          {edge?.eventKey} · {edge?.navigation}
+                        </small>
+                        <strong>{page.name}</strong>
+                      </span>
+                      <b>{edge?.transition}</b>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <footer>
+                单击选择页面与跳转配置 · 双击进入该页面画布
+              </footer>
             </div>
           </div>
         </div>
@@ -1870,6 +2352,213 @@ export default function CampaignStudio() {
               : "配置完整"}
           </span>
         </header>
+
+        <div
+          className="studio-inspector-group studio-project-group"
+          data-testid="inspector-group-project"
+        >
+          <div className="studio-inspector-group-title">
+            <span>Project</span>
+            <strong>页面与方案</strong>
+          </div>
+
+          <details open data-setting-id="pages">
+            <SectionSummary index="P1">页面与跳转</SectionSummary>
+            <div className="studio-section-body">
+              <div className="studio-project-summary">
+                <span>
+                  <strong>5 个页面</strong>
+                  <small>1 个起始页 · 1 个 overlay</small>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCanvasMode("flow");
+                    setSelectedAiAsset(null);
+                  }}
+                  data-testid="studio-project-open-flow"
+                >
+                  在 Canvas 查看流程
+                </button>
+              </div>
+
+              <div
+                className="studio-project-pages"
+                data-testid="studio-project-pages"
+              >
+                {CAMPAIGN_PAGES.map((page) => (
+                  <button
+                    type="button"
+                    className={
+                      selectedPageId === page.id ? "active" : ""
+                    }
+                    onClick={() => {
+                      setSelectedPageId(page.id);
+                      setCanvasMode("page");
+                      setSelectedAiAsset(null);
+                    }}
+                    key={page.id}
+                  >
+                    <span>{page.order}</span>
+                    <i
+                      className={`studio-page-kind ${page.kind}`}
+                      aria-hidden="true"
+                    />
+                    <b>{page.name}</b>
+                    <small>
+                      {page.id === "loading"
+                        ? "Start"
+                        : page.kind === "overlay"
+                          ? "Overlay"
+                          : page.status === "ready"
+                            ? "Ready"
+                            : "Draft"}
+                    </small>
+                  </button>
+                ))}
+              </div>
+
+              <details className="studio-subdetails">
+                <summary>跳转事件与动作</summary>
+                <div
+                  className="studio-flow-edge-editor"
+                  data-testid="studio-flow-edge-editor"
+                >
+                  {flowEdges.map((edge) => {
+                    const fromPage = CAMPAIGN_PAGES.find(
+                      (page) => page.id === edge.fromPageId,
+                    );
+                    return (
+                      <article key={edge.id}>
+                        <span>
+                          <small>{fromPage?.name}</small>
+                          <input
+                            type="text"
+                            value={edge.eventKey}
+                            onChange={(event) =>
+                              updateFlowEdge(edge.id, {
+                                eventKey: event.target.value,
+                              })
+                            }
+                            aria-label={`${fromPage?.name}触发事件`}
+                          />
+                        </span>
+                        <select
+                          value={edge.navigation}
+                          onChange={(event) =>
+                            updateFlowEdge(edge.id, {
+                              navigation: event.target
+                                .value as CampaignFlowEdge["navigation"],
+                            })
+                          }
+                          aria-label={`${fromPage?.name}导航方式`}
+                        >
+                          <option value="push">push</option>
+                          <option value="replace">replace</option>
+                          <option value="overlay">overlay</option>
+                          <option value="back">back</option>
+                        </select>
+                        <select
+                          value={edge.targetPageId}
+                          onChange={(event) =>
+                            updateFlowEdge(edge.id, {
+                              targetPageId: event.target.value,
+                            })
+                          }
+                          aria-label={`${fromPage?.name}目标页面`}
+                        >
+                          {CAMPAIGN_PAGES.map((page) => (
+                            <option value={page.id} key={page.id}>
+                              → {page.name}
+                            </option>
+                          ))}
+                        </select>
+                      </article>
+                    );
+                  })}
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details open data-setting-id="schemes">
+            <SectionSummary index="P2">多主题方案</SectionSummary>
+            <div
+              className="studio-section-body studio-scheme-panel"
+              data-testid="studio-scheme-panel"
+            >
+              <div className="studio-inspector-create-row">
+                <button
+                  type="button"
+                  onClick={() => addFromTheme("summer")}
+                >
+                  新建夏日方案
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addFromTheme("night")}
+                >
+                  新建夜食方案
+                </button>
+              </div>
+
+              <div className="studio-inspector-scheme-list" aria-label="主题方案">
+                {drafts.map((draft) => (
+                  <button
+                    type="button"
+                    className={
+                      draft.id === activeDraft.id ? "active" : ""
+                    }
+                    onClick={() => setActiveId(draft.id)}
+                    key={draft.id}
+                  >
+                    <i
+                      style={{ background: draft.pack.colors.accent }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <strong>{draft.name}</strong>
+                      <small>
+                        {draft.baseTheme === "summer"
+                          ? "夏日模板"
+                          : "夜食模板"}
+                      </small>
+                    </span>
+                    <b>{draft.id === activeDraft.id ? "当前" : "切换"}</b>
+                  </button>
+                ))}
+              </div>
+
+              <div className="studio-inspector-scheme-actions">
+                <button type="button" onClick={duplicateActive}>
+                  复制
+                </button>
+                <label className="studio-file-button">
+                  导入 JSON
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={importDraft}
+                    data-testid="config-import-input"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="danger"
+                  onClick={deleteActive}
+                  disabled={drafts.length <= 1}
+                >
+                  删除
+                </button>
+              </div>
+              {importError && (
+                <p className="studio-error" data-testid="config-error">
+                  导入失败：{importError}
+                </p>
+              )}
+            </div>
+          </details>
+        </div>
 
         <div
           className="studio-inspector-group"

@@ -120,6 +120,7 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "config-grand-reward-preview",
     "config-card-size-hint",
     "config-reward-size-hint",
+    "inspector-group-project",
     "inspector-group-global",
     "inspector-group-modules",
     "studio-canvas-surface",
@@ -128,12 +129,20 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "studio-canvas-zoom",
     "studio-canvas-zoom-in",
     "studio-canvas-fit",
-    "studio-left-mode-ai",
-    "studio-left-mode-schemes",
     "studio-ai-chat",
-    "studio-ai-target",
+    "studio-ai-composer",
+    "studio-ai-target-pill",
+    "studio-ai-prompt",
+    "studio-ai-reference-input",
     "studio-ai-generate",
+    "studio-ai-candidate-groups",
     "studio-h5-edit-toggle",
+    "studio-page-flow-entry",
+    "studio-page-flow-canvas",
+    "studio-project-open-flow",
+    "studio-project-pages",
+    "studio-flow-edge-editor",
+    "studio-scheme-panel",
     "studio-ai-target-hero",
     "studio-ai-target-card",
     "studio-ai-target-reward",
@@ -144,7 +153,7 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     html,
     /data-testid="config-preview"[^>]*data-preview-ratio="9:21"/,
   );
-  assert.match(html, /画布 375 × 875 px · 9:21/);
+  assert.match(html.replaceAll("<!-- -->", ""), /活动主页 · 375 × 875 px · 9:21/);
   assert.match(
     html,
     /data-testid="config-card-preview-watergun"[^>]*src="\/figma\/equipment-water-gun\.webp"|src="\/figma\/equipment-water-gun\.webp"[^>]*data-testid="config-card-preview-watergun"/,
@@ -161,11 +170,21 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   const globalGroupIndex = html.indexOf(
     'data-testid="inspector-group-global"',
   );
+  const projectGroupIndex = html.indexOf(
+    'data-testid="inspector-group-project"',
+  );
   const moduleGroupIndex = html.indexOf(
     'data-testid="inspector-group-modules"',
   );
-  assert.ok(globalGroupIndex >= 0);
+  assert.ok(projectGroupIndex >= 0);
+  assert.ok(globalGroupIndex > projectGroupIndex);
   assert.ok(moduleGroupIndex > globalGroupIndex);
+  const chatIndex = html.indexOf('data-testid="studio-ai-chat"');
+  const canvasIndex = html.indexOf('class="studio-canvas"');
+  const schemeIndex = html.indexOf('data-testid="studio-scheme-panel"');
+  assert.ok(chatIndex >= 0);
+  assert.ok(canvasIndex > chatIndex);
+  assert.ok(schemeIndex > canvasIndex);
   for (const moduleId of [
     "hero",
     "collection",
@@ -180,7 +199,8 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /按住空格拖动画布/);
   assert.match(html, /在手机内滚动浏览 H5/);
 
-  assert.match(html, /复制当前方案/);
+  assert.match(html, /多主题方案/);
+  assert.match(html, /新建夏日方案/);
   assert.match(html, /导入 JSON/);
   assert.match(html, /导出当前方案/);
   assert.match(html, /应用到活动页/);
@@ -251,6 +271,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     "config-error",
     "config-field-title",
     "config-field-hero-media",
+    "inspector-group-project",
     "inspector-group-global",
     "inspector-group-modules",
     "studio-canvas-surface",
@@ -259,6 +280,15 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     "studio-canvas-zoom",
     "studio-canvas-zoom-in",
     "studio-canvas-fit",
+    "studio-ai-composer",
+    "studio-ai-target-pill",
+    "studio-ai-reference-input",
+    "studio-ai-candidate-groups",
+    "studio-page-flow-entry",
+    "studio-page-flow-canvas",
+    "studio-project-pages",
+    "studio-flow-edge-editor",
+    "studio-scheme-panel",
   ]) {
     assert.match(
       studio,
@@ -318,10 +348,26 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     /const previewDraft\s*=\s*useMemo\([\s\S]*?applyAiCandidateToDraft\(/,
   );
   assert.match(studio, /function runAiGeneration\s*\(/);
+  assert.match(studio, /function handleAiReferenceUpload\s*\(/);
+  assert.match(studio, /function removeAiReference\s*\(/);
+  assert.match(studio, /function handleCandidateGroupPointerDown\s*\(/);
+  assert.match(studio, /function updateFlowEdge\s*\(/);
   assert.match(studio, /function tryAiCandidate\s*\(/);
   assert.match(studio, /function confirmAiTrial\s*\(/);
   assert.match(studio, /function undoLastAiCommit\s*\(/);
-  assert.match(studio, /data-testid=["']studio-ai-candidate-dock["']/);
+  assert.match(studio, /type AiReference\s*=/);
+  assert.match(studio, /type AiCandidateGroup\s*=/);
+  assert.match(
+    studio,
+    /type AiTarget\s*=\s*\{[\s\S]*?pageId:\s*string/,
+  );
+  assert.match(
+    studio,
+    /setAiCandidateGroups\(\(current\)\s*=>\s*\[\s*\.\.\.current,/,
+  );
+  assert.match(studio, /group\.candidates\.map\(/);
+  assert.match(studio, /data-candidate-group-id=\{group\.id\}/);
+  assert.match(studio, /data-testid=["']studio-ai-candidate-groups["']/);
   assert.match(studio, /data-testid=["']studio-asset-quickbar["']/);
   assert.match(studio, /data-testid=["']studio-ai-trial-bar["']/);
   assert.match(
@@ -330,7 +376,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(
     studio,
-    /fitModeRef\.current\s*=\s*true[\s\S]*?requestAnimationFrame\([\s\S]*?setCanvasZoom\(calculateCanvasFitZoom\(\)\)[\s\S]*?setCanvasPan\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)[\s\S]*?\},\s*\[activeId\]\)/,
+    /fitModeRef\.current\s*=\s*true[\s\S]*?requestAnimationFrame\([\s\S]*?setCanvasZoom\(calculateCanvasFitZoom\(\)\)[\s\S]*?setCanvasPan\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)[\s\S]*?\},\s*\[activeId,\s*canvasMode\]\)/,
   );
   assert.match(
     css,
@@ -348,7 +394,10 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     css,
     /\.studio-shell\[data-inspector-open=["']false["']\]\s*\{(?=[^}]*grid-template-columns:[^}]*0;)[^}]*\}/s,
   );
-  assert.match(css, /\.studio-ai-candidate-dock\s*\{/);
+  assert.match(css, /\.studio-ai-candidate-groups\s*\{/);
+  assert.match(css, /\.studio-ai-candidate-group\s*\{/);
+  assert.match(css, /\.studio-page-flow-stage\s*\{/);
+  assert.match(css, /\.studio-ai-composer-box\s*\{/);
   assert.match(css, /\.studio-asset-quickbar\s*\{/);
   assert.match(css, /\.studio-ai-trial-bar\s*\{/);
   assert.doesNotMatch(
