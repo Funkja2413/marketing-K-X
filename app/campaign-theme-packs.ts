@@ -6,6 +6,7 @@ export type CampaignHeroMedia =
   | {
       type: "image";
       src: string;
+      assetId?: string;
       fit?: "cover" | "contain";
       position?: string;
       sourceWidth?: number;
@@ -14,7 +15,9 @@ export type CampaignHeroMedia =
   | {
       type: "video";
       src: string;
+      assetId?: string;
       poster?: string;
+      posterAssetId?: string;
       fit?: "cover" | "contain";
       position?: string;
       sourceWidth?: number;

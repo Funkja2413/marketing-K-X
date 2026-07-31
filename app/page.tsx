@@ -19,6 +19,7 @@ export type CardDefinition = {
   name: string;
   emoji: string;
   image?: string;
+  imageAssetId?: string;
   imageWidth?: number;
   imageHeight?: number;
   accent: string;

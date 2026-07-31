@@ -266,6 +266,20 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /function updateHeroLayer\s*\(/);
   assert.match(studio, /function uploadHeroLayer\s*\(/);
   assert.match(studio, /function HeroLayerComposer\s*\(/);
+  assert.match(
+    studio,
+    /const STUDIO_ASSET_DB_NAME\s*=\s*["']campaign-studio-assets-v1["']/,
+  );
+  assert.match(studio, /window\.indexedDB\.open\(/);
+  assert.match(studio, /function hydrateAndCacheDraftAssets\s*\(/);
+  assert.match(studio, /function serializeDraftAssets\s*\(/);
+  assert.match(studio, /function materializeDraftAssets\s*\(/);
+  assert.match(studio, /function cacheStudioFile\s*\(/);
+  assert.match(
+    studio,
+    /JSON\.stringify\(serializeDraftAssets\(drafts\)\)/,
+  );
+  assert.match(page, /imageAssetId\?: string/);
   assert.match(studio, /new FileReader\(\)/);
   assert.match(studio, /new Blob\(/);
   assert.match(

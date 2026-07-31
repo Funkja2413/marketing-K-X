@@ -38,6 +38,119 @@ const DEFAULT_HERO_AI_PROMPT =
   "生成一张更有冲浪速度感的夏日首焦，保留当前 IP 和标题";
 const DEFAULT_COLLECTION_AI_PROMPT =
   "生成一整套夏日冲浪主题的 9 张道具卡与 4 档奖励，透明底、统一果冻质感";
+const STUDIO_ASSET_DB_NAME = "campaign-studio-assets-v1";
+const STUDIO_ASSET_STORE = "assets";
+const STUDIO_ASSET_REF_PREFIX = "idb://";
+
+type StudioCachedAsset = {
+  id: string;
+  blob: Blob;
+  mimeType: string;
+  updatedAt: string;
+};
+
+let studioAssetDbPromise: Promise<IDBDatabase> | null = null;
+
+function openStudioAssetDb() {
+  if (studioAssetDbPromise) return studioAssetDbPromise;
+  studioAssetDbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+    const request = window.indexedDB.open(STUDIO_ASSET_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains(STUDIO_ASSET_STORE)) {
+        database.createObjectStore(STUDIO_ASSET_STORE, {
+          keyPath: "id",
+        });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  return studioAssetDbPromise;
+}
+
+function waitForIdbRequest<T>(request: IDBRequest<T>) {
+  return new Promise<T>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function waitForIdbTransaction(transaction: IDBTransaction) {
+  return new Promise<void>((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+async function putStudioCachedAsset(id: string, blob: Blob) {
+  const database = await openStudioAssetDb();
+  const transaction = database.transaction(
+    STUDIO_ASSET_STORE,
+    "readwrite",
+  );
+  transaction.objectStore(STUDIO_ASSET_STORE).put({
+    id,
+    blob,
+    mimeType: blob.type || "application/octet-stream",
+    updatedAt: new Date().toISOString(),
+  } satisfies StudioCachedAsset);
+  await waitForIdbTransaction(transaction);
+}
+
+async function getStudioCachedAsset(id: string) {
+  const database = await openStudioAssetDb();
+  const transaction = database.transaction(STUDIO_ASSET_STORE, "readonly");
+  return waitForIdbRequest(
+    transaction
+      .objectStore(STUDIO_ASSET_STORE)
+      .get(id) as IDBRequest<StudioCachedAsset | undefined>,
+  );
+}
+
+function getStudioAssetIdFromRef(src?: string) {
+  return src?.startsWith(STUDIO_ASSET_REF_PREFIX)
+    ? src.slice(STUDIO_ASSET_REF_PREFIX.length)
+    : undefined;
+}
+
+function getStudioAssetRef(assetId: string) {
+  return `${STUDIO_ASSET_REF_PREFIX}${assetId}`;
+}
+
+function createStudioAssetId(
+  draftId: string,
+  slot: "card" | "hero-layer" | "transition" | "transition-poster",
+  entityId: string,
+) {
+  return `${draftId}:${slot}:${entityId}`;
+}
+
+async function cacheStudioSource(assetId: string, src: string) {
+  const cached = await getStudioCachedAsset(assetId);
+  if (cached) return URL.createObjectURL(cached.blob);
+  if (!src || src.startsWith(STUDIO_ASSET_REF_PREFIX)) return src;
+  const response = await fetch(src);
+  if (!response.ok) throw new Error("素材读取失败");
+  const blob = await response.blob();
+  await putStudioCachedAsset(assetId, blob);
+  return URL.createObjectURL(blob);
+}
+
+async function cacheStudioFile(assetId: string, file: File) {
+  await putStudioCachedAsset(assetId, file);
+  return URL.createObjectURL(file);
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
 
 type AiStatus = "idle" | "generating" | "ready";
 type StudioCanvasMode = "page" | "flow";
@@ -560,6 +673,7 @@ function applyAiCandidateToDraft(
         ? {
             ...card,
             image: candidate.src,
+            imageAssetId: undefined,
             imageWidth: candidate.width,
             imageHeight: candidate.height,
           }
@@ -659,6 +773,7 @@ function applyM2BatchToDraft(
     return {
       ...card,
       image: candidate.src,
+      imageAssetId: undefined,
       imageWidth: candidate.width,
       imageHeight: candidate.height,
     };
@@ -703,6 +818,165 @@ function applyM2BatchToDraft(
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+async function hydrateAndCacheDraftAssets(
+  sourceDrafts: CampaignSkinDraft[],
+) {
+  const drafts = cloneValue(sourceDrafts);
+  for (const draft of drafts) {
+    for (const card of draft.content.cards) {
+      const assetId =
+        card.imageAssetId ??
+        getStudioAssetIdFromRef(card.image) ??
+        (card.image
+          ? createStudioAssetId(draft.id, "card", card.id)
+          : undefined);
+      if (!assetId) continue;
+      try {
+        const src = await cacheStudioSource(assetId, card.image ?? "");
+        if (src && !src.startsWith(STUDIO_ASSET_REF_PREFIX)) {
+          card.image = src;
+          card.imageAssetId = assetId;
+        }
+      } catch {
+        // Preserve the original public or inline source when caching fails.
+      }
+    }
+
+    const composition = draft.pack.assets.collectionHeroComposition;
+    if (!composition) continue;
+    for (const layer of composition.layers) {
+      if (layer.media?.src) {
+        const assetId =
+          layer.media.assetId ??
+          getStudioAssetIdFromRef(layer.media.src) ??
+          createStudioAssetId(draft.id, "hero-layer", layer.cardId);
+        try {
+          const src = await cacheStudioSource(assetId, layer.media.src);
+          if (src && !src.startsWith(STUDIO_ASSET_REF_PREFIX)) {
+            layer.media.src = src;
+            layer.media.assetId = assetId;
+          }
+        } catch {
+          // Preserve the original public or inline source when caching fails.
+        }
+      }
+      if (layer.transitionMedia?.src) {
+        const assetId =
+          layer.transitionMedia.assetId ??
+          getStudioAssetIdFromRef(layer.transitionMedia.src) ??
+          createStudioAssetId(draft.id, "transition", layer.cardId);
+        try {
+          const src = await cacheStudioSource(
+            assetId,
+            layer.transitionMedia.src,
+          );
+          if (src && !src.startsWith(STUDIO_ASSET_REF_PREFIX)) {
+            layer.transitionMedia.src = src;
+            layer.transitionMedia.assetId = assetId;
+          }
+        } catch {
+          // Preserve the original public or inline source when caching fails.
+        }
+      }
+      if (
+        layer.transitionMedia?.type === "video" &&
+        layer.transitionMedia.poster
+      ) {
+        const posterAssetId =
+          layer.transitionMedia.posterAssetId ??
+          getStudioAssetIdFromRef(layer.transitionMedia.poster) ??
+          createStudioAssetId(
+            draft.id,
+            "transition-poster",
+            layer.cardId,
+          );
+        try {
+          const poster = await cacheStudioSource(
+            posterAssetId,
+            layer.transitionMedia.poster,
+          );
+          if (poster && !poster.startsWith(STUDIO_ASSET_REF_PREFIX)) {
+            layer.transitionMedia.poster = poster;
+            layer.transitionMedia.posterAssetId = posterAssetId;
+          }
+        } catch {
+          // Preserve the original public or inline source when caching fails.
+        }
+      }
+    }
+  }
+  return drafts;
+}
+
+function serializeDraftAssets(sourceDrafts: CampaignSkinDraft[]) {
+  const drafts = cloneValue(sourceDrafts);
+  for (const draft of drafts) {
+    for (const card of draft.content.cards) {
+      if (card.imageAssetId) {
+        card.image = getStudioAssetRef(card.imageAssetId);
+      }
+    }
+    const composition = draft.pack.assets.collectionHeroComposition;
+    if (!composition) continue;
+    for (const layer of composition.layers) {
+      if (layer.media?.assetId) {
+        layer.media.src = getStudioAssetRef(layer.media.assetId);
+      }
+      if (layer.transitionMedia?.assetId) {
+        layer.transitionMedia.src = getStudioAssetRef(
+          layer.transitionMedia.assetId,
+        );
+      }
+      if (
+        layer.transitionMedia?.type === "video" &&
+        layer.transitionMedia.posterAssetId
+      ) {
+        layer.transitionMedia.poster = getStudioAssetRef(
+          layer.transitionMedia.posterAssetId,
+        );
+      }
+    }
+  }
+  return drafts;
+}
+
+async function materializeDraftAssets(sourceDraft: CampaignSkinDraft) {
+  const draft = cloneValue(sourceDraft);
+  for (const card of draft.content.cards) {
+    if (!card.imageAssetId) continue;
+    const cached = await getStudioCachedAsset(card.imageAssetId);
+    if (cached) card.image = await blobToDataUrl(cached.blob);
+  }
+  const composition = draft.pack.assets.collectionHeroComposition;
+  if (!composition) return draft;
+  for (const layer of composition.layers) {
+    if (layer.media?.assetId) {
+      const cached = await getStudioCachedAsset(layer.media.assetId);
+      if (cached) layer.media.src = await blobToDataUrl(cached.blob);
+    }
+    if (layer.transitionMedia?.assetId) {
+      const cached = await getStudioCachedAsset(
+        layer.transitionMedia.assetId,
+      );
+      if (cached) {
+        layer.transitionMedia.src = await blobToDataUrl(cached.blob);
+      }
+    }
+    if (
+      layer.transitionMedia?.type === "video" &&
+      layer.transitionMedia.posterAssetId
+    ) {
+      const cached = await getStudioCachedAsset(
+        layer.transitionMedia.posterAssetId,
+      );
+      if (cached) {
+        layer.transitionMedia.poster = await blobToDataUrl(cached.blob);
+      }
+    }
+  }
+  return draft;
 }
 
 function createDraft(
@@ -847,12 +1121,6 @@ function readVideoSize(
     video.onerror = () => reject(new Error("无法读取视频尺寸"));
     video.src = src;
   });
-}
-
-async function readVideoAsset(file: File) {
-  const src = await readFileAsDataUrl(file);
-  const size = await readVideoSize(src);
-  return { src, ...size };
 }
 
 function isTypingTarget(target: EventTarget | null) {
@@ -1376,25 +1644,30 @@ export default function CampaignStudio() {
   }, [activeDraft]);
 
   useEffect(() => {
-    window.queueMicrotask(() => {
+    const loadDrafts = async () => {
       try {
+        let nextDrafts = createStarterDrafts();
         const saved = window.localStorage.getItem(DRAFTS_STORAGE_KEY);
         if (saved) {
           const parsed: unknown = JSON.parse(saved);
           if (Array.isArray(parsed)) {
             const validDrafts = parsed.filter(isDraft).map(normalizeDraft);
             if (validDrafts.length > 0) {
-              setDrafts(validDrafts);
-              setActiveId(validDrafts[0].id);
+              nextDrafts = validDrafts;
             }
           }
         }
+        const hydratedDrafts = await hydrateAndCacheDraftAssets(nextDrafts);
+        setDrafts(hydratedDrafts);
+        setActiveId(hydratedDrafts[0].id);
+        setMessage("9 个道具素材槽已接入本地缓存");
       } catch {
         setMessage("本地草稿读取失败，已恢复默认方案");
       } finally {
         setHydrated(true);
       }
-    });
+    };
+    void loadDrafts();
   }, []);
 
   useEffect(() => {
@@ -1402,7 +1675,7 @@ export default function CampaignStudio() {
     try {
       window.localStorage.setItem(
         DRAFTS_STORAGE_KEY,
-        JSON.stringify(drafts),
+        JSON.stringify(serializeDraftAssets(drafts)),
       );
     } catch {
       window.queueMicrotask(() =>
@@ -1832,19 +2105,27 @@ export default function CampaignStudio() {
     event.target.value = "";
     if (!file) return;
     try {
-      const asset = await readImageAsset(file);
       const currentLayer =
         activeDraft.pack.assets.collectionHeroComposition?.layers.find(
           (layer) => layer.id === layerId,
         );
+      if (!currentLayer) throw new Error("图层不存在");
+      const assetId = createStudioAssetId(
+        activeDraft.id,
+        "hero-layer",
+        currentLayer.cardId,
+      );
+      const src = await cacheStudioFile(assetId, file);
+      const size = await readImageSize(src);
       updateHeroLayer(layerId, {
         embeddedInBase: false,
         presentation: "image-layer",
         media: {
           type: "image",
-          src: asset.src,
-          sourceWidth: asset.width,
-          sourceHeight: asset.height,
+          src,
+          assetId,
+          sourceWidth: size.width,
+          sourceHeight: size.height,
           fit: "contain",
           position: "center",
         },
@@ -1865,23 +2146,35 @@ export default function CampaignStudio() {
     event.target.value = "";
     if (!file) return;
     try {
-      const asset = await readVideoAsset(file);
       const layer =
         activeDraft.pack.assets.collectionHeroComposition?.layers.find(
           (item) => item.id === layerId,
         );
+      if (!layer) throw new Error("图层不存在");
+      const assetId = createStudioAssetId(
+        activeDraft.id,
+        "transition",
+        layer.cardId,
+      );
+      const src = await cacheStudioFile(assetId, file);
+      const size = await readVideoSize(src);
       updateHeroLayer(layerId, {
         embeddedInBase: false,
         presentation: "video-transition",
         transitionMedia: {
           type: "video",
-          src: asset.src,
+          src,
+          assetId,
           poster:
             layer?.transitionMedia?.type === "video"
               ? layer.transitionMedia.poster
               : undefined,
-          sourceWidth: asset.width,
-          sourceHeight: asset.height,
+          posterAssetId:
+            layer?.transitionMedia?.type === "video"
+              ? layer.transitionMedia.posterAssetId
+              : undefined,
+          sourceWidth: size.width,
+          sourceHeight: size.height,
           fit: "cover",
           position: "center",
         },
@@ -1900,11 +2193,17 @@ export default function CampaignStudio() {
     event.target.value = "";
     if (!file) return;
     try {
-      const asset = await readImageAsset(file);
       const layer =
         activeDraft.pack.assets.collectionHeroComposition?.layers.find(
           (item) => item.id === layerId,
         );
+      if (!layer) throw new Error("图层不存在");
+      const posterAssetId = createStudioAssetId(
+        activeDraft.id,
+        "transition-poster",
+        layer.cardId,
+      );
+      const poster = await cacheStudioFile(posterAssetId, file);
       updateHeroLayer(layerId, {
         transitionMedia: {
           type: "video",
@@ -1912,7 +2211,8 @@ export default function CampaignStudio() {
             layer?.transitionMedia?.type === "video"
               ? layer.transitionMedia.src
               : "",
-          poster: asset.src,
+          poster,
+          posterAssetId,
           sourceWidth: layer?.transitionMedia?.sourceWidth,
           sourceHeight: layer?.transitionMedia?.sourceHeight,
           fit: "cover",
@@ -2337,11 +2637,12 @@ export default function CampaignStudio() {
     setMessage("方案已删除");
   }
 
-  function applyActive() {
+  async function applyActive() {
     try {
+      const portableDraft = await materializeDraftAssets(activeDraft);
       window.localStorage.setItem(
         ACTIVE_SKIN_STORAGE_KEY,
-        JSON.stringify(activeDraft),
+        JSON.stringify(portableDraft),
       );
       setMessage("已应用到活动页；打开或刷新活动页即可查看");
     } catch {
@@ -2349,9 +2650,10 @@ export default function CampaignStudio() {
     }
   }
 
-  function exportActive() {
+  async function exportActive() {
+    const portableDraft = await materializeDraftAssets(activeDraft);
     const blob = new Blob(
-      [JSON.stringify(activeDraft, null, 2)],
+      [JSON.stringify(portableDraft, null, 2)],
       { type: "application/json;charset=utf-8" },
     );
     const url = URL.createObjectURL(blob);
@@ -2368,18 +2670,21 @@ export default function CampaignStudio() {
     event.target.value = "";
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const parsed: unknown = JSON.parse(String(reader.result));
         if (!isDraft(parsed)) {
           throw new Error("配置结构不完整");
         }
-        const imported = {
+        const importedDraft = {
           ...normalizeDraft(parsed),
           id: `${parsed.baseTheme}-${Date.now()}`,
           name: `${parsed.name} · 导入`,
           updatedAt: new Date().toISOString(),
         };
+        const [imported] = await hydrateAndCacheDraftAssets([
+          importedDraft,
+        ]);
         setDrafts((current) => [...current, imported]);
         setActiveId(imported.id);
         setImportError("");
@@ -2456,13 +2761,22 @@ export default function CampaignStudio() {
     event.target.value = "";
     if (!file) return;
     try {
-      const asset = await readImageAsset(file);
+      const card = activeDraft.content.cards[index];
+      if (!card) throw new Error("卡位不存在");
+      const assetId = createStudioAssetId(
+        activeDraft.id,
+        "card",
+        card.id,
+      );
+      const src = await cacheStudioFile(assetId, file);
+      const size = await readImageSize(src);
       updateCard(index, {
-        image: asset.src,
-        imageWidth: asset.width,
-        imageHeight: asset.height,
+        image: src,
+        imageAssetId: assetId,
+        imageWidth: size.width,
+        imageHeight: size.height,
       });
-      setMessage(`已替换第 ${index + 1} 张卡片素材`);
+      setMessage(`第 ${index + 1} 张卡片素材已缓存到本机`);
     } catch {
       setMessage(`第 ${index + 1} 张卡片素材读取失败`);
     }
@@ -2473,7 +2787,20 @@ export default function CampaignStudio() {
     event.target.value = "";
     if (files.length === 0) return;
     try {
-      const assets = await Promise.all(files.map(readImageAsset));
+      const assets = await Promise.all(
+        files.map(async (file, index) => {
+          const card = activeDraft.content.cards[index];
+          if (!card) throw new Error("卡位不存在");
+          const assetId = createStudioAssetId(
+            activeDraft.id,
+            "card",
+            card.id,
+          );
+          const src = await cacheStudioFile(assetId, file);
+          const size = await readImageSize(src);
+          return { src, assetId, ...size };
+        }),
+      );
       updateActive((draft) => ({
         ...draft,
         content: {
@@ -2481,12 +2808,16 @@ export default function CampaignStudio() {
           cards: draft.content.cards.map((card, index) => ({
             ...card,
             image: assets[index]?.src ?? card.image,
+            imageAssetId:
+              assets[index]?.assetId ?? card.imageAssetId,
             imageWidth: assets[index]?.width ?? card.imageWidth,
             imageHeight: assets[index]?.height ?? card.imageHeight,
           })),
         },
       }));
-      setMessage(`已按文件顺序批量替换 ${assets.length} 张卡片`);
+      setMessage(
+        `已按文件顺序缓存 ${assets.length} 张卡片；刷新后仍会保留`,
+      );
     } catch {
       setMessage("批量素材读取失败，请检查图片文件");
     }
@@ -4442,6 +4773,7 @@ export default function CampaignStudio() {
                               : undefined;
                             updateCard(index, {
                               image,
+                              imageAssetId: undefined,
                               imageWidth: size?.width,
                               imageHeight: size?.height,
                             });
