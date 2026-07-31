@@ -1289,6 +1289,11 @@ export default function CampaignStudio() {
         (card) => card.id === selectedHeroLayer.cardId,
       ) ?? null
     : null;
+  const selectedHeroCardIndex = selectedHeroLayer
+    ? activeDraft.content.cards.findIndex(
+        (card) => card.id === selectedHeroLayer.cardId,
+      )
+    : -1;
   const configuredHeroLayerCount = heroLayers.filter(
     (layer) => Boolean(layer.media?.src) || layer.embeddedInBase,
   ).length;
@@ -1918,29 +1923,6 @@ export default function CampaignStudio() {
     } catch {
       setMessage("视频封面读取失败");
     }
-  }
-
-  function syncHeroLayerFromCard(layer: CampaignCollectionHeroLayer) {
-    const card = activeDraft.content.cards.find(
-      (item) => item.id === layer.cardId,
-    );
-    if (!card?.image) {
-      setMessage("这张道具卡还没有独立图片，请先上传透明素材");
-      return;
-    }
-    updateHeroLayer(layer.id, {
-      embeddedInBase: false,
-      presentation: "image-layer",
-      media: {
-        type: "image",
-        src: card.image,
-        sourceWidth: card.imageWidth,
-        sourceHeight: card.imageHeight,
-        fit: "contain",
-        position: "center",
-      },
-    });
-    setMessage(`已把「${card.name}」卡片图同步为 Hero 图层`);
   }
 
   function updateCard(index: number, patch: Partial<CardDefinition>) {
@@ -2597,7 +2579,7 @@ export default function CampaignStudio() {
       <aside className="studio-sidebar studio-library">
         <header className="studio-brand">
           <span>Campaign Skin Studio</span>
-          <h1>活动换肤配置器</h1>
+          <h1>创意工坊</h1>
           <p>用生成目标连接 Chat、Canvas 与活动模块。</p>
         </header>
 
@@ -4040,21 +4022,50 @@ export default function CampaignStudio() {
                         >
                           <label className="studio-hero-layer-asset-choice">
                             <span className="studio-hero-layer-asset-thumb">
-                              {selectedHeroLayer.media?.src ? (
+                              {selectedHeroCard?.image ? (
                                 <img
-                                  src={selectedHeroLayer.media.src}
-                                  alt="当前透明图层"
+                                  src={selectedHeroCard.image}
+                                  alt="卡片素材预览"
                                 />
                               ) : (
                                 <i aria-hidden="true">+</i>
                               )}
                             </span>
-                            <b>上传透明图</b>
+                            <b>卡片图</b>
                             <small>
+                              集卡槽 ·{" "}
+                              {selectedHeroCard?.imageWidth &&
+                              selectedHeroCard?.imageHeight
+                                ? `${selectedHeroCard.imageWidth} × ${selectedHeroCard.imageHeight}`
+                                : "180 × 220"}
+                            </small>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(event) =>
+                                selectedHeroCardIndex >= 0 &&
+                                uploadCard(selectedHeroCardIndex, event)
+                              }
+                            />
+                          </label>
+                          <label className="studio-hero-layer-asset-choice">
+                            <span className="studio-hero-layer-asset-thumb">
+                              {selectedHeroLayer.media?.src ? (
+                                <img
+                                  src={selectedHeroLayer.media.src}
+                                  alt="Hero 透明图层预览"
+                                />
+                              ) : (
+                                <i aria-hidden="true">+</i>
+                              )}
+                            </span>
+                            <b>Hero 图层</b>
+                            <small>
+                              首焦叠加 ·{" "}
                               {selectedHeroLayer.media?.sourceWidth &&
                               selectedHeroLayer.media?.sourceHeight
                                 ? `${selectedHeroLayer.media.sourceWidth} × ${selectedHeroLayer.media.sourceHeight}`
-                                : "PNG / WebP"}
+                                : "透明 PNG"}
                             </small>
                             <input
                               type="file"
@@ -4067,35 +4078,10 @@ export default function CampaignStudio() {
                               }
                             />
                           </label>
-                          <button
-                            type="button"
-                            className="studio-hero-layer-asset-choice"
-                            onClick={() =>
-                              syncHeroLayerFromCard(selectedHeroLayer)
-                            }
-                            disabled={!selectedHeroCard?.image}
-                          >
-                            <span className="studio-hero-layer-asset-thumb">
-                              {selectedHeroCard?.image ? (
-                                <img
-                                  src={selectedHeroCard.image}
-                                  alt="卡片素材预览"
-                                />
-                              ) : (
-                                <i aria-hidden="true">
-                                  {selectedHeroCard?.emoji ?? "?"}
-                                </i>
-                              )}
-                            </span>
-                            <b>使用卡片图</b>
-                            <small>
-                              {selectedHeroCard?.imageWidth &&
-                              selectedHeroCard?.imageHeight
-                                ? `${selectedHeroCard.imageWidth} × ${selectedHeroCard.imageHeight}`
-                                : "暂无卡片图"}
-                            </small>
-                          </button>
                         </div>
+                        <p className="studio-hero-layer-canvas-hint">
+                          两张图独立保存：卡片图在集卡槽内居中适配；下方坐标与组合画布只控制 Hero 图层。
+                        </p>
                         <label className="studio-hero-layer-embedded">
                           <input
                             type="checkbox"

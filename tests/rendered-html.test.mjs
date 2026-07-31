@@ -109,7 +109,7 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /class="studio-sidebar studio-library"/);
   assert.match(html, /class="studio-canvas"/);
   assert.match(html, /class="studio-sidebar studio-inspector"/);
-  assert.match(html, /活动换肤配置器/);
+  assert.match(html, /创意工坊/);
   assert.match(html, /夏天马上顺 · 默认/);
   assert.match(html, /夏日夜食 · 默认/);
 
@@ -423,6 +423,17 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, />上传本地</);
   assert.doesNotMatch(studio, /config-hero-layer-source/);
   assert.doesNotMatch(studio, /最终图对位/);
+  assert.match(studio, /<b>卡片图<\/b>/);
+  assert.match(studio, /<b>Hero 图层<\/b>/);
+  assert.match(
+    studio,
+    /uploadCard\(selectedHeroCardIndex, event\)/,
+  );
+  assert.match(
+    studio,
+    /uploadHeroLayer\([\s\S]*?selectedHeroLayer\.id,[\s\S]*?event/,
+  );
+  assert.doesNotMatch(studio, /syncHeroLayerFromCard/);
   assert.match(studio, /data-testid=["']studio-apply-m2-batch["']/);
   assert.match(studio, /studio-ai-card-batch-grid/);
   assert.match(studio, /studio-ai-reward-batch-grid/);
