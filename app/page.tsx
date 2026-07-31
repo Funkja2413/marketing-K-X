@@ -379,28 +379,12 @@ const SUMMER_CARDS: CardDefinition[] = [
     weight: 0.95,
   },
   {
-    id: "icecream",
-    name: "浪花冰淇淋",
-    emoji: "🍦",
-    accent: "#ffb7dd",
-    rarity: "普通",
-    weight: 0.9,
-  },
-  {
     id: "sunhat",
     name: "遮阳幸运帽",
     emoji: "👒",
     accent: "#ffc85a",
     rarity: "稀有",
     weight: 0.55,
-  },
-  {
-    id: "luckyhorse",
-    name: "马上顺金牌",
-    emoji: "🏅",
-    accent: "#ccff39",
-    rarity: "稀有",
-    weight: 0.38,
   },
 ];
 
@@ -434,7 +418,7 @@ const SUMMER_TIERS: TierDefinition[] = [
   },
   {
     id: "tier-9",
-    threshold: 9,
+    threshold: 7,
     amount: "限定礼",
     title: "足金顺顺马抽签码",
     condition: "集齐全套即可领取",
@@ -754,6 +738,12 @@ export function createConfigurationFromSkin(
   skin: CampaignSkinDraft,
 ): CampaignRuntimeConfiguration {
   const defaultPack = THEME_PACKS[skin.baseTheme];
+  const validCardIds = new Set(
+    THEMES[skin.baseTheme].cards.map((card) => card.id),
+  );
+  const normalizedCards = skin.content.cards.filter((card) =>
+    validCardIds.has(card.id),
+  );
   const shouldMigrateLegacySummerHero =
     skin.baseTheme === "summer" &&
     !skin.pack.assets.collectionHeroComposition &&
@@ -765,17 +755,23 @@ export function createConfigurationFromSkin(
   const normalizedComposition = sourceComposition
     ? {
         ...sourceComposition,
-        layers: sourceComposition.layers.map((layer) => ({
-          ...layer,
-          unlockMethod:
-            layer.unlockMethod ??
-            (sourceComposition.initialUnlockedCardIds.includes(
-              layer.cardId,
-            )
-              ? "first-gift"
-              : "draw"),
-          presentation: layer.presentation ?? "image-layer",
-        })),
+        initialUnlockedCardIds:
+          sourceComposition.initialUnlockedCardIds.filter((cardId) =>
+            validCardIds.has(cardId),
+          ),
+        layers: sourceComposition.layers
+          .filter((layer) => validCardIds.has(layer.cardId))
+          .map((layer) => ({
+            ...layer,
+            unlockMethod:
+              layer.unlockMethod ??
+              (sourceComposition.initialUnlockedCardIds.includes(
+                layer.cardId,
+              )
+                ? "first-gift"
+                : "draw"),
+            presentation: layer.presentation ?? "image-layer",
+          })),
       }
     : undefined;
   const mergedPack: CampaignThemePack = {
@@ -800,6 +796,11 @@ export function createConfigurationFromSkin(
       [skin.baseTheme]: {
         ...skin.content,
         id: skin.baseTheme,
+        cards: normalizedCards,
+        tiers: skin.content.tiers.map((tier) => ({
+          ...tier,
+          threshold: Math.min(tier.threshold, normalizedCards.length),
+        })),
       },
     },
     themePacks: {

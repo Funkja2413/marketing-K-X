@@ -37,7 +37,7 @@ const CANVAS_MAX_ZOOM = 1.25;
 const DEFAULT_HERO_AI_PROMPT =
   "生成一张更有冲浪速度感的夏日首焦，保留当前 IP 和标题";
 const DEFAULT_COLLECTION_AI_PROMPT =
-  "生成一整套夏日冲浪主题的 9 张道具卡与 4 档奖励，透明底、统一果冻质感";
+  "生成一整套夏日冲浪主题的道具卡与奖励，透明底、统一果冻质感";
 const STUDIO_ASSET_DB_NAME = "campaign-studio-assets-v1";
 const STUDIO_ASSET_STORE = "assets";
 const STUDIO_ASSET_REF_PREFIX = "idb://";
@@ -207,7 +207,7 @@ type M2BatchCandidate = {
   kind: "m2-batch";
   draftId: string;
   pageId: string;
-  cardCount: 9;
+  cardCount: number;
   rewardCount: 4;
   assets: AiCandidate[];
 };
@@ -478,9 +478,9 @@ function createCollectionKitAiTarget(
     moduleId: "M2",
     slotId: "m2.collection-reward-kit",
     label: "M2 · 集卡与奖励整套",
-    displaySize: "9 个卡槽 + 4 个奖励槽",
-    outputSize: "9 × 180×220 + 4 档奖励规格",
-    accepts: "13 张透明图片 · 同一套风格 · 稳定 ID 映射",
+    displaySize: `${cardSlots.length} 个卡槽 + ${rewardSlots.length} 个奖励槽`,
+    outputSize: `${cardSlots.length} × 180×220 + ${rewardSlots.length} 档奖励规格`,
+    accepts: `${cardSlots.length + rewardSlots.length} 张透明图片 · 同一套风格 · 稳定 ID 映射`,
     batchSlots: [...cardSlots, ...rewardSlots],
   };
 }
@@ -768,7 +768,9 @@ function applyM2BatchToDraft(
     [...cardAssets.keys()].some((id) => !expectedCardIds.has(id)) ||
     [...rewardAssets.keys()].some((id) => !expectedRewardIds.has(id))
   ) {
-    throw new Error("批次没有完整覆盖当前 9 张卡片与 4 档奖励");
+    throw new Error(
+      `批次没有完整覆盖当前 ${expectedCardIds.size} 张卡片与 ${expectedRewardIds.size} 档奖励`,
+    );
   }
 
   const next = cloneValue(draft);
@@ -1034,6 +1036,16 @@ function createDraft(
 
 function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
   const defaultPack = THEME_PACKS[draft.baseTheme];
+  const validCardIds = new Set(
+    THEMES[draft.baseTheme].cards.map((card) => card.id),
+  );
+  const normalizedCards = draft.content.cards.filter((card) =>
+    validCardIds.has(card.id),
+  );
+  const normalizedTiers = draft.content.tiers.map((tier) => ({
+    ...tier,
+    threshold: Math.min(tier.threshold, normalizedCards.length),
+  }));
   const shouldMigrateLegacySummerHero =
     draft.baseTheme === "summer" &&
     !draft.pack.assets.collectionHeroComposition &&
@@ -1045,21 +1057,32 @@ function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
   const normalizedComposition = sourceComposition
     ? {
         ...sourceComposition,
-        layers: sourceComposition.layers.map((layer) => ({
-          ...layer,
-          unlockMethod:
-            layer.unlockMethod ??
-            (sourceComposition.initialUnlockedCardIds.includes(
-              layer.cardId,
-            )
-              ? "first-gift"
-              : "draw"),
-          presentation: layer.presentation ?? "image-layer",
-        })),
+        initialUnlockedCardIds:
+          sourceComposition.initialUnlockedCardIds.filter((cardId) =>
+            validCardIds.has(cardId),
+          ),
+        layers: sourceComposition.layers
+          .filter((layer) => validCardIds.has(layer.cardId))
+          .map((layer) => ({
+            ...layer,
+            unlockMethod:
+              layer.unlockMethod ??
+              (sourceComposition.initialUnlockedCardIds.includes(
+                layer.cardId,
+              )
+                ? "first-gift"
+                : "draw"),
+            presentation: layer.presentation ?? "image-layer",
+          })),
       }
     : undefined;
   return {
     ...draft,
+    content: {
+      ...draft.content,
+      cards: normalizedCards,
+      tiers: normalizedTiers,
+    },
     pack: {
       ...defaultPack,
       ...draft.pack,
@@ -1632,7 +1655,12 @@ export default function CampaignStudio() {
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
     if (!activeDraft.pack.assets.heroMedia.src) issues.push("缺少 Hero");
-    if (activeDraft.content.cards.length !== 9) issues.push("卡片不是 9 张");
+    if (
+      activeDraft.content.cards.length !==
+      THEMES[activeDraft.baseTheme].cards.length
+    ) {
+      issues.push("卡片数量与主题模板不一致");
+    }
     if (activeDraft.content.tiers.length !== 4) issues.push("奖励不是 4 档");
     if (activeDraft.content.topicChips.length !== 6) {
       issues.push("话题标签不是 6 个");
@@ -1694,7 +1722,7 @@ export default function CampaignStudio() {
         const hydratedDrafts = await hydrateAndCacheDraftAssets(nextDrafts);
         setDrafts(hydratedDrafts);
         setActiveId(hydratedDrafts[0].id);
-        setMessage("9 个道具素材槽已接入本地缓存");
+        setMessage("道具素材槽已接入本地缓存");
       } catch {
         setMessage("本地草稿读取失败，已恢复默认方案");
       } finally {
@@ -2464,7 +2492,7 @@ export default function CampaignStudio() {
               kind: "m2-batch",
               draftId: draftSnapshot.id,
               pageId,
-              cardCount: 9,
+              cardCount: draftSnapshot.content.cards.length,
               rewardCount: 4,
               assets: candidates,
             }
@@ -2521,7 +2549,7 @@ export default function CampaignStudio() {
       setMessage(
         targetSnapshot
           ? targetSnapshot.kind === "collection-kit"
-            ? "已按模块契约生成 9 张卡片与 4 档奖励，并作为完整批次放进 Canvas"
+            ? `已按模块契约生成 ${draftSnapshot.content.cards.length} 张卡片与 ${draftSnapshot.content.tiers.length} 档奖励，并作为完整批次放进 Canvas`
             : `已把 ${candidates.length} 个「${targetSnapshot.label}」候选作为一组放进 Canvas`
           : "已把 3 个自由素材作为一组放进 Canvas",
       );
@@ -2603,7 +2631,7 @@ export default function CampaignStudio() {
       setAdoptedGroupId(group.id);
       setAiTrial(null);
       setMessage(
-        "已将 9 张卡片和 4 档奖励作为一个原子批次引用到当前草稿",
+        `已将 ${group.batch.cardCount} 张卡片和 ${group.batch.rewardCount} 档奖励作为一个原子批次引用到当前草稿`,
       );
     } catch (error) {
       setMessage(
@@ -2842,7 +2870,10 @@ export default function CampaignStudio() {
   }
 
   async function uploadCards(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []).slice(0, 9);
+    const files = Array.from(event.target.files ?? []).slice(
+      0,
+      activeDraft.content.cards.length,
+    );
     event.target.value = "";
     if (files.length === 0) return;
     try {
@@ -3366,7 +3397,7 @@ export default function CampaignStudio() {
                         <strong>
                           {group.target?.label ?? "自由生成"} ·{" "}
                           {group.batch
-                            ? "1 套（9 卡 + 4 奖励）"
+                            ? `1 套（${group.batch.cardCount} 卡 + ${group.batch.rewardCount} 奖励）`
                             : `${group.candidates.length} 个候选`}
                         </strong>
                       </span>
@@ -4192,7 +4223,7 @@ export default function CampaignStudio() {
           <SectionSummary index="M2">集卡与奖励</SectionSummary>
           <div className="studio-section-body">
             <p className="studio-section-note">
-              当前模板固定 9 张卡片和 4 档奖励；稳定 ID 不随换肤改变。
+              当前主题包含 {activeDraft.content.cards.length} 张卡片和 {activeDraft.content.tiers.length} 档奖励；稳定 ID 不随换肤改变。
             </p>
             {collectionHeroComposition && (
               <section
@@ -4245,7 +4276,7 @@ export default function CampaignStudio() {
                   375 × 460 可见区保存。
                 </div>
                 <div className="studio-hero-layer-list-heading">
-                  <strong>9 个道具素材</strong>
+                  <strong>{heroLayers.length} 个道具素材</strong>
                   <span>点选后在上方组合画布中定位</span>
                 </div>
                 <div
@@ -4740,7 +4771,7 @@ export default function CampaignStudio() {
               />
             </Field>
             <label className="studio-mini-upload">
-              批量上传卡片（按文件顺序映射前 9 张）
+              批量上传卡片（按文件顺序映射前 {activeDraft.content.cards.length} 张）
               <input
                 type="file"
                 accept="image/*"

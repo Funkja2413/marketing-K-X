@@ -577,6 +577,15 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
     ]);
 
   assert.match(page, /summer-campaign-multitheme-v2/);
+  assert.doesNotMatch(page, /id:\s*["']icecream["']/);
+  assert.doesNotMatch(page, /id:\s*["']luckyhorse["']/);
+  assert.doesNotMatch(page, /浪花冰淇淋|马上顺金牌/);
+  assert.doesNotMatch(themePacks, /hero-layer-icecream/);
+  assert.doesNotMatch(themePacks, /hero-layer-luckyhorse/);
+  assert.match(
+    page,
+    /const SUMMER_TIERS[\s\S]*?id:\s*["']tier-9["'][\s\S]*?threshold:\s*7/,
+  );
   assert.match(page, /fixtureModeRef/);
   assert.match(page, /createFigmaFixtureState/);
   assert.match(page, /function pickWeightedCard/);
