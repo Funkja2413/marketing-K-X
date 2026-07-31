@@ -120,6 +120,14 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "config-grand-reward-preview",
     "config-card-size-hint",
     "config-reward-size-hint",
+    "inspector-group-global",
+    "inspector-group-modules",
+    "studio-canvas-surface",
+    "studio-phone-stage",
+    "studio-canvas-zoom-out",
+    "studio-canvas-zoom",
+    "studio-canvas-zoom-in",
+    "studio-canvas-fit",
   ]) {
     assert.match(html, new RegExp(`data-testid="${testId}"`));
   }
@@ -141,6 +149,27 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(textHtml, /页面展示容器：46 × 27 px/);
   assert.match(textHtml, /当前为模板实时样式/);
   assert.match(textHtml, /当前文件：180 × 156 px/);
+  const globalGroupIndex = html.indexOf(
+    'data-testid="inspector-group-global"',
+  );
+  const moduleGroupIndex = html.indexOf(
+    'data-testid="inspector-group-modules"',
+  );
+  assert.ok(globalGroupIndex >= 0);
+  assert.ok(moduleGroupIndex > globalGroupIndex);
+  for (const moduleId of [
+    "hero",
+    "collection",
+    "side-game",
+    "tasks",
+    "topics",
+    "discovery",
+    "activities",
+  ]) {
+    assert.match(html, new RegExp(`data-module-id="${moduleId}"`));
+  }
+  assert.match(html, /按住空格拖动画布/);
+  assert.match(html, /在手机内滚动浏览 H5/);
 
   assert.match(html, /复制当前方案/);
   assert.match(html, /导入 JSON/);
@@ -213,6 +242,14 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     "config-error",
     "config-field-title",
     "config-field-hero-media",
+    "inspector-group-global",
+    "inspector-group-modules",
+    "studio-canvas-surface",
+    "studio-phone-stage",
+    "studio-canvas-zoom-out",
+    "studio-canvas-zoom",
+    "studio-canvas-zoom-in",
+    "studio-canvas-fit",
   ]) {
     assert.match(
       studio,
@@ -245,6 +282,54 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(studio, /studio-details-collapsed["']>展开/);
   assert.match(studio, /studio-details-expanded["']>收起/);
+  for (const moduleId of [
+    "hero",
+    "collection",
+    "side-game",
+    "tasks",
+    "topics",
+    "discovery",
+    "activities",
+  ]) {
+    assert.match(studio, new RegExp(`data-module-id=["']${moduleId}["']`));
+  }
+  assert.match(studio, /onWheel=\{handleCanvasWheel\}/);
+  assert.match(studio, /onPointerDown=\{handleCanvasPointerDown\}/);
+  assert.match(studio, /onPointerMove=\{handleCanvasPointerMove\}/);
+  assert.match(studio, /onPointerUp=\{handleCanvasPointerEnd\}/);
+  assert.match(studio, /onPointerCancel=\{handleCanvasPointerEnd\}/);
+  assert.match(studio, /setPointerCapture\(/);
+  assert.match(studio, /event\.code\s*!==\s*["']Space["']/);
+  assert.match(studio, /isTypingTarget\(event\.target\)/);
+  assert.match(studio, /!event\.ctrlKey\s*&&\s*!event\.metaKey/);
+  assert.match(
+    css,
+    /\.studio-shell\s*\{(?=[^}]*position:\s*fixed)(?=[^}]*inset:\s*0)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.studio-canvas\s*\{(?=[^}]*height:\s*100%)(?=[^}]*min-height:\s*0)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.studio-preview-world\s*\{(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-preview-world\s*\{[^}]*overflow:\s*(?:auto|scroll)[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-sidebar\s*\{[^}]*overflow:\s*(?:auto|scroll)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.studio-inspector\s*\{(?=[^}]*height:\s*100%)(?=[^}]*min-height:\s*0)(?=[^}]*overflow-y:\s*auto)(?=[^}]*overflow-x:\s*hidden)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\.studio-phone\s*\{(?=[^}]*overflow-y:\s*auto)(?=[^}]*overflow-x:\s*hidden)(?=[^}]*scrollbar-width:\s*none)[^}]*\}/s,
+  );
 });
 
 test("keeps the campaign mechanics and local Figma assets wired", async () => {

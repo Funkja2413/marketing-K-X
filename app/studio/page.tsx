@@ -2,9 +2,13 @@
 
 import {
   type ChangeEvent,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type WheelEvent as ReactWheelEvent,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -25,6 +29,8 @@ import {
 
 const DRAFTS_STORAGE_KEY = "campaign-studio-drafts-v1";
 const DEFAULT_UPDATED_AT = "2026-07-31T00:00:00.000Z";
+const CANVAS_MIN_ZOOM = 0.4;
+const CANVAS_MAX_ZOOM = 1.25;
 
 type PackColorKey = keyof CampaignThemePack["colors"];
 type PackAssetKey = Exclude<
@@ -63,43 +69,6 @@ const ADVANCED_COLOR_FIELDS: Array<{
   { key: "cardOwned", label: "已获得卡片" },
   { key: "cardMissing", label: "未获得卡片" },
   { key: "countBadge", label: "数字徽标" },
-];
-
-const ADVANCED_ASSET_FIELDS: Array<{
-  key: PackAssetKey;
-  label: string;
-  hint: string;
-}> = [
-  {
-    key: "mapBackgroundImage",
-    label: "地图背景图",
-    hint: "展示容器 375 × 78 px；建议导出 1125 × 234 px。",
-  },
-  {
-    key: "rewardShelfImage",
-    label: "奖励货架皮肤",
-    hint: "展示容器 355 × 166 px；建议导出 1065 × 498 px。",
-  },
-  {
-    key: "actionButtonImage",
-    label: "主按钮皮肤",
-    hint: "展示容器约 207 × 46 px；建议透明图 621 × 138 px。",
-  },
-  {
-    key: "tierFrameImage",
-    label: "优惠券框",
-    hint: "前三档展示约 46 × 27 px；建议透明图至少 140 × 82 px。",
-  },
-  {
-    key: "cardOwnedFrameImage",
-    label: "已获得卡框",
-    hint: "展示容器约 59 × 72 px；建议透明图 180 × 220 px。",
-  },
-  {
-    key: "cardMissingFrameImage",
-    label: "未获得卡框",
-    hint: "展示容器约 59 × 72 px；建议透明图 180 × 220 px。",
-  },
 ];
 
 const KNOWN_ASSET_SIZES: Record<
@@ -204,6 +173,15 @@ async function readImageAsset(file: File) {
   const src = await readFileAsDataUrl(file);
   const size = await readImageSize(src);
   return { src, ...size };
+}
+
+function isTypingTarget(target: EventTarget | null) {
+  return Boolean(
+    target instanceof Element &&
+      target.closest(
+        "input, textarea, select, button, a[href], summary, [contenteditable='true']",
+      ),
+  );
 }
 
 function Field({
@@ -336,6 +314,20 @@ export default function CampaignStudio() {
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState("修改会即时出现在手机预览中");
   const [importError, setImportError] = useState("");
+  const [canvasZoom, setCanvasZoom] = useState(0.75);
+  const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 });
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const spaceHeldRef = useRef(false);
+  const fitModeRef = useRef(true);
+  const previewWorldRef = useRef<HTMLDivElement>(null);
+  const phoneStageRef = useRef<HTMLDivElement>(null);
+  const canvasDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
 
   const activeDraft =
     drafts.find((draft) => draft.id === activeId) ?? drafts[0];
@@ -400,6 +392,140 @@ export default function CampaignStudio() {
       );
     }
   }, [drafts, hydrated]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.code !== "Space" ||
+        isTypingTarget(event.target) ||
+        event.repeat
+      ) {
+        return;
+      }
+      event.preventDefault();
+      spaceHeldRef.current = true;
+      setSpaceHeld(true);
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      spaceHeldRef.current = false;
+      setSpaceHeld(false);
+      canvasDragRef.current = null;
+    };
+    const handleBlur = () => {
+      spaceHeldRef.current = false;
+      setSpaceHeld(false);
+      canvasDragRef.current = null;
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    const world = previewWorldRef.current;
+    if (!world) return;
+    const updateFit = () => {
+      if (!fitModeRef.current) return;
+      setCanvasZoom(calculateCanvasFitZoom());
+      setCanvasPan({ x: 0, y: 0 });
+    };
+    updateFit();
+    const observer = new ResizeObserver(updateFit);
+    observer.observe(world);
+    return () => observer.disconnect();
+  }, []);
+
+  function clampCanvasZoom(value: number) {
+    return Math.min(
+      CANVAS_MAX_ZOOM,
+      Math.max(CANVAS_MIN_ZOOM, value),
+    );
+  }
+
+  function calculateCanvasFitZoom() {
+    const world = previewWorldRef.current;
+    const stage = phoneStageRef.current;
+    if (!world || !stage) return 0.75;
+    const bounds = world.getBoundingClientRect();
+    return Math.min(
+      1,
+      Math.max(
+        CANVAS_MIN_ZOOM,
+        Math.min(
+          (bounds.width - 96) / stage.offsetWidth,
+          (bounds.height - 72) / stage.offsetHeight,
+        ),
+      ),
+    );
+  }
+
+  function adjustCanvasZoom(delta: number) {
+    fitModeRef.current = false;
+    setCanvasZoom((current) =>
+      clampCanvasZoom(Math.round((current + delta) * 20) / 20),
+    );
+  }
+
+  function fitCanvas() {
+    fitModeRef.current = true;
+    setCanvasZoom(calculateCanvasFitZoom());
+    setCanvasPan({ x: 0, y: 0 });
+  }
+
+  function handleCanvasWheel(event: ReactWheelEvent<HTMLDivElement>) {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    adjustCanvasZoom(event.deltaY > 0 ? -0.05 : 0.05);
+  }
+
+  function handleCanvasPointerDown(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    if (
+      !spaceHeldRef.current ||
+      event.button !== 0 ||
+      (event.target instanceof Element &&
+        event.target.closest(".studio-canvas-controls"))
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    canvasDragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      panX: canvasPan.x,
+      panY: canvasPan.y,
+    };
+  }
+
+  function handleCanvasPointerMove(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    const drag = canvasDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setCanvasPan({
+      x: drag.panX + event.clientX - drag.startX,
+      y: drag.panY + event.clientY - drag.startY,
+    });
+  }
+
+  function handleCanvasPointerEnd(
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    if (canvasDragRef.current?.pointerId !== event.pointerId) return;
+    canvasDragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
 
   function updateActive(
     updater: (draft: CampaignSkinDraft) => CampaignSkinDraft,
@@ -482,6 +608,52 @@ export default function CampaignStudio() {
         },
       };
     });
+  }
+
+  function updateTask(
+    index: number,
+    patch: Partial<ThemeDefinition["tasks"][number]>,
+  ) {
+    updateActive((draft) => ({
+      ...draft,
+      content: {
+        ...draft.content,
+        tasks: draft.content.tasks.map((task, taskIndex) =>
+          taskIndex === index ? { ...task, ...patch } : task,
+        ),
+      },
+    }));
+  }
+
+  function updateInspirationCard(
+    index: number,
+    patch: Partial<ThemeDefinition["inspirationCards"][number]>,
+  ) {
+    updateActive((draft) => ({
+      ...draft,
+      content: {
+        ...draft.content,
+        inspirationCards: draft.content.inspirationCards.map(
+          (card, cardIndex) =>
+            cardIndex === index ? { ...card, ...patch } : card,
+        ),
+      },
+    }));
+  }
+
+  function updateVenue(
+    index: number,
+    patch: Partial<ThemeDefinition["venues"][number]>,
+  ) {
+    updateActive((draft) => ({
+      ...draft,
+      content: {
+        ...draft.content,
+        venues: draft.content.venues.map((venue, venueIndex) =>
+          venueIndex === index ? { ...venue, ...patch } : venue,
+        ),
+      },
+    }));
   }
 
   function updateTierAsset(
@@ -828,23 +1000,89 @@ export default function CampaignStudio() {
           </div>
         </header>
 
-        <div className="studio-preview-world">
-          <div className="studio-phone-label">
-            <span>画布 375 × 875 px · 9:21</span>
-            <b>{activeDraft.baseTheme === "summer" ? "夏日" : "夜食"}</b>
-          </div>
+        <div
+          className="studio-preview-world"
+          ref={previewWorldRef}
+          data-testid="studio-canvas-surface"
+          data-space-held={spaceHeld}
+          onWheel={handleCanvasWheel}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerEnd}
+          onPointerCancel={handleCanvasPointerEnd}
+        >
           <div
-            className="studio-phone"
-            data-testid="config-preview"
-            data-preview-ratio="9:21"
+            className="studio-canvas-controls"
+            role="group"
+            aria-label="画布缩放控制"
           >
-            <CampaignExperience
-              key={activeDraft.id}
-              configuration={runtimeConfiguration}
-              initialTheme={activeDraft.baseTheme}
-              persistProgress={false}
-              fixture
-            />
+            <button
+              type="button"
+              data-testid="studio-canvas-zoom-out"
+              onClick={() => adjustCanvasZoom(-0.05)}
+              disabled={canvasZoom <= CANVAS_MIN_ZOOM}
+            >
+              缩小
+            </button>
+            <output data-testid="studio-canvas-zoom">
+              {Math.round(canvasZoom * 100)}%
+            </output>
+            <button
+              type="button"
+              data-testid="studio-canvas-zoom-in"
+              onClick={() => adjustCanvasZoom(0.05)}
+              disabled={canvasZoom >= CANVAS_MAX_ZOOM}
+            >
+              放大
+            </button>
+            <button
+              type="button"
+              data-testid="studio-canvas-fit"
+              onClick={fitCanvas}
+            >
+              适应画布
+            </button>
+          </div>
+          <p className="studio-canvas-help">
+            按住空格拖动画布 · 在手机内滚动浏览 H5 · Ctrl/⌘ + 滚轮缩放
+          </p>
+          <div
+            className="studio-canvas-pan-layer"
+            style={{
+              transform: `translate3d(${canvasPan.x}px, ${canvasPan.y}px, 0)`,
+            }}
+          >
+            <div
+              className="studio-phone-stage"
+              ref={phoneStageRef}
+              data-testid="studio-phone-stage"
+              data-canvas-zoom={canvasZoom.toFixed(2)}
+              style={
+                {
+                  "--studio-canvas-scale": canvasZoom,
+                } as CSSProperties
+              }
+            >
+              <div className="studio-phone-label">
+                <span>画布 375 × 875 px · 9:21</span>
+                <b>
+                  {activeDraft.baseTheme === "summer" ? "夏日" : "夜食"}
+                </b>
+              </div>
+              <div
+                className="studio-phone"
+                data-testid="config-preview"
+                data-preview-ratio="9:21"
+              >
+                <CampaignExperience
+                  key={activeDraft.id}
+                  configuration={runtimeConfiguration}
+                  initialTheme={activeDraft.baseTheme}
+                  persistProgress={false}
+                  fixture
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -876,8 +1114,16 @@ export default function CampaignStudio() {
           </span>
         </header>
 
-        <details open>
-          <SectionSummary index="01">主题基础</SectionSummary>
+        <div
+          className="studio-inspector-group"
+          data-testid="inspector-group-global"
+        >
+          <div className="studio-inspector-group-title">
+            <span>Global</span>
+            <strong>全局设置</strong>
+          </div>
+        <details open data-setting-id="theme">
+          <SectionSummary index="G1">主题基础</SectionSummary>
           <div className="studio-section-body">
             <Field label="方案名称">
               <input
@@ -913,8 +1159,53 @@ export default function CampaignStudio() {
           </div>
         </details>
 
-        <details open>
-          <SectionSummary index="02">Hero 与主操作</SectionSummary>
+        <details open data-setting-id="brand">
+          <SectionSummary index="G2">品牌配色</SectionSummary>
+          <div className="studio-section-body">
+            <p className="studio-section-note">
+              全局语义色会联动多个模块；模块内的局部素材仍在对应模块中配置。
+            </p>
+            <div className="studio-color-grid">
+              {CORE_COLOR_FIELDS.map((field) => (
+                <ColorField
+                  label={field.label}
+                  value={activeDraft.pack.colors[field.key]}
+                  onChange={(value) =>
+                    updatePackColor(field.key, value)
+                  }
+                  key={field.key}
+                />
+              ))}
+            </div>
+            <details className="studio-subdetails">
+              <summary>高级颜色 token</summary>
+              <div className="studio-color-grid">
+                {ADVANCED_COLOR_FIELDS.map((field) => (
+                  <ColorField
+                    label={field.label}
+                    value={activeDraft.pack.colors[field.key]}
+                    onChange={(value) =>
+                      updatePackColor(field.key, value)
+                    }
+                    key={field.key}
+                  />
+                ))}
+              </div>
+            </details>
+          </div>
+        </details>
+        </div>
+
+        <div
+          className="studio-inspector-group"
+          data-testid="inspector-group-modules"
+        >
+          <div className="studio-inspector-group-title">
+            <span>Modules</span>
+            <strong>页面模块</strong>
+          </div>
+        <details open data-module-id="hero">
+          <SectionSummary index="M1">首焦与主操作</SectionSummary>
           <div className="studio-section-body">
             <label className="studio-upload">
               <strong>上传 Hero 图片或视频</strong>
@@ -1023,46 +1314,53 @@ export default function CampaignStudio() {
                 }
               />
             </Field>
-          </div>
-        </details>
-
-        <details open>
-          <SectionSummary index="03">品牌配色</SectionSummary>
-          <div className="studio-section-body">
-            <div className="studio-color-grid">
-              {CORE_COLOR_FIELDS.map((field) => (
-                <ColorField
-                  label={field.label}
-                  value={activeDraft.pack.colors[field.key]}
-                  onChange={(value) =>
-                    updatePackColor(field.key, value)
-                  }
-                  key={field.key}
-                />
-              ))}
-            </div>
             <details className="studio-subdetails">
-              <summary>高级颜色 token</summary>
-              <div className="studio-color-grid">
-                {ADVANCED_COLOR_FIELDS.map((field) => (
-                  <ColorField
-                    label={field.label}
-                    value={activeDraft.pack.colors[field.key]}
-                    onChange={(value) =>
-                      updatePackColor(field.key, value)
+              <summary>首焦模块高级素材</summary>
+              <div className="studio-subsection-body">
+                <Field
+                  label="地图背景图"
+                  hint="展示容器 375 × 78 px；建议导出 1125 × 234 px。"
+                >
+                  <input
+                    type="text"
+                    value={
+                      activeDraft.pack.assets.mapBackgroundImage ?? ""
                     }
-                    key={field.key}
+                    onChange={(event) =>
+                      updatePackAsset(
+                        "mapBackgroundImage",
+                        event.target.value,
+                      )
+                    }
                   />
-                ))}
+                </Field>
+                <Field
+                  label="主按钮皮肤"
+                  hint="展示容器约 207 × 46 px；建议透明图 621 × 138 px。"
+                >
+                  <input
+                    type="text"
+                    value={activeDraft.pack.assets.actionButtonImage ?? ""}
+                    onChange={(event) =>
+                      updatePackAsset(
+                        "actionButtonImage",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
               </div>
             </details>
           </div>
         </details>
 
-        <details>
-          <SectionSummary index="04">页面文案</SectionSummary>
+        <details data-module-id="collection">
+          <SectionSummary index="M2">集卡与奖励</SectionSummary>
           <div className="studio-section-body">
-            <Field label="集卡册名称">
+            <p className="studio-section-note">
+              当前模板固定 9 张卡片和 4 档奖励；稳定 ID 不随换肤改变。
+            </p>
+            <Field label="卡册名称">
               <input
                 type="text"
                 value={activeDraft.content.collectionName}
@@ -1071,130 +1369,37 @@ export default function CampaignStudio() {
                 }
               />
             </Field>
-            <Field label="任务区标题">
-              <input
-                type="text"
-                value={activeDraft.content.tasksTitle}
-                onChange={(event) =>
-                  updateContent({ tasksTitle: event.target.value })
-                }
-              />
-            </Field>
             <div className="studio-two-fields">
-              <Field label="任务 Tab 1">
+              <Field label="进度动词">
                 <input
                   type="text"
-                  value={activeDraft.content.drawTabLabel}
+                  value={activeDraft.content.collectionProgressVerb}
                   onChange={(event) =>
-                    updateContent({ drawTabLabel: event.target.value })
+                    updateContent({
+                      collectionProgressVerb: event.target.value,
+                    })
                   }
                 />
               </Field>
-              <Field label="任务 Tab 2">
+              <Field label="卡片单位">
                 <input
                   type="text"
-                  value={activeDraft.content.energyTabLabel}
+                  value={activeDraft.content.cardNoun}
                   onChange={(event) =>
-                    updateContent({ energyTabLabel: event.target.value })
+                    updateContent({ cardNoun: event.target.value })
                   }
                 />
               </Field>
             </div>
-            <Field label="副玩法标题">
+            <Field label="未获得卡片名称">
               <input
                 type="text"
-                value={activeDraft.content.sideGame.title}
+                value={activeDraft.content.missingCardLabel}
                 onChange={(event) =>
-                  updateContent({
-                    sideGame: {
-                      ...activeDraft.content.sideGame,
-                      title: event.target.value,
-                    },
-                  })
+                  updateContent({ missingCardLabel: event.target.value })
                 }
               />
             </Field>
-            <Field label="副玩法说明">
-              <textarea
-                value={activeDraft.content.sideGame.description}
-                onChange={(event) =>
-                  updateContent({
-                    sideGame: {
-                      ...activeDraft.content.sideGame,
-                      description: event.target.value,
-                    },
-                  })
-                }
-              />
-            </Field>
-            <Field label="话题区标题">
-              <input
-                type="text"
-                value={activeDraft.content.topicTitle}
-                onChange={(event) =>
-                  updateContent({ topicTitle: event.target.value })
-                }
-              />
-            </Field>
-            <Field label="话题标签" hint="每行一个，当前模板固定 6 个槽位">
-              <textarea
-                value={activeDraft.content.topicChips.join("\n")}
-                onChange={(event) =>
-                  updateContent({
-                    topicChips: event.target.value
-                      .split("\n")
-                      .slice(0, 6),
-                  })
-                }
-              />
-            </Field>
-            <Field label="内容流标题">
-              <input
-                type="text"
-                value={activeDraft.content.discoveryTitle}
-                onChange={(event) =>
-                  updateContent({ discoveryTitle: event.target.value })
-                }
-              />
-            </Field>
-            {activeDraft.content.activityBanners.map((banner, index) => (
-              <div className="studio-inline-card" key={`${index}-${banner.title}`}>
-                <b>活动 Banner {index + 1}</b>
-                <input
-                  type="text"
-                  value={banner.eyebrow}
-                  onChange={(event) => {
-                    const activityBanners = cloneValue(
-                      activeDraft.content.activityBanners,
-                    );
-                    activityBanners[index].eyebrow = event.target.value;
-                    updateContent({ activityBanners });
-                  }}
-                  aria-label={`Banner ${index + 1} 眉题`}
-                />
-                <input
-                  type="text"
-                  value={banner.title}
-                  onChange={(event) => {
-                    const activityBanners = cloneValue(
-                      activeDraft.content.activityBanners,
-                    );
-                    activityBanners[index].title = event.target.value;
-                    updateContent({ activityBanners });
-                  }}
-                  aria-label={`Banner ${index + 1} 标题`}
-                />
-              </div>
-            ))}
-          </div>
-        </details>
-
-        <details>
-          <SectionSummary index="05">卡片与奖励</SectionSummary>
-          <div className="studio-section-body">
-            <p className="studio-section-note">
-              当前模板固定 9 张卡片和 4 档奖励；稳定 ID 不随换肤改变。
-            </p>
             <label className="studio-mini-upload">
               批量上传卡片（按文件顺序映射前 9 张）
               <input
@@ -1465,36 +1670,546 @@ export default function CampaignStudio() {
                 );
               })}
             </div>
+            <details className="studio-subdetails">
+              <summary>集卡模块高级样式</summary>
+              <div className="studio-subsection-body">
+                <Field
+                  label="奖励货架皮肤"
+                  hint="展示容器 355 × 166 px；建议导出 1065 × 498 px。"
+                >
+                  <input
+                    type="text"
+                    value={activeDraft.pack.assets.rewardShelfImage ?? ""}
+                    onChange={(event) =>
+                      updatePackAsset(
+                        "rewardShelfImage",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
+                <Field
+                  label="优惠券框"
+                  hint="前三档展示约 46 × 27 px；建议透明图至少 140 × 82 px。"
+                >
+                  <input
+                    type="text"
+                    value={activeDraft.pack.assets.tierFrameImage ?? ""}
+                    onChange={(event) =>
+                      updatePackAsset("tierFrameImage", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field
+                  label="已获得卡框"
+                  hint="展示容器约 59 × 72 px；建议透明图 180 × 220 px。"
+                >
+                  <input
+                    type="text"
+                    value={
+                      activeDraft.pack.assets.cardOwnedFrameImage ?? ""
+                    }
+                    onChange={(event) =>
+                      updatePackAsset(
+                        "cardOwnedFrameImage",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
+                <Field
+                  label="未获得卡框"
+                  hint="展示容器约 59 × 72 px；建议透明图 180 × 220 px。"
+                >
+                  <input
+                    type="text"
+                    value={
+                      activeDraft.pack.assets.cardMissingFrameImage ?? ""
+                    }
+                    onChange={(event) =>
+                      updatePackAsset(
+                        "cardMissingFrameImage",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </Field>
+              </div>
+            </details>
           </div>
         </details>
 
-        <details>
-          <SectionSummary index="06">高级皮肤素材</SectionSummary>
+        <details data-module-id="side-game">
+          <SectionSummary index="M3">副玩法卡</SectionSummary>
           <div className="studio-section-body">
-            <p className="studio-section-note">
-              可选透明 UI 皮肤；留空时使用模板内置样式。
-            </p>
-            {ADVANCED_ASSET_FIELDS.map((field) => (
-              <Field
-                label={field.label}
-                hint={field.hint}
-                key={field.key}
-              >
+            <Field label="模块眉题">
+              <input
+                type="text"
+                value={activeDraft.content.sideGame.eyebrow}
+                onChange={(event) =>
+                  updateContent({
+                    sideGame: {
+                      ...activeDraft.content.sideGame,
+                      eyebrow: event.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="副玩法标题">
+              <input
+                type="text"
+                value={activeDraft.content.sideGame.title}
+                onChange={(event) =>
+                  updateContent({
+                    sideGame: {
+                      ...activeDraft.content.sideGame,
+                      title: event.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field label="副玩法说明">
+              <textarea
+                value={activeDraft.content.sideGame.description}
+                onChange={(event) =>
+                  updateContent({
+                    sideGame: {
+                      ...activeDraft.content.sideGame,
+                      description: event.target.value,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <Field
+              label="角色图片地址"
+              hint="页面展示区域约 70 × 78 px；建议透明 PNG/WebP 210 × 234 px。"
+            >
+              <input
+                type="text"
+                value={activeDraft.content.sideGame.image ?? ""}
+                onChange={(event) =>
+                  updateContent({
+                    sideGame: {
+                      ...activeDraft.content.sideGame,
+                      image: event.target.value || undefined,
+                    },
+                  })
+                }
+              />
+            </Field>
+            <div className="studio-two-fields">
+              <Field label="Emoji 兜底">
                 <input
                   type="text"
-                  value={
-                    (activeDraft.pack.assets[field.key] as
-                      | string
-                      | undefined) ?? ""
-                  }
+                  value={activeDraft.content.sideGame.visual}
                   onChange={(event) =>
-                    updatePackAsset(field.key, event.target.value)
+                    updateContent({
+                      sideGame: {
+                        ...activeDraft.content.sideGame,
+                        visual: event.target.value,
+                      },
+                    })
                   }
                 />
               </Field>
+              <Field label="按钮文案">
+                <input
+                  type="text"
+                  value={activeDraft.content.sideGame.cta}
+                  onChange={(event) =>
+                    updateContent({
+                      sideGame: {
+                        ...activeDraft.content.sideGame,
+                        cta: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </Field>
+            </div>
+            <div className="studio-two-fields">
+              <Field label="角标">
+                <input
+                  type="text"
+                  value={activeDraft.content.sideGame.badge}
+                  onChange={(event) =>
+                    updateContent({
+                      sideGame: {
+                        ...activeDraft.content.sideGame,
+                        badge: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </Field>
+              <Field label="点击提示">
+                <input
+                  type="text"
+                  value={activeDraft.content.sideGame.announcement}
+                  onChange={(event) =>
+                    updateContent({
+                      sideGame: {
+                        ...activeDraft.content.sideGame,
+                        announcement: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </Field>
+            </div>
+          </div>
+        </details>
+
+        <details data-module-id="tasks">
+          <SectionSummary index="M4">任务区</SectionSummary>
+          <div className="studio-section-body">
+            <Field label="任务区标题">
+              <input
+                type="text"
+                value={activeDraft.content.tasksTitle}
+                onChange={(event) =>
+                  updateContent({ tasksTitle: event.target.value })
+                }
+              />
+            </Field>
+            <div className="studio-two-fields">
+              <Field label="任务 Tab 1">
+                <input
+                  type="text"
+                  value={activeDraft.content.drawTabLabel}
+                  onChange={(event) =>
+                    updateContent({ drawTabLabel: event.target.value })
+                  }
+                />
+              </Field>
+              <Field label="任务 Tab 2">
+                <input
+                  type="text"
+                  value={activeDraft.content.energyTabLabel}
+                  onChange={(event) =>
+                    updateContent({ energyTabLabel: event.target.value })
+                  }
+                />
+              </Field>
+            </div>
+            <div className="studio-item-list">
+              {activeDraft.content.tasks.map((task, index) => (
+                <details className="studio-item" key={task.id}>
+                  <summary>
+                    <i className="studio-item-thumb compact">
+                      <span>{task.icon}</span>
+                    </i>
+                    <span className="studio-item-name">{task.title}</span>
+                    <small>
+                      {task.target} 次 / +{task.reward}
+                    </small>
+                  </summary>
+                  <div>
+                    <div className="studio-two-fields">
+                      <Field label="图标">
+                        <input
+                          type="text"
+                          value={task.icon}
+                          onChange={(event) =>
+                            updateTask(index, { icon: event.target.value })
+                          }
+                        />
+                      </Field>
+                      <Field label="按钮文案">
+                        <input
+                          type="text"
+                          value={task.action}
+                          onChange={(event) =>
+                            updateTask(index, { action: event.target.value })
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <Field label="任务标题">
+                      <input
+                        type="text"
+                        value={task.title}
+                        onChange={(event) =>
+                          updateTask(index, { title: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="任务说明">
+                      <textarea
+                        value={task.description}
+                        onChange={(event) =>
+                          updateTask(index, {
+                            description: event.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                    <div className="studio-two-fields">
+                      <Field label="完成目标">
+                        <input
+                          type="number"
+                          min="1"
+                          value={task.target}
+                          onChange={(event) =>
+                            updateTask(index, {
+                              target: Math.max(
+                                1,
+                                Number(event.target.value),
+                              ),
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="奖励次数">
+                        <input
+                          type="number"
+                          min="0"
+                          value={task.reward}
+                          onChange={(event) =>
+                            updateTask(index, {
+                              reward: Math.max(
+                                0,
+                                Number(event.target.value),
+                              ),
+                            })
+                          }
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        <details data-module-id="topics">
+          <SectionSummary index="M5">话题与灵感</SectionSummary>
+          <div className="studio-section-body">
+            <Field label="英文眉题">
+              <input
+                type="text"
+                value={activeDraft.content.topicEyebrow}
+                onChange={(event) =>
+                  updateContent({ topicEyebrow: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="话题区标题">
+              <input
+                type="text"
+                value={activeDraft.content.topicTitle}
+                onChange={(event) =>
+                  updateContent({ topicTitle: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="话题标签" hint="每行一个，当前模板固定 6 个槽位">
+              <textarea
+                value={activeDraft.content.topicChips.join("\n")}
+                onChange={(event) =>
+                  updateContent({
+                    topicChips: event.target.value
+                      .split("\n")
+                      .slice(0, 6),
+                  })
+                }
+              />
+            </Field>
+            <div className="studio-item-list">
+              {activeDraft.content.inspirationCards.map((card, index) => (
+                <details
+                  className="studio-item"
+                  key={`${index}-${card.title}`}
+                >
+                  <summary>
+                    <i className="studio-item-thumb compact">
+                      {card.image ? (
+                        <img src={card.image} alt="" />
+                      ) : (
+                        <span>{card.emoji}</span>
+                      )}
+                    </i>
+                    <span className="studio-item-name">
+                      灵感卡 {index + 1} · {card.title}
+                    </span>
+                  </summary>
+                  <div>
+                    <Field
+                      label="图片地址"
+                      hint="图片在卡片内按 cover 展示；建议至少 600 px 宽。"
+                    >
+                      <input
+                        type="text"
+                        value={card.image ?? ""}
+                        onChange={(event) =>
+                          updateInspirationCard(index, {
+                            image: event.target.value || undefined,
+                          })
+                        }
+                      />
+                    </Field>
+                    <div className="studio-two-fields">
+                      <Field label="Emoji 兜底">
+                        <input
+                          type="text"
+                          value={card.emoji}
+                          onChange={(event) =>
+                            updateInspirationCard(index, {
+                              emoji: event.target.value,
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="眉题">
+                        <input
+                          type="text"
+                          value={card.eyebrow}
+                          onChange={(event) =>
+                            updateInspirationCard(index, {
+                              eyebrow: event.target.value,
+                            })
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <Field label="标题">
+                      <input
+                        type="text"
+                        value={card.title}
+                        onChange={(event) =>
+                          updateInspirationCard(index, {
+                            title: event.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        <details data-module-id="discovery">
+          <SectionSummary index="M6">内容发现</SectionSummary>
+          <div className="studio-section-body">
+            <Field label="模块眉题">
+              <input
+                type="text"
+                value={activeDraft.content.discoveryEyebrow}
+                onChange={(event) =>
+                  updateContent({ discoveryEyebrow: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="内容发现标题">
+              <input
+                type="text"
+                value={activeDraft.content.discoveryTitle}
+                onChange={(event) =>
+                  updateContent({ discoveryTitle: event.target.value })
+                }
+              />
+            </Field>
+            <div className="studio-item-list">
+              {activeDraft.content.venues.map((venue, index) => (
+                <details
+                  className="studio-item"
+                  key={`${index}-${venue.title}`}
+                >
+                  <summary>
+                    <i className="studio-item-thumb compact">
+                      <img src={venue.image} alt="" />
+                    </i>
+                    <span className="studio-item-name">
+                      内容卡 {index + 1} · {venue.title}
+                    </span>
+                  </summary>
+                  <div>
+                    <Field
+                      label="封面图片地址"
+                      hint="双列卡片按 cover 展示；建议至少 600 × 720 px。"
+                    >
+                      <input
+                        type="text"
+                        value={venue.image}
+                        onChange={(event) =>
+                          updateVenue(index, { image: event.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="地点">
+                      <input
+                        type="text"
+                        value={venue.location}
+                        onChange={(event) =>
+                          updateVenue(index, {
+                            location: event.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="标题">
+                      <input
+                        type="text"
+                        value={venue.title}
+                        onChange={(event) =>
+                          updateVenue(index, { title: event.target.value })
+                        }
+                      />
+                    </Field>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </details>
+
+        <details data-module-id="activities">
+          <SectionSummary index="M7">更多精彩活动</SectionSummary>
+          <div className="studio-section-body">
+            <p className="studio-section-note">
+              当前模板固定两个 Banner 位；图片与跳转能力可在下一版数据模型中继续扩展。
+            </p>
+            {activeDraft.content.activityBanners.map((banner, index) => (
+              <div
+                className="studio-inline-card"
+                key={`${index}-${banner.title}`}
+              >
+                <b>活动 Banner {index + 1}</b>
+                <input
+                  type="text"
+                  value={banner.eyebrow}
+                  onChange={(event) => {
+                    const activityBanners = cloneValue(
+                      activeDraft.content.activityBanners,
+                    );
+                    activityBanners[index].eyebrow = event.target.value;
+                    updateContent({ activityBanners });
+                  }}
+                  aria-label={`Banner ${index + 1} 眉题`}
+                />
+                <input
+                  type="text"
+                  value={banner.title}
+                  onChange={(event) => {
+                    const activityBanners = cloneValue(
+                      activeDraft.content.activityBanners,
+                    );
+                    activityBanners[index].title = event.target.value;
+                    updateContent({ activityBanners });
+                  }}
+                  aria-label={`Banner ${index + 1} 标题`}
+                />
+              </div>
             ))}
           </div>
         </details>
+        </div>
       </aside>
     </div>
   );
