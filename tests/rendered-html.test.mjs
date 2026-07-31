@@ -148,9 +148,9 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "studio-flow-edge-editor",
     "studio-scheme-panel",
     "studio-ai-target-hero",
-    "studio-ai-target-m2-batch",
     "config-hero-layer-editor",
     "config-hero-layer-canvas",
+    "config-hero-layer-asset-choices",
     "config-hero-layers-enabled",
     "config-hero-unlock-method",
     "config-hero-presentation",
@@ -417,7 +417,12 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /data-card-count=\{group\.batch\?\.cardCount\}/);
   assert.match(studio, /data-reward-count=\{group\.batch\?\.rewardCount\}/);
   assert.match(studio, /data-testid=["']studio-canvas-root["']/);
-  assert.match(studio, /data-testid=["']studio-ai-target-m2-batch["']/);
+  assert.doesNotMatch(studio, /AI 生成整套集卡与奖励/);
+  assert.match(studio, /className=["']studio-hero-source-actions["']/);
+  assert.match(studio, />AI 生成</);
+  assert.match(studio, />上传本地</);
+  assert.doesNotMatch(studio, /config-hero-layer-source/);
+  assert.doesNotMatch(studio, /最终图对位/);
   assert.match(studio, /data-testid=["']studio-apply-m2-batch["']/);
   assert.match(studio, /studio-ai-card-batch-grid/);
   assert.match(studio, /studio-ai-reward-batch-grid/);

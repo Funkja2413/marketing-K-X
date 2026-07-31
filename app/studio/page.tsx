@@ -989,18 +989,14 @@ function AssetPreview({
 
 function HeroLayerComposer({
   baseMedia,
-  finalReference,
   layers,
   selectedLayerId,
-  showReference,
   onSelect,
   onCommit,
 }: {
   baseMedia: CampaignHeroMedia;
-  finalReference?: CampaignHeroMedia;
   layers: CampaignCollectionHeroLayer[];
   selectedLayerId: string;
-  showReference: boolean;
   onSelect: (layerId: string) => void;
   onCommit: (
     layerId: string,
@@ -1211,13 +1207,6 @@ function HeroLayerComposer({
           </div>
         );
       })}
-      {showReference &&
-        finalReference?.src &&
-        renderMedia(
-          finalReference,
-          "studio-hero-composer-reference",
-          "最终效果对齐参考",
-        )}
       <span className="studio-hero-composer-size">375 × 460</span>
     </div>
   );
@@ -1237,8 +1226,6 @@ export default function CampaignStudio() {
     useState("campaign-main");
   const [heroLayerEditId, setHeroLayerEditId] =
     useState("hero-layer-watergun");
-  const [showHeroFinalReference, setShowHeroFinalReference] =
-    useState(false);
   const [flowEdges, setFlowEdges] = useState<CampaignFlowEdge[]>(
     () => cloneValue(CAMPAIGN_FLOW_EDGES),
   );
@@ -1297,22 +1284,13 @@ export default function CampaignStudio() {
     heroLayers.find((layer) => layer.id === heroLayerEditId) ??
     heroLayers[0] ??
     null;
+  const selectedHeroCard = selectedHeroLayer
+    ? activeDraft.content.cards.find(
+        (card) => card.id === selectedHeroLayer.cardId,
+      ) ?? null
+    : null;
   const configuredHeroLayerCount = heroLayers.filter(
     (layer) => Boolean(layer.media?.src) || layer.embeddedInBase,
-  ).length;
-  const positionedHeroLayerCount = heroLayers.filter(
-    (layer) =>
-      (layer.presentation ?? "image-layer") === "image-layer" &&
-      Boolean(layer.media?.src) &&
-      !layer.embeddedInBase,
-  ).length;
-  const embeddedHeroLayerCount = heroLayers.filter(
-    (layer) => layer.embeddedInBase,
-  ).length;
-  const videoHeroLayerCount = heroLayers.filter(
-    (layer) =>
-      layer.presentation === "video-transition" &&
-      Boolean(layer.transitionMedia?.src),
   ).length;
   const h5HeroLayerPreviewCardIds =
     collectionHeroComposition?.initialUnlockedCardIds ?? [];
@@ -1505,7 +1483,6 @@ export default function CampaignStudio() {
       setAdoptedCandidateId(null);
       setAdoptedGroupId(null);
       setHeroLayerEditId("hero-layer-watergun");
-      setShowHeroFinalReference(false);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activeId]);
@@ -1940,31 +1917,6 @@ export default function CampaignStudio() {
       setMessage("视频封面已载入");
     } catch {
       setMessage("视频封面读取失败");
-    }
-  }
-
-  async function uploadHeroFinalReference(
-    event: ChangeEvent<HTMLInputElement>,
-  ) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    try {
-      const asset = await readImageAsset(file);
-      updateCollectionHeroComposition((composition) => ({
-        ...composition,
-        finalReference: {
-          type: "image",
-          src: asset.src,
-          sourceWidth: asset.width,
-          sourceHeight: asset.height,
-          fit: "cover",
-          position: "center top",
-        },
-      }));
-      setMessage("最终效果图已载入，仅用于图层对位参考");
-    } catch {
-      setMessage("最终效果参考图读取失败");
     }
   }
 
@@ -3706,28 +3658,28 @@ export default function CampaignStudio() {
         <details open data-module-id="hero">
           <SectionSummary index="M1">首焦与主操作</SectionSummary>
           <div className="studio-section-body">
-            <button
-              type="button"
-              className="studio-ai-slot-action"
-              onClick={() =>
-                selectAiTarget(createHeroAiTarget(activeDraft))
-              }
-              data-testid="studio-ai-target-hero"
-            >
-              <span>AI 生成 Hero 候选</span>
-              <small>自动携带 375 × 460 容器、安全区与当前主题</small>
-            </button>
-            <label className="studio-upload">
-              <strong>上传 Hero 图片或视频</strong>
-              <span>
-                页面容器 375 × 460 px · 推荐素材 1125 × 1380 px；视频需静音循环
-              </span>
-              <input
-                type="file"
-                accept="image/*,video/*"
-                onChange={uploadHero}
-              />
-            </label>
+            <div className="studio-hero-source-actions">
+              <button
+                type="button"
+                className="studio-ai-slot-action"
+                onClick={() =>
+                  selectAiTarget(createHeroAiTarget(activeDraft))
+                }
+                data-testid="studio-ai-target-hero"
+              >
+                <span>AI 生成</span>
+                <small>375 × 460 · 自带当前主题约束</small>
+              </button>
+              <label className="studio-upload studio-upload-compact">
+                <strong>上传本地</strong>
+                <span>图片 / 视频 · 推荐 1125 × 1380</span>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={uploadHero}
+                />
+              </label>
+            </div>
             <Field label="素材地址">
               <input
                 type="text"
@@ -3870,23 +3822,6 @@ export default function CampaignStudio() {
             <p className="studio-section-note">
               当前模板固定 9 张卡片和 4 档奖励；稳定 ID 不随换肤改变。
             </p>
-            <div className="studio-ai-module-actions">
-              <button
-                type="button"
-                className="studio-ai-slot-action"
-                onClick={() =>
-                  selectAiTarget(
-                    createCollectionKitAiTarget(activeDraft),
-                  )
-                }
-                data-testid="studio-ai-target-m2-batch"
-              >
-                <span>AI 生成整套集卡与奖励</span>
-                <small>
-                  一次外挂 9 个卡片槽 + 4 个奖励槽的数量、尺寸与稳定 ID
-                </small>
-              </button>
-            </div>
             {collectionHeroComposition && (
               <section
                 className="studio-hero-layer-editor"
@@ -3926,34 +3861,10 @@ export default function CampaignStudio() {
                 <p className="studio-hero-layer-note">
                   组合画布常显所有已配置图层；选择卡片只切换编辑焦点，不会隐藏其他素材。
                 </p>
-                <div className="studio-hero-layer-preview-toolbar">
-                  <div className="studio-hero-layer-composition-status">
-                    <strong>组合画布</strong>
-                    <span>
-                      {positionedHeroLayerCount} 个独立图层 ·{" "}
-                      {embeddedHeroLayerCount} 个已在底图 ·{" "}
-                      {videoHeroLayerCount} 个视频过场
-                    </span>
-                  </div>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showHeroFinalReference}
-                      onChange={(event) =>
-                        setShowHeroFinalReference(event.target.checked)
-                      }
-                    />
-                    最终图对位
-                  </label>
-                </div>
                 <HeroLayerComposer
                   baseMedia={activeDraft.pack.assets.heroMedia}
-                  finalReference={
-                    collectionHeroComposition.finalReference
-                  }
                   layers={heroLayers}
                   selectedLayerId={selectedHeroLayer?.id ?? ""}
-                  showReference={showHeroFinalReference}
                   onSelect={(layerId) => setHeroLayerEditId(layerId)}
                   onCommit={updateHeroLayer}
                 />
@@ -3961,14 +3872,6 @@ export default function CampaignStudio() {
                   画布始终显示全部已放置素材。点击或拖动图层切换编辑对象，拖右下角控制点等比缩放；坐标按
                   375 × 460 可见区保存。
                 </div>
-                <label className="studio-mini-upload">
-                  上传最终效果参考图 · 仅供半透明对位，不参与发布
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={uploadHeroFinalReference}
-                  />
-                </label>
                 <div className="studio-hero-layer-list-heading">
                   <strong>9 个道具素材</strong>
                   <span>点选后在上方组合画布中定位</span>
@@ -4131,39 +4034,28 @@ export default function CampaignStudio() {
                     {(selectedHeroLayer.presentation ??
                       "image-layer") === "image-layer" && (
                       <>
-                        <Field
-                          label="透明图层素材"
-                          hint={
-                            selectedHeroLayer.media?.sourceWidth &&
-                            selectedHeroLayer.media?.sourceHeight
-                              ? `当前文件 ${selectedHeroLayer.media.sourceWidth} × ${selectedHeroLayer.media.sourceHeight} px`
-                              : "建议透明 PNG/WebP，主体贴边裁切；上传后可在上方组合画布直接定位。"
-                          }
+                        <div
+                          className="studio-hero-layer-asset-choices"
+                          data-testid="config-hero-layer-asset-choices"
                         >
-                          <input
-                            type="text"
-                            value={selectedHeroLayer.media?.src ?? ""}
-                            onChange={(event) => {
-                              const src = event.target.value;
-                              updateHeroLayer(selectedHeroLayer.id, {
-                                embeddedInBase: false,
-                                presentation: "image-layer",
-                                media: src
-                                  ? {
-                                      type: "image",
-                                      src,
-                                      fit: "contain",
-                                      position: "center",
-                                    }
-                                  : undefined,
-                              });
-                            }}
-                            data-testid="config-hero-layer-source"
-                          />
-                        </Field>
-                        <div className="studio-hero-layer-asset-actions">
-                          <label className="studio-mini-upload">
-                            上传透明图
+                          <label className="studio-hero-layer-asset-choice">
+                            <span className="studio-hero-layer-asset-thumb">
+                              {selectedHeroLayer.media?.src ? (
+                                <img
+                                  src={selectedHeroLayer.media.src}
+                                  alt="当前透明图层"
+                                />
+                              ) : (
+                                <i aria-hidden="true">+</i>
+                              )}
+                            </span>
+                            <b>上传透明图</b>
+                            <small>
+                              {selectedHeroLayer.media?.sourceWidth &&
+                              selectedHeroLayer.media?.sourceHeight
+                                ? `${selectedHeroLayer.media.sourceWidth} × ${selectedHeroLayer.media.sourceHeight}`
+                                : "PNG / WebP"}
+                            </small>
                             <input
                               type="file"
                               accept="image/png,image/webp,image/avif"
@@ -4177,11 +4069,31 @@ export default function CampaignStudio() {
                           </label>
                           <button
                             type="button"
+                            className="studio-hero-layer-asset-choice"
                             onClick={() =>
                               syncHeroLayerFromCard(selectedHeroLayer)
                             }
+                            disabled={!selectedHeroCard?.image}
                           >
-                            使用卡片图
+                            <span className="studio-hero-layer-asset-thumb">
+                              {selectedHeroCard?.image ? (
+                                <img
+                                  src={selectedHeroCard.image}
+                                  alt="卡片素材预览"
+                                />
+                              ) : (
+                                <i aria-hidden="true">
+                                  {selectedHeroCard?.emoji ?? "?"}
+                                </i>
+                              )}
+                            </span>
+                            <b>使用卡片图</b>
+                            <small>
+                              {selectedHeroCard?.imageWidth &&
+                              selectedHeroCard?.imageHeight
+                                ? `${selectedHeroCard.imageWidth} × ${selectedHeroCard.imageHeight}`
+                                : "暂无卡片图"}
+                            </small>
                           </button>
                         </div>
                         <label className="studio-hero-layer-embedded">
