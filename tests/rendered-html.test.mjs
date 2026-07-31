@@ -380,7 +380,12 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(page, /function createStudioPreviewState\s*\(/);
   assert.match(page, /studioPreviewModeRef\.current/);
   assert.match(page, /studioPreviewDrawIndexRef\.current/);
-  assert.match(page, /forcedPreviewCard/);
+  assert.match(page, /previewDrawResultQueue/);
+  assert.match(page, /previewHeroTransitionQueue/);
+  assert.match(page, /function confirmDrawResult\s*\(/);
+  assert.match(page, /function finishHeroTransition\s*\(/);
+  assert.match(page, /确认并查看下一张/);
+  assert.match(page, /确认并播放动画/);
   assert.match(
     campaignStage,
     /data-testid=["']hero-unlock-transition["']/,

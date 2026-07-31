@@ -140,6 +140,8 @@ type DrawResult = {
   cardId: string;
   isNew: boolean;
   newlyUnlocked: string[];
+  collectionCount?: number;
+  previewBatchPosition?: number;
 };
 
 const STORAGE_KEY = "summer-campaign-multitheme-v2";
@@ -1225,6 +1227,12 @@ export function CampaignExperience({
     cardId: string;
     media: CampaignHeroMedia;
   } | null>(null);
+  const [previewDrawResultQueue, setPreviewDrawResultQueue] = useState<
+    DrawResult[]
+  >([]);
+  const [previewHeroTransitionQueue, setPreviewHeroTransitionQueue] = useState<
+    Array<{ cardId: string; media: CampaignHeroMedia }>
+  >([]);
   const [activeModal, setActiveModal] = useState<
     "cards" | "prizes" | "rules" | null
   >(null);
@@ -1449,6 +1457,8 @@ export function CampaignExperience({
     }));
     setDrawResult(null);
     setActiveHeroTransition(null);
+    setPreviewDrawResultQueue([]);
+    setPreviewHeroTransitionQueue([]);
     setGiftCardId(null);
     setGiftShared(false);
     setActiveModal(null);
@@ -1464,6 +1474,75 @@ export function CampaignExperience({
       return;
     }
 
+    if (
+      studioPreviewModeRef.current &&
+      studioPreviewDrawIndexRef.current === 0
+    ) {
+      const previewCards = STUDIO_PREVIEW_DRAW_SEQUENCE.map((cardId) =>
+        CARD_DEFINITIONS.find((card) => card.id === cardId),
+      ).filter((card): card is CardDefinition => Boolean(card));
+      if (previewCards.length !== STUDIO_PREVIEW_DRAW_SEQUENCE.length) {
+        announce("预览卡片配置不完整");
+        return;
+      }
+      drawPendingRef.current = true;
+      setIsDrawing(true);
+      studioPreviewDrawIndexRef.current = previewCards.length;
+      drawTimerRef.current = setTimeout(() => {
+        const nextCounts = { ...state.cardCounts };
+        const previewResults: DrawResult[] = [];
+        let distinctBefore = countDistinctCards(
+          nextCounts,
+          CARD_DEFINITIONS,
+        );
+        for (const card of previewCards) {
+          const isNew = (nextCounts[card.id] ?? 0) === 0;
+          nextCounts[card.id] = (nextCounts[card.id] ?? 0) + 1;
+          const distinctAfter = countDistinctCards(
+            nextCounts,
+            CARD_DEFINITIONS,
+          );
+          previewResults.push({
+            cardId: card.id,
+            isNew,
+            collectionCount: distinctAfter,
+            previewBatchPosition: previewResults.length + 1,
+            newlyUnlocked: TIERS.filter(
+              (tier) =>
+                distinctBefore < tier.threshold &&
+                distinctAfter >= tier.threshold,
+            ).map((tier) => tier.id),
+          });
+          distinctBefore = distinctAfter;
+        }
+        const previewTransitions = previewCards.flatMap((card) => {
+          const layer =
+            pack.assets.collectionHeroComposition?.layers.find(
+              (item) => item.cardId === card.id,
+            );
+          return layer?.presentation === "video-transition" &&
+            layer.transitionMedia?.src
+            ? [{ cardId: card.id, media: layer.transitionMedia }]
+            : [];
+        });
+        setState((current) => ({
+          ...current,
+          drawBalance: Math.max(
+            0,
+            current.drawBalance - previewCards.length,
+          ),
+          duplicateStreak: 0,
+          cardCounts: nextCounts,
+        }));
+        setPreviewDrawResultQueue(previewResults.slice(1));
+        setPreviewHeroTransitionQueue(previewTransitions);
+        setDrawResult(previewResults[0] ?? null);
+        drawPendingRef.current = false;
+        setIsDrawing(false);
+      }, 1050);
+      return;
+    }
+
     const beforeDistinct = countDistinctCards(
       state.cardCounts,
       CARD_DEFINITIONS,
@@ -1474,30 +1553,12 @@ export function CampaignExperience({
       );
       return !layer?.unlockMethod || layer.unlockMethod === "draw";
     });
-    const forcedPreviewCardId = studioPreviewModeRef.current
-      ? STUDIO_PREVIEW_DRAW_SEQUENCE[
-          studioPreviewDrawIndexRef.current
-        ]
-      : undefined;
-    const forcedPreviewCard = forcedPreviewCardId
-      ? CARD_DEFINITIONS.find(
-          (card) => card.id === forcedPreviewCardId,
-        )
-      : undefined;
-    const { card, isNew } = forcedPreviewCard
-      ? {
-          card: forcedPreviewCard,
-          isNew: (state.cardCounts[forcedPreviewCard.id] ?? 0) === 0,
-        }
-      : pickWeightedCard(
-          state,
-          configuredDrawCards.length > 0
-            ? configuredDrawCards
-            : CARD_DEFINITIONS,
-        );
-    if (forcedPreviewCard) {
-      studioPreviewDrawIndexRef.current += 1;
-    }
+    const { card, isNew } = pickWeightedCard(
+      state,
+      configuredDrawCards.length > 0
+        ? configuredDrawCards
+        : CARD_DEFINITIONS,
+    );
     drawPendingRef.current = true;
     setIsDrawing(true);
 
@@ -1540,6 +1601,37 @@ export function CampaignExperience({
       drawPendingRef.current = false;
       setIsDrawing(false);
     }, 1050);
+  }
+
+  function confirmDrawResult() {
+    if (studioPreviewModeRef.current) {
+      const [nextResult, ...remainingResults] = previewDrawResultQueue;
+      if (nextResult) {
+        setPreviewDrawResultQueue(remainingResults);
+        setDrawResult(nextResult);
+        return;
+      }
+      setDrawResult(null);
+      const [nextTransition, ...remainingTransitions] =
+        previewHeroTransitionQueue;
+      setPreviewHeroTransitionQueue(remainingTransitions);
+      setActiveHeroTransition(nextTransition ?? null);
+      return;
+    }
+    setDrawResult(null);
+  }
+
+  function finishHeroTransition() {
+    if (studioPreviewModeRef.current) {
+      const [nextTransition, ...remainingTransitions] =
+        previewHeroTransitionQueue;
+      if (nextTransition) {
+        setPreviewHeroTransitionQueue(remainingTransitions);
+        setActiveHeroTransition(nextTransition);
+        return;
+      }
+    }
+    setActiveHeroTransition(null);
   }
 
   function completeTask(task: TaskDefinition) {
@@ -1653,6 +1745,8 @@ export function CampaignExperience({
     setActiveModal(null);
     setDrawResult(null);
     setActiveHeroTransition(null);
+    setPreviewDrawResultQueue([]);
+    setPreviewHeroTransitionQueue([]);
     setGiftShared(false);
     giftClaimPendingRef.current = false;
     setGiftCardId(cardId);
@@ -1951,7 +2045,7 @@ export function CampaignExperience({
           setActiveModal("cards");
           if (count > 1) announce(`${card.name}有${count - 1}张可赠送`);
         }}
-        onHeroTransitionEnd={() => setActiveHeroTransition(null)}
+        onHeroTransitionEnd={finishHeroTransition}
       />
 
       <section className="energy-teaser" aria-label={theme.sideGame.eyebrow}>
@@ -2174,7 +2268,7 @@ export function CampaignExperience({
             <button
               type="button"
               className="modal-close"
-              onClick={() => setDrawResult(null)}
+              onClick={confirmDrawResult}
               aria-label="关闭抽卡结果"
             >
               ×
@@ -2196,7 +2290,7 @@ export function CampaignExperience({
             <h2 id="draw-result-title">{resultCard.name}</h2>
             <p>
               {drawResult.isNew
-                ? `新卡已点亮，当前集齐${uniqueCount}/${CARD_DEFINITIONS.length}种`
+                ? `新卡已点亮，当前集齐${drawResult.collectionCount ?? uniqueCount}/${CARD_DEFINITIONS.length}种`
                 : `重复卡×${state.cardCounts[resultCard.id] ?? 1}，可赠送给朋友`}
             </p>
             {drawResult.newlyUnlocked.length > 0 && (
@@ -2218,9 +2312,15 @@ export function CampaignExperience({
               <button
                 type="button"
                 className="primary"
-                onClick={() => setDrawResult(null)}
+                onClick={confirmDrawResult}
               >
-                收下这张卡
+                {drawResult.previewBatchPosition
+                  ? drawResult.previewBatchPosition === 1
+                    ? "确认并查看下一张"
+                    : previewHeroTransitionQueue.length > 0
+                      ? "确认并播放动画"
+                      : "确认两张卡"
+                  : "收下这张卡"}
               </button>
             </div>
           </section>
