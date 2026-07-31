@@ -9,6 +9,7 @@ import {
 import {
   getThemePackStyle,
   THEME_PACKS,
+  type CampaignHeroMedia,
   type CampaignThemePack,
   type ThemeId,
 } from "./campaign-theme-packs";
@@ -716,6 +717,25 @@ export function createConfigurationFromSkin(
     !skin.pack.assets.collectionHeroComposition &&
     skin.pack.assets.heroMedia.src ===
       "/theme-assets/summer/hero-scene-v2.png";
+  const sourceComposition =
+    skin.pack.assets.collectionHeroComposition ??
+    defaultPack.assets.collectionHeroComposition;
+  const normalizedComposition = sourceComposition
+    ? {
+        ...sourceComposition,
+        layers: sourceComposition.layers.map((layer) => ({
+          ...layer,
+          unlockMethod:
+            layer.unlockMethod ??
+            (sourceComposition.initialUnlockedCardIds.includes(
+              layer.cardId,
+            )
+              ? "first-gift"
+              : "draw"),
+          presentation: layer.presentation ?? "image-layer",
+        })),
+      }
+    : undefined;
   const mergedPack: CampaignThemePack = {
     ...defaultPack,
     ...skin.pack,
@@ -725,6 +745,7 @@ export function createConfigurationFromSkin(
       heroMedia: shouldMigrateLegacySummerHero
         ? defaultPack.assets.heroMedia
         : skin.pack.assets.heroMedia,
+      collectionHeroComposition: normalizedComposition,
     },
     colors: {
       ...defaultPack.colors,
@@ -1088,6 +1109,10 @@ export function CampaignExperience({
   const [ready, setReady] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawResult, setDrawResult] = useState<DrawResult | null>(null);
+  const [activeHeroTransition, setActiveHeroTransition] = useState<{
+    cardId: string;
+    media: CampaignHeroMedia;
+  } | null>(null);
   const [activeModal, setActiveModal] = useState<
     "cards" | "prizes" | "rules" | null
   >(null);
@@ -1287,6 +1312,7 @@ export function CampaignExperience({
       activeTheme: nextTheme,
     }));
     setDrawResult(null);
+    setActiveHeroTransition(null);
     setGiftCardId(null);
     setGiftShared(false);
     setActiveModal(null);
@@ -1306,7 +1332,18 @@ export function CampaignExperience({
       state.cardCounts,
       CARD_DEFINITIONS,
     );
-    const { card, isNew } = pickWeightedCard(state, CARD_DEFINITIONS);
+    const configuredDrawCards = CARD_DEFINITIONS.filter((card) => {
+      const layer = pack.assets.collectionHeroComposition?.layers.find(
+        (item) => item.cardId === card.id,
+      );
+      return !layer?.unlockMethod || layer.unlockMethod === "draw";
+    });
+    const { card, isNew } = pickWeightedCard(
+      state,
+      configuredDrawCards.length > 0
+        ? configuredDrawCards
+        : CARD_DEFINITIONS,
+    );
     drawPendingRef.current = true;
     setIsDrawing(true);
 
@@ -1331,6 +1368,21 @@ export function CampaignExperience({
         },
       }));
       setDrawResult({ cardId: card.id, isNew, newlyUnlocked });
+      if (isNew) {
+        const heroLayer =
+          pack.assets.collectionHeroComposition?.layers.find(
+            (layer) => layer.cardId === card.id,
+          );
+        if (
+          heroLayer?.presentation === "video-transition" &&
+          heroLayer.transitionMedia?.src
+        ) {
+          setActiveHeroTransition({
+            cardId: card.id,
+            media: heroLayer.transitionMedia,
+          });
+        }
+      }
       drawPendingRef.current = false;
       setIsDrawing(false);
     }, 1050);
@@ -1446,6 +1498,7 @@ export function CampaignExperience({
     }
     setActiveModal(null);
     setDrawResult(null);
+    setActiveHeroTransition(null);
     setGiftShared(false);
     giftClaimPendingRef.current = false;
     setGiftCardId(cardId);
@@ -1525,6 +1578,7 @@ export function CampaignExperience({
     setResetArmed(false);
     setActiveModal(null);
     setDrawResult(null);
+    setActiveHeroTransition(null);
     setGiftCardId(null);
     if (!fixtureModeRef.current) {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -1946,7 +2000,47 @@ export function CampaignExperience({
         </button>
       </footer>
 
-      {drawResult && resultCard && (
+      {activeHeroTransition && (
+        <div
+          className="hero-transition-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="道具点亮动画"
+          data-testid="hero-unlock-transition"
+          data-card-id={activeHeroTransition.cardId}
+        >
+          {activeHeroTransition.media.type === "video" ? (
+            <video
+              src={activeHeroTransition.media.src}
+              poster={activeHeroTransition.media.poster}
+              autoPlay
+              muted
+              playsInline
+              onEnded={() => setActiveHeroTransition(null)}
+              onError={() => setActiveHeroTransition(null)}
+            />
+          ) : (
+            <img
+              src={activeHeroTransition.media.src}
+              alt=""
+              onLoad={() =>
+                window.setTimeout(
+                  () => setActiveHeroTransition(null),
+                  1200,
+                )
+              }
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => setActiveHeroTransition(null)}
+          >
+            跳过
+          </button>
+        </div>
+      )}
+
+      {drawResult && resultCard && !activeHeroTransition && (
         <div className="modal-backdrop" role="presentation">
           <section
             className="result-modal"

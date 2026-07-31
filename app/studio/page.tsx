@@ -571,6 +571,7 @@ function applyAiCandidateToDraft(
         layer.cardId === target.entityId && !layer.embeddedInBase
           ? {
               ...layer,
+              presentation: "image-layer",
               media: {
                 type: "image",
                 src: candidate.src,
@@ -669,6 +670,7 @@ function applyM2BatchToDraft(
       if (!candidate || layer.embeddedInBase) return layer;
       return {
         ...layer,
+        presentation: "image-layer",
         media: {
           type: "image",
           src: candidate.src,
@@ -729,6 +731,25 @@ function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
     !draft.pack.assets.collectionHeroComposition &&
     draft.pack.assets.heroMedia.src ===
       "/theme-assets/summer/hero-scene-v2.png";
+  const sourceComposition =
+    draft.pack.assets.collectionHeroComposition ??
+    cloneValue(defaultPack.assets.collectionHeroComposition);
+  const normalizedComposition = sourceComposition
+    ? {
+        ...sourceComposition,
+        layers: sourceComposition.layers.map((layer) => ({
+          ...layer,
+          unlockMethod:
+            layer.unlockMethod ??
+            (sourceComposition.initialUnlockedCardIds.includes(
+              layer.cardId,
+            )
+              ? "first-gift"
+              : "draw"),
+          presentation: layer.presentation ?? "image-layer",
+        })),
+      }
+    : undefined;
   return {
     ...draft,
     pack: {
@@ -740,9 +761,7 @@ function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
         heroMedia: shouldMigrateLegacySummerHero
           ? defaultPack.assets.heroMedia
           : draft.pack.assets.heroMedia,
-        collectionHeroComposition:
-          draft.pack.assets.collectionHeroComposition ??
-          cloneValue(defaultPack.assets.collectionHeroComposition),
+        collectionHeroComposition: normalizedComposition,
       },
       colors: {
         ...defaultPack.colors,
@@ -811,6 +830,28 @@ function readImageSize(
 async function readImageAsset(file: File) {
   const src = await readFileAsDataUrl(file);
   const size = await readImageSize(src);
+  return { src, ...size };
+}
+
+function readVideoSize(
+  src: string,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () =>
+      resolve({
+        width: video.videoWidth,
+        height: video.videoHeight,
+      });
+    video.onerror = () => reject(new Error("无法读取视频尺寸"));
+    video.src = src;
+  });
+}
+
+async function readVideoAsset(file: File) {
+  const src = await readFileAsDataUrl(file);
+  const size = await readVideoSize(src);
   return { src, ...size };
 }
 
@@ -991,7 +1032,12 @@ function HeroLayerComposer({
     rectHeight: number;
   } | null>(null);
   const compositionLayers = layers
-    .filter((layer) => layer.media?.src && !layer.embeddedInBase)
+    .filter(
+      (layer) =>
+        (layer.presentation ?? "image-layer") === "image-layer" &&
+        layer.media?.src &&
+        !layer.embeddedInBase,
+    )
     .sort((left, right) => left.zIndex - right.zIndex);
   function beginLayerInteraction(
     event: ReactPointerEvent<HTMLElement>,
@@ -1255,10 +1301,18 @@ export default function CampaignStudio() {
     (layer) => Boolean(layer.media?.src) || layer.embeddedInBase,
   ).length;
   const positionedHeroLayerCount = heroLayers.filter(
-    (layer) => Boolean(layer.media?.src) && !layer.embeddedInBase,
+    (layer) =>
+      (layer.presentation ?? "image-layer") === "image-layer" &&
+      Boolean(layer.media?.src) &&
+      !layer.embeddedInBase,
   ).length;
   const embeddedHeroLayerCount = heroLayers.filter(
     (layer) => layer.embeddedInBase,
+  ).length;
+  const videoHeroLayerCount = heroLayers.filter(
+    (layer) =>
+      layer.presentation === "video-transition" &&
+      Boolean(layer.transitionMedia?.src),
   ).length;
   const h5HeroLayerPreviewCardIds =
     collectionHeroComposition?.initialUnlockedCardIds ?? [];
@@ -1754,6 +1808,40 @@ export default function CampaignStudio() {
     }));
   }
 
+  function updateHeroLayerUnlockMethod(
+    layer: CampaignCollectionHeroLayer,
+    unlockMethod: NonNullable<
+      CampaignCollectionHeroLayer["unlockMethod"]
+    >,
+  ) {
+    updateCollectionHeroComposition((composition) => ({
+      ...composition,
+      initialUnlockedCardIds:
+        unlockMethod === "first-gift"
+          ? Array.from(
+              new Set([
+                ...composition.initialUnlockedCardIds,
+                layer.cardId,
+              ]),
+            )
+          : composition.initialUnlockedCardIds.filter(
+              (cardId) => cardId !== layer.cardId,
+            ),
+      layers: composition.layers.map((item) =>
+        item.id === layer.id
+          ? {
+              ...item,
+              unlockMethod,
+              pointsCost:
+                unlockMethod === "points"
+                  ? item.pointsCost ?? 100
+                  : item.pointsCost,
+            }
+          : item,
+      ),
+    }));
+  }
+
   async function uploadHeroLayer(
     layerId: string,
     event: ChangeEvent<HTMLInputElement>,
@@ -1769,6 +1857,7 @@ export default function CampaignStudio() {
         );
       updateHeroLayer(layerId, {
         embeddedInBase: false,
+        presentation: "image-layer",
         media: {
           type: "image",
           src: asset.src,
@@ -1783,6 +1872,74 @@ export default function CampaignStudio() {
       );
     } catch {
       setMessage("Hero 道具图层读取失败");
+    }
+  }
+
+  async function uploadHeroTransitionVideo(
+    layerId: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const asset = await readVideoAsset(file);
+      const layer =
+        activeDraft.pack.assets.collectionHeroComposition?.layers.find(
+          (item) => item.id === layerId,
+        );
+      updateHeroLayer(layerId, {
+        embeddedInBase: false,
+        presentation: "video-transition",
+        transitionMedia: {
+          type: "video",
+          src: asset.src,
+          poster:
+            layer?.transitionMedia?.type === "video"
+              ? layer.transitionMedia.poster
+              : undefined,
+          sourceWidth: asset.width,
+          sourceHeight: asset.height,
+          fit: "cover",
+          position: "center",
+        },
+      });
+      setMessage("视频过场已载入");
+    } catch {
+      setMessage("视频过场读取失败");
+    }
+  }
+
+  async function uploadHeroTransitionPoster(
+    layerId: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const asset = await readImageAsset(file);
+      const layer =
+        activeDraft.pack.assets.collectionHeroComposition?.layers.find(
+          (item) => item.id === layerId,
+        );
+      updateHeroLayer(layerId, {
+        transitionMedia: {
+          type: "video",
+          src:
+            layer?.transitionMedia?.type === "video"
+              ? layer.transitionMedia.src
+              : "",
+          poster: asset.src,
+          sourceWidth: layer?.transitionMedia?.sourceWidth,
+          sourceHeight: layer?.transitionMedia?.sourceHeight,
+          fit: "cover",
+          position: "center",
+        },
+      });
+      setMessage("视频封面已载入");
+    } catch {
+      setMessage("视频封面读取失败");
     }
   }
 
@@ -1821,6 +1978,7 @@ export default function CampaignStudio() {
     }
     updateHeroLayer(layer.id, {
       embeddedInBase: false,
+      presentation: "image-layer",
       media: {
         type: "image",
         src: card.image,
@@ -3773,7 +3931,8 @@ export default function CampaignStudio() {
                     <strong>组合画布</strong>
                     <span>
                       {positionedHeroLayerCount} 个独立图层 ·{" "}
-                      {embeddedHeroLayerCount} 个已在底图
+                      {embeddedHeroLayerCount} 个已在底图 ·{" "}
+                      {videoHeroLayerCount} 个视频过场
                     </span>
                   </div>
                   <label>
@@ -3830,7 +3989,10 @@ export default function CampaignStudio() {
                         role="tab"
                         aria-selected={selected}
                         className={`${selected ? "selected" : ""} ${
-                          layer.media?.src || layer.embeddedInBase
+                          layer.presentation === "none" ||
+                          layer.transitionMedia?.src ||
+                          layer.media?.src ||
+                          layer.embeddedInBase
                             ? "configured"
                             : "missing"
                         }`}
@@ -3849,11 +4011,17 @@ export default function CampaignStudio() {
                         </i>
                         <b>{card?.name ?? layer.label}</b>
                         <small>
-                          {layer.embeddedInBase
-                            ? "底图已含"
-                            : layer.media?.src
-                              ? "独立图层"
-                              : "待上传"}
+                          {layer.presentation === "video-transition"
+                            ? layer.transitionMedia?.src
+                              ? "视频过场"
+                              : "待上传视频"
+                            : layer.presentation === "none"
+                              ? "不呈现"
+                              : layer.embeddedInBase
+                                ? "底图已含"
+                                : layer.media?.src
+                                  ? "独立图层"
+                                  : "待上传"}
                         </small>
                       </button>
                     );
@@ -3865,210 +4033,380 @@ export default function CampaignStudio() {
                       <div>
                         <strong>{selectedHeroLayer.label}</strong>
                         <span>
-                          触发：获得{" "}
+                          稳定卡片 ID：{" "}
                           <code>{selectedHeroLayer.cardId}</code>
                         </span>
                       </div>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={collectionHeroComposition.initialUnlockedCardIds.includes(
-                            selectedHeroLayer.cardId,
-                          )}
-                          onChange={(event) =>
-                            updateCollectionHeroComposition(
-                              (composition) => ({
-                                ...composition,
-                                initialUnlockedCardIds: event.target.checked
-                                  ? Array.from(
-                                      new Set([
-                                        ...composition.initialUnlockedCardIds,
-                                        selectedHeroLayer.cardId,
-                                      ]),
-                                    )
-                                  : composition.initialUnlockedCardIds.filter(
-                                      (cardId) =>
-                                        cardId !==
-                                        selectedHeroLayer.cardId,
-                                    ),
-                              }),
-                            )
-                          }
-                        />
-                        首次赠送
-                      </label>
-                    </div>
-                    <Field
-                      label="透明图层素材"
-                      hint={
-                        selectedHeroLayer.media?.sourceWidth &&
-                        selectedHeroLayer.media?.sourceHeight
-                          ? `当前文件 ${selectedHeroLayer.media.sourceWidth} × ${selectedHeroLayer.media.sourceHeight} px`
-                          : "建议透明 PNG/WebP，主体贴边裁切；上传后可在上方画布直接定位。"
-                      }
-                    >
-                      <input
-                        type="text"
-                        value={selectedHeroLayer.media?.src ?? ""}
-                        onChange={(event) => {
-                          const src = event.target.value;
-                          updateHeroLayer(selectedHeroLayer.id, {
-                            embeddedInBase: false,
-                            media: src
-                              ? {
-                                  type:
-                                    selectedHeroLayer.media?.type ??
-                                    "image",
-                                  src,
-                                  fit: "contain",
-                                  position: "center",
-                                }
-                              : undefined,
-                          });
-                        }}
-                        data-testid="config-hero-layer-source"
-                      />
-                    </Field>
-                    <div className="studio-hero-layer-asset-actions">
-                      <label className="studio-mini-upload">
-                        上传透明图
-                        <input
-                          type="file"
-                          accept="image/png,image/webp,image/avif"
-                          onChange={(event) =>
-                            uploadHeroLayer(
-                              selectedHeroLayer.id,
-                              event,
-                            )
-                          }
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          syncHeroLayerFromCard(selectedHeroLayer)
-                        }
-                      >
-                        使用卡片图
-                      </button>
-                    </div>
-                    <label className="studio-hero-layer-embedded">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(
-                          selectedHeroLayer.embeddedInBase,
-                        )}
-                        onChange={(event) =>
-                          updateHeroLayer(selectedHeroLayer.id, {
-                            embeddedInBase: event.target.checked,
-                          })
-                        }
-                      />
-                      <span>
-                        已烘焙进基础图
-                        <small>
-                          此状态不会再叠加图片，适合默认赠送的首个道具。
-                        </small>
+                      <span className="studio-hero-layer-effect-badge">
+                        {(selectedHeroLayer.presentation ??
+                          "image-layer") === "image-layer"
+                          ? "图片叠加"
+                          : selectedHeroLayer.presentation ===
+                              "video-transition"
+                            ? "视频过场"
+                            : "不呈现"}
                       </span>
-                    </label>
-                    <div className="studio-three-fields">
-                      <Field label="X">
-                        <input
-                          type="number"
-                          value={selectedHeroLayer.x}
-                          disabled={selectedHeroLayer.embeddedInBase}
-                          onChange={(event) =>
-                            updateHeroLayer(selectedHeroLayer.id, {
-                              x: Number(event.target.value) || 0,
-                            })
-                          }
-                          data-testid="config-hero-layer-x"
-                        />
-                      </Field>
-                      <Field label="Y">
-                        <input
-                          type="number"
-                          value={selectedHeroLayer.y}
-                          disabled={selectedHeroLayer.embeddedInBase}
-                          onChange={(event) =>
-                            updateHeroLayer(selectedHeroLayer.id, {
-                              y: Number(event.target.value) || 0,
-                            })
-                          }
-                          data-testid="config-hero-layer-y"
-                        />
-                      </Field>
-                      <Field label="宽度">
-                        <input
-                          type="number"
-                          min="8"
-                          max="750"
-                          value={selectedHeroLayer.width}
-                          disabled={selectedHeroLayer.embeddedInBase}
-                          onChange={(event) =>
-                            updateHeroLayer(selectedHeroLayer.id, {
-                              width: Math.max(
-                                8,
-                                Number(event.target.value) || 8,
-                              ),
-                            })
-                          }
-                          data-testid="config-hero-layer-width"
-                        />
-                      </Field>
                     </div>
                     <div className="studio-two-fields">
-                      <Field label="旋转角度">
-                        <input
-                          type="number"
-                          min="-180"
-                          max="180"
-                          value={selectedHeroLayer.rotation}
-                          disabled={selectedHeroLayer.embeddedInBase}
+                      <Field label="获得方式">
+                        <select
+                          value={
+                            selectedHeroLayer.unlockMethod ??
+                            (collectionHeroComposition.initialUnlockedCardIds.includes(
+                              selectedHeroLayer.cardId,
+                            )
+                              ? "first-gift"
+                              : "draw")
+                          }
+                          onChange={(event) =>
+                            updateHeroLayerUnlockMethod(
+                              selectedHeroLayer,
+                              event.target.value as NonNullable<
+                                CampaignCollectionHeroLayer["unlockMethod"]
+                              >,
+                            )
+                          }
+                          data-testid="config-hero-unlock-method"
+                        >
+                          <option value="first-gift">首次赠送</option>
+                          <option value="draw">抽中本卡</option>
+                          <option value="points">积分获得</option>
+                        </select>
+                      </Field>
+                      <Field label="点亮后效果">
+                        <select
+                          value={
+                            selectedHeroLayer.presentation ??
+                            "image-layer"
+                          }
                           onChange={(event) =>
                             updateHeroLayer(selectedHeroLayer.id, {
-                              rotation:
-                                Number(event.target.value) || 0,
+                              presentation: event.target
+                                .value as NonNullable<
+                                CampaignCollectionHeroLayer["presentation"]
+                              >,
+                              embeddedInBase:
+                                event.target.value === "image-layer"
+                                  ? selectedHeroLayer.embeddedInBase
+                                  : false,
                             })
                           }
-                        />
+                          data-testid="config-hero-presentation"
+                        >
+                          <option value="image-layer">
+                            图片叠加到 Hero
+                          </option>
+                          <option value="video-transition">
+                            播放视频过场
+                          </option>
+                          <option value="none">仅点亮卡片</option>
+                        </select>
                       </Field>
-                      <Field label="图层顺序">
+                    </div>
+                    {(selectedHeroLayer.unlockMethod ??
+                      (collectionHeroComposition.initialUnlockedCardIds.includes(
+                        selectedHeroLayer.cardId,
+                      )
+                        ? "first-gift"
+                        : "draw")) === "points" && (
+                      <Field
+                        label="所需积分"
+                        hint="达到积分后发放本卡，并执行下方点亮效果。"
+                      >
                         <input
                           type="number"
                           min="1"
-                          max="20"
-                          value={selectedHeroLayer.zIndex}
-                          disabled={selectedHeroLayer.embeddedInBase}
+                          value={selectedHeroLayer.pointsCost ?? 100}
                           onChange={(event) =>
                             updateHeroLayer(selectedHeroLayer.id, {
-                              zIndex: Math.max(
+                              pointsCost: Math.max(
                                 1,
-                                Math.min(
-                                  20,
-                                  Number(event.target.value) || 1,
-                                ),
+                                Number(event.target.value) || 1,
                               ),
                             })
                           }
                         />
                       </Field>
-                    </div>
-                    <button
-                      type="button"
-                      className="studio-hero-layer-reset"
-                      onClick={() =>
-                        updateHeroLayer(selectedHeroLayer.id, {
-                          x: 0,
-                          y: 0,
-                          width: 64,
-                          rotation: 0,
-                          zIndex: 2,
-                        })
-                      }
-                    >
-                      重置当前图层位置
-                    </button>
+                    )}
+                    {(selectedHeroLayer.presentation ??
+                      "image-layer") === "image-layer" && (
+                      <>
+                        <Field
+                          label="透明图层素材"
+                          hint={
+                            selectedHeroLayer.media?.sourceWidth &&
+                            selectedHeroLayer.media?.sourceHeight
+                              ? `当前文件 ${selectedHeroLayer.media.sourceWidth} × ${selectedHeroLayer.media.sourceHeight} px`
+                              : "建议透明 PNG/WebP，主体贴边裁切；上传后可在上方组合画布直接定位。"
+                          }
+                        >
+                          <input
+                            type="text"
+                            value={selectedHeroLayer.media?.src ?? ""}
+                            onChange={(event) => {
+                              const src = event.target.value;
+                              updateHeroLayer(selectedHeroLayer.id, {
+                                embeddedInBase: false,
+                                presentation: "image-layer",
+                                media: src
+                                  ? {
+                                      type: "image",
+                                      src,
+                                      fit: "contain",
+                                      position: "center",
+                                    }
+                                  : undefined,
+                              });
+                            }}
+                            data-testid="config-hero-layer-source"
+                          />
+                        </Field>
+                        <div className="studio-hero-layer-asset-actions">
+                          <label className="studio-mini-upload">
+                            上传透明图
+                            <input
+                              type="file"
+                              accept="image/png,image/webp,image/avif"
+                              onChange={(event) =>
+                                uploadHeroLayer(
+                                  selectedHeroLayer.id,
+                                  event,
+                                )
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              syncHeroLayerFromCard(selectedHeroLayer)
+                            }
+                          >
+                            使用卡片图
+                          </button>
+                        </div>
+                        <label className="studio-hero-layer-embedded">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(
+                              selectedHeroLayer.embeddedInBase,
+                            )}
+                            onChange={(event) =>
+                              updateHeroLayer(selectedHeroLayer.id, {
+                                embeddedInBase: event.target.checked,
+                              })
+                            }
+                          />
+                          <span>
+                            已烘焙进基础图
+                            <small>
+                              此状态不会再叠加图片，适合默认赠送的首个道具。
+                            </small>
+                          </span>
+                        </label>
+                        <div className="studio-three-fields">
+                          <Field label="X">
+                            <input
+                              type="number"
+                              value={selectedHeroLayer.x}
+                              disabled={selectedHeroLayer.embeddedInBase}
+                              onChange={(event) =>
+                                updateHeroLayer(selectedHeroLayer.id, {
+                                  x: Number(event.target.value) || 0,
+                                })
+                              }
+                              data-testid="config-hero-layer-x"
+                            />
+                          </Field>
+                          <Field label="Y">
+                            <input
+                              type="number"
+                              value={selectedHeroLayer.y}
+                              disabled={selectedHeroLayer.embeddedInBase}
+                              onChange={(event) =>
+                                updateHeroLayer(selectedHeroLayer.id, {
+                                  y: Number(event.target.value) || 0,
+                                })
+                              }
+                              data-testid="config-hero-layer-y"
+                            />
+                          </Field>
+                          <Field label="宽度">
+                            <input
+                              type="number"
+                              min="8"
+                              max="750"
+                              value={selectedHeroLayer.width}
+                              disabled={selectedHeroLayer.embeddedInBase}
+                              onChange={(event) =>
+                                updateHeroLayer(selectedHeroLayer.id, {
+                                  width: Math.max(
+                                    8,
+                                    Number(event.target.value) || 8,
+                                  ),
+                                })
+                              }
+                              data-testid="config-hero-layer-width"
+                            />
+                          </Field>
+                        </div>
+                        <div className="studio-two-fields">
+                          <Field label="旋转角度">
+                            <input
+                              type="number"
+                              min="-180"
+                              max="180"
+                              value={selectedHeroLayer.rotation}
+                              disabled={selectedHeroLayer.embeddedInBase}
+                              onChange={(event) =>
+                                updateHeroLayer(selectedHeroLayer.id, {
+                                  rotation:
+                                    Number(event.target.value) || 0,
+                                })
+                              }
+                            />
+                          </Field>
+                          <Field label="图层顺序">
+                            <input
+                              type="number"
+                              min="1"
+                              max="20"
+                              value={selectedHeroLayer.zIndex}
+                              disabled={selectedHeroLayer.embeddedInBase}
+                              onChange={(event) =>
+                                updateHeroLayer(selectedHeroLayer.id, {
+                                  zIndex: Math.max(
+                                    1,
+                                    Math.min(
+                                      20,
+                                      Number(event.target.value) || 1,
+                                    ),
+                                  ),
+                                })
+                              }
+                            />
+                          </Field>
+                        </div>
+                        <button
+                          type="button"
+                          className="studio-hero-layer-reset"
+                          onClick={() =>
+                            updateHeroLayer(selectedHeroLayer.id, {
+                              x: 0,
+                              y: 0,
+                              width: 64,
+                              rotation: 0,
+                              zIndex: 2,
+                            })
+                          }
+                        >
+                          重置当前图层位置
+                        </button>
+                      </>
+                    )}
+                    {selectedHeroLayer.presentation ===
+                      "video-transition" && (
+                      <div
+                        className="studio-hero-video-editor"
+                        data-testid="config-hero-video-editor"
+                      >
+                        <p>
+                          获得本卡后在 H5 上播放一次全屏过场；视频结束后回到由图片图层组成的 Hero。
+                        </p>
+                        {selectedHeroLayer.transitionMedia?.src ? (
+                          <video
+                            src={
+                              selectedHeroLayer.transitionMedia.src
+                            }
+                            poster={
+                              selectedHeroLayer.transitionMedia.type ===
+                              "video"
+                                ? selectedHeroLayer.transitionMedia.poster
+                                : undefined
+                            }
+                            muted
+                            controls
+                            playsInline
+                          />
+                        ) : (
+                          <div className="studio-hero-video-empty">
+                            还没有视频过场
+                          </div>
+                        )}
+                        <Field
+                          label="视频地址"
+                          hint={
+                            selectedHeroLayer.transitionMedia
+                              ?.sourceWidth &&
+                            selectedHeroLayer.transitionMedia
+                              ?.sourceHeight
+                              ? `当前文件 ${selectedHeroLayer.transitionMedia.sourceWidth} × ${selectedHeroLayer.transitionMedia.sourceHeight} px`
+                              : "建议 MP4/WebM，竖屏 375 × 460 或 750 × 920。"
+                          }
+                        >
+                          <input
+                            type="text"
+                            value={
+                              selectedHeroLayer.transitionMedia?.src ??
+                              ""
+                            }
+                            onChange={(event) =>
+                              updateHeroLayer(selectedHeroLayer.id, {
+                                transitionMedia: event.target.value
+                                  ? {
+                                      type: "video",
+                                      src: event.target.value,
+                                      poster:
+                                        selectedHeroLayer
+                                          .transitionMedia?.type ===
+                                        "video"
+                                          ? selectedHeroLayer
+                                              .transitionMedia.poster
+                                          : undefined,
+                                      fit: "cover",
+                                      position: "center",
+                                    }
+                                  : undefined,
+                              })
+                            }
+                            data-testid="config-hero-video-source"
+                          />
+                        </Field>
+                        <div className="studio-hero-layer-asset-actions">
+                          <label className="studio-mini-upload">
+                            上传视频
+                            <input
+                              type="file"
+                              accept="video/mp4,video/webm,video/quicktime"
+                              onChange={(event) =>
+                                uploadHeroTransitionVideo(
+                                  selectedHeroLayer.id,
+                                  event,
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="studio-mini-upload">
+                            上传封面图
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(event) =>
+                                uploadHeroTransitionPoster(
+                                  selectedHeroLayer.id,
+                                  event,
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                    {selectedHeroLayer.presentation === "none" && (
+                      <div className="studio-hero-no-effect-note">
+                        这张卡仍会正常点亮和计入集卡进度，但不会改变
+                        Hero 画面。
+                      </div>
+                    )}
                   </div>
                 )}
               </section>

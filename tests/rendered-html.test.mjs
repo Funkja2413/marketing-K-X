@@ -152,6 +152,8 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "config-hero-layer-editor",
     "config-hero-layer-canvas",
     "config-hero-layers-enabled",
+    "config-hero-unlock-method",
+    "config-hero-presentation",
   ]) {
     assert.match(html, new RegExp(`data-testid="${testId}"`));
   }
@@ -325,7 +327,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(
     studio,
-    /const compositionLayers = layers[\s\S]*?layer\.media\?\.src && !layer\.embeddedInBase/,
+    /const compositionLayers = layers[\s\S]*?layer\.media\?\.src[\s\S]*?!layer\.embeddedInBase/,
   );
   assert.match(
     studio,
@@ -333,6 +335,13 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.doesNotMatch(studio, /visibleCardIds/);
   assert.doesNotMatch(studio, /只看当前|全部点亮/);
+  assert.match(studio, /首次赠送/);
+  assert.match(studio, /抽中本卡/);
+  assert.match(studio, /积分获得/);
+  assert.match(studio, /图片叠加到 Hero/);
+  assert.match(studio, /播放视频过场/);
+  assert.match(page, /data-testid=["']hero-unlock-transition["']/);
+  assert.match(page, /heroLayer\?\.presentation === ["']video-transition["']/);
   assert.ok(
     studio.indexOf("<HeroLayerComposer") <
       studio.indexOf('className="studio-hero-layer-cards"'),

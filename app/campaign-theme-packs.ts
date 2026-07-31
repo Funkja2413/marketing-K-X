@@ -26,7 +26,15 @@ export type CampaignCollectionHeroLayer = {
   /** Stable collection card ID that controls this layer. */
   cardId: string;
   label: string;
+  /** How this card is granted in the campaign rule set. */
+  unlockMethod?: "first-gift" | "draw" | "points";
+  /** What the Hero does when this card is unlocked. */
+  presentation?: "image-layer" | "video-transition" | "none";
   media?: CampaignHeroMedia;
+  /** Full-frame transition played when presentation is video-transition. */
+  transitionMedia?: CampaignHeroMedia;
+  /** Required points when unlockMethod is points. */
+  pointsCost?: number;
   /** The item is already baked into the base Hero and needs no overlay. */
   embeddedInBase?: boolean;
   /** Horizontal offset in the 375px Hero design coordinate space. */
@@ -128,6 +136,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
             id: "hero-layer-watergun",
             cardId: "watergun",
             label: "鲨鲨水枪",
+            unlockMethod: "first-gift",
+            presentation: "image-layer",
             embeddedInBase: true,
             x: 0,
             y: 0,
@@ -139,6 +149,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
             id: "hero-layer-watermelon",
             cardId: "watermelon",
             label: "冰镇西瓜",
+            unlockMethod: "draw",
+            presentation: "image-layer",
             media: {
               type: "image",
               src: "/figma/equipment-watermelon-bucket.webp",
@@ -157,6 +169,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
             id: "hero-layer-surfboard",
             cardId: "surfboard",
             label: "顺风冲浪板",
+            unlockMethod: "draw",
+            presentation: "image-layer",
             embeddedInBase: true,
             x: 0,
             y: 0,

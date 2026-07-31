@@ -65,7 +65,11 @@ assets: {
     layers: Array<{
       id: string;
       cardId: string;
+      unlockMethod?: "first-gift" | "draw" | "points";
+      presentation?: "image-layer" | "video-transition" | "none";
       media?: CampaignHeroMedia;
+      transitionMedia?: CampaignHeroMedia;
+      pointsCost?: number;
       embeddedInBase?: boolean;
       x: number;
       y: number;
@@ -212,6 +216,8 @@ public/
 - 定位坐标使用 Hero 可见区 `375 × 460`，不是原始导出图的尺寸。
 - 右侧 Studio 小画布是模块级总装画布，会常显所有已配置的独立图层；选择卡片只切换编辑焦点，不会隐藏其他素材。
 - 小画布支持拖动和等比缩放；最终保存的是 `x/y/width/rotation/zIndex`。
+- 每张卡可单独配置 `unlockMethod`（首次赠送、抽中本卡或积分获得）和 `presentation`（图片叠加、视频过场或仅点亮卡片）。
+- `video-transition` 使用 `transitionMedia`；新卡点亮时播放一次全屏过场，结束后回到实时合成的 Hero。
 - `embeddedInBase` 只适合首次默认赠送、且已烘焙在底图中的道具；其他道具应提供独立透明 PNG/WebP。
 - 原始 Hero 如果是 `375 × 474`，页面会顶对齐并裁掉底部 `14px`，图层不要放进这段不可见区域。
 - 最终合成图可以放进 `finalReference` 作半透明校对，但集齐 9 种时仍由底图与 9 个图层实时合成。
