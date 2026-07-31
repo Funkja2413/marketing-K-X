@@ -68,15 +68,58 @@ const ADVANCED_COLOR_FIELDS: Array<{
 const ADVANCED_ASSET_FIELDS: Array<{
   key: PackAssetKey;
   label: string;
+  hint: string;
 }> = [
-  { key: "mapBackgroundImage", label: "地图背景图" },
-  { key: "grandRewardImage", label: "终极奖励图" },
-  { key: "rewardShelfImage", label: "奖励货架皮肤" },
-  { key: "actionButtonImage", label: "主按钮皮肤" },
-  { key: "tierFrameImage", label: "优惠券框" },
-  { key: "cardOwnedFrameImage", label: "已获得卡框" },
-  { key: "cardMissingFrameImage", label: "未获得卡框" },
+  {
+    key: "mapBackgroundImage",
+    label: "地图背景图",
+    hint: "展示容器 375 × 78 px；建议导出 1125 × 234 px。",
+  },
+  {
+    key: "rewardShelfImage",
+    label: "奖励货架皮肤",
+    hint: "展示容器 355 × 166 px；建议导出 1065 × 498 px。",
+  },
+  {
+    key: "actionButtonImage",
+    label: "主按钮皮肤",
+    hint: "展示容器约 207 × 46 px；建议透明图 621 × 138 px。",
+  },
+  {
+    key: "tierFrameImage",
+    label: "优惠券框",
+    hint: "前三档展示约 46 × 27 px；建议透明图至少 140 × 82 px。",
+  },
+  {
+    key: "cardOwnedFrameImage",
+    label: "已获得卡框",
+    hint: "展示容器约 59 × 72 px；建议透明图 180 × 220 px。",
+  },
+  {
+    key: "cardMissingFrameImage",
+    label: "未获得卡框",
+    hint: "展示容器约 59 × 72 px；建议透明图 180 × 220 px。",
+  },
 ];
+
+const KNOWN_ASSET_SIZES: Record<
+  string,
+  { width: number; height: number }
+> = {
+  "/figma/equipment-water-gun.webp": { width: 180, height: 156 },
+  "/figma/equipment-watermelon-bucket.webp": {
+    width: 180,
+    height: 179,
+  },
+  "/figma/equipment-paddle-board.webp": { width: 93, height: 180 },
+  "/figma/equipment-palm-tree.webp": { width: 159, height: 180 },
+  "/figma/equipment-pineapple-float.webp": {
+    width: 180,
+    height: 138,
+  },
+  "/figma/equipment-sun-chair.webp": { width: 150, height: 180 },
+  "/figma/reward-gold-horse.webp": { width: 132, height: 112 },
+};
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -142,6 +185,27 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function readImageSize(
+  src: string,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () =>
+      resolve({
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
+    image.onerror = () => reject(new Error("无法读取图片尺寸"));
+    image.src = src;
+  });
+}
+
+async function readImageAsset(file: File) {
+  const src = await readFileAsDataUrl(file);
+  const size = await readImageSize(src);
+  return { src, ...size };
+}
+
 function Field({
   label,
   hint,
@@ -188,6 +252,80 @@ function ColorField({
         aria-label={label}
       />
     </label>
+  );
+}
+
+function SectionSummary({
+  index,
+  children,
+}: {
+  index: string;
+  children: ReactNode;
+}) {
+  return (
+    <summary>
+      <span className="studio-section-index">{index}</span>
+      <span className="studio-section-title">{children}</span>
+      <span className="studio-details-affordance" aria-hidden="true">
+        <span className="studio-details-collapsed">展开</span>
+        <span className="studio-details-expanded">收起</span>
+        <i />
+      </span>
+    </summary>
+  );
+}
+
+function AssetPreview({
+  src,
+  fallback,
+  alt,
+  variant,
+  displaySize,
+  recommended,
+  sourceWidth,
+  sourceHeight,
+  testId,
+  sizeHintTestId,
+}: {
+  src?: string;
+  fallback: ReactNode;
+  alt: string;
+  variant: "card" | "coupon" | "grand";
+  displaySize: string;
+  recommended: string;
+  sourceWidth?: number;
+  sourceHeight?: number;
+  testId?: string;
+  sizeHintTestId?: string;
+}) {
+  return (
+    <div className={`studio-asset-preview ${variant}`}>
+      <div className={`studio-asset-preview-frame ${variant}`}>
+        {src ? (
+          <img src={src} alt={alt} data-testid={testId} />
+        ) : (
+          <span aria-hidden="true">{fallback}</span>
+        )}
+      </div>
+      <div className="studio-asset-preview-copy">
+        <strong>
+          {src
+            ? "当前页面素材"
+            : variant === "coupon"
+              ? "当前为模板实时样式"
+              : "当前使用 Emoji 兜底"}
+        </strong>
+        <span data-testid={sizeHintTestId}>
+          页面展示容器：{displaySize}
+        </span>
+        {sourceWidth && sourceHeight ? (
+          <span>
+            当前文件：{sourceWidth} × {sourceHeight} px
+          </span>
+        ) : null}
+        <small>{recommended}</small>
+      </div>
+    </div>
   );
 }
 
@@ -346,6 +484,38 @@ export default function CampaignStudio() {
     });
   }
 
+  function updateTierAsset(
+    index: number,
+    patch: Pick<
+      TierDefinition,
+      "image" | "imageWidth" | "imageHeight"
+    >,
+  ) {
+    updateActive((draft) => {
+      const selectedTier = draft.content.tiers[index];
+      const tiers = draft.content.tiers.map((tier, tierIndex) =>
+        tierIndex === index ? { ...tier, ...patch } : tier,
+      );
+      return {
+        ...draft,
+        content: {
+          ...draft.content,
+          tiers,
+        },
+        pack:
+          selectedTier.kind === "grand"
+            ? {
+                ...draft.pack,
+                assets: {
+                  ...draft.pack.assets,
+                  grandRewardImage: patch.image,
+                },
+              }
+            : draft.pack,
+      };
+    });
+  }
+
   function duplicateActive() {
     const next: CampaignSkinDraft = {
       ...cloneValue(activeDraft),
@@ -499,19 +669,24 @@ export default function CampaignStudio() {
     reader.readAsDataURL(file);
   }
 
-  function uploadCard(
+  async function uploadCard(
     index: number,
     event: ChangeEvent<HTMLInputElement>,
   ) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateCard(index, { image: String(reader.result) });
+    try {
+      const asset = await readImageAsset(file);
+      updateCard(index, {
+        image: asset.src,
+        imageWidth: asset.width,
+        imageHeight: asset.height,
+      });
       setMessage(`已替换第 ${index + 1} 张卡片素材`);
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setMessage(`第 ${index + 1} 张卡片素材读取失败`);
+    }
   }
 
   async function uploadCards(event: ChangeEvent<HTMLInputElement>) {
@@ -519,20 +694,42 @@ export default function CampaignStudio() {
     event.target.value = "";
     if (files.length === 0) return;
     try {
-      const sources = await Promise.all(files.map(readFileAsDataUrl));
+      const assets = await Promise.all(files.map(readImageAsset));
       updateActive((draft) => ({
         ...draft,
         content: {
           ...draft.content,
           cards: draft.content.cards.map((card, index) => ({
             ...card,
-            image: sources[index] ?? card.image,
+            image: assets[index]?.src ?? card.image,
+            imageWidth: assets[index]?.width ?? card.imageWidth,
+            imageHeight: assets[index]?.height ?? card.imageHeight,
           })),
         },
       }));
-      setMessage(`已按文件顺序批量替换 ${sources.length} 张卡片`);
+      setMessage(`已按文件顺序批量替换 ${assets.length} 张卡片`);
     } catch {
       setMessage("批量素材读取失败，请检查图片文件");
+    }
+  }
+
+  async function uploadTier(
+    index: number,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const asset = await readImageAsset(file);
+      updateTierAsset(index, {
+        image: asset.src,
+        imageWidth: asset.width,
+        imageHeight: asset.height,
+      });
+      setMessage(`已替换第 ${index + 1} 档奖励素材`);
+    } catch {
+      setMessage(`第 ${index + 1} 档奖励素材读取失败`);
     }
   }
 
@@ -633,10 +830,14 @@ export default function CampaignStudio() {
 
         <div className="studio-preview-world">
           <div className="studio-phone-label">
-            <span>375px</span>
+            <span>画布 375 × 875 px · 9:21</span>
             <b>{activeDraft.baseTheme === "summer" ? "夏日" : "夜食"}</b>
           </div>
-          <div className="studio-phone" data-testid="config-preview">
+          <div
+            className="studio-phone"
+            data-testid="config-preview"
+            data-preview-ratio="9:21"
+          >
             <CampaignExperience
               key={activeDraft.id}
               configuration={runtimeConfiguration}
@@ -676,10 +877,7 @@ export default function CampaignStudio() {
         </header>
 
         <details open>
-          <summary>
-            <span>01</span>
-            主题基础
-          </summary>
+          <SectionSummary index="01">主题基础</SectionSummary>
           <div className="studio-section-body">
             <Field label="方案名称">
               <input
@@ -716,14 +914,13 @@ export default function CampaignStudio() {
         </details>
 
         <details open>
-          <summary>
-            <span>02</span>
-            Hero 与主操作
-          </summary>
+          <SectionSummary index="02">Hero 与主操作</SectionSummary>
           <div className="studio-section-body">
             <label className="studio-upload">
               <strong>上传 Hero 图片或视频</strong>
-              <span>推荐图片 1125×1380；视频需静音循环</span>
+              <span>
+                页面容器 375 × 460 px · 推荐素材 1125 × 1380 px；视频需静音循环
+              </span>
               <input
                 type="file"
                 accept="image/*,video/*"
@@ -830,10 +1027,7 @@ export default function CampaignStudio() {
         </details>
 
         <details open>
-          <summary>
-            <span>03</span>
-            品牌配色
-          </summary>
+          <SectionSummary index="03">品牌配色</SectionSummary>
           <div className="studio-section-body">
             <div className="studio-color-grid">
               {CORE_COLOR_FIELDS.map((field) => (
@@ -866,10 +1060,7 @@ export default function CampaignStudio() {
         </details>
 
         <details>
-          <summary>
-            <span>04</span>
-            页面文案
-          </summary>
+          <SectionSummary index="04">页面文案</SectionSummary>
           <div className="studio-section-body">
             <Field label="集卡册名称">
               <input
@@ -999,10 +1190,7 @@ export default function CampaignStudio() {
         </details>
 
         <details>
-          <summary>
-            <span>05</span>
-            卡片与奖励
-          </summary>
+          <SectionSummary index="05">卡片与奖励</SectionSummary>
           <div className="studio-section-body">
             <p className="studio-section-note">
               当前模板固定 9 张卡片和 4 档奖励；稳定 ID 不随换肤改变。
@@ -1017,148 +1205,281 @@ export default function CampaignStudio() {
               />
             </label>
             <div className="studio-item-list">
-              {activeDraft.content.cards.map((card, index) => (
-                <details className="studio-item" key={card.id}>
-                  <summary>
-                    <i style={{ background: card.accent }} />
-                    <span>
-                      {index + 1}. {card.name}
-                    </span>
-                    <small>{card.rarity}</small>
-                  </summary>
-                  <div>
-                    <Field label="卡片名称">
-                      <input
-                        type="text"
-                        value={card.name}
-                        onChange={(event) =>
-                          updateCard(index, { name: event.target.value })
+              {activeDraft.content.cards.map((card, index) => {
+                const knownSize = card.image
+                  ? KNOWN_ASSET_SIZES[card.image]
+                  : undefined;
+                const sourceWidth = card.imageWidth ?? knownSize?.width;
+                const sourceHeight = card.imageHeight ?? knownSize?.height;
+                return (
+                  <details className="studio-item" key={card.id}>
+                    <summary>
+                      <i
+                        className="studio-item-thumb"
+                        style={{ background: card.accent }}
+                      >
+                        {card.image ? (
+                          <img src={card.image} alt="" />
+                        ) : (
+                          <span>{card.emoji}</span>
+                        )}
+                      </i>
+                      <span className="studio-item-name">
+                        {index + 1}. {card.name}
+                      </span>
+                      <small>{card.rarity}</small>
+                    </summary>
+                    <div>
+                      <AssetPreview
+                        src={card.image}
+                        fallback={card.emoji}
+                        alt={`${card.name}当前素材`}
+                        variant="card"
+                        displaySize="59 × 72 px（约 5:6）"
+                        recommended="建议透明 PNG/WebP 180 × 220 px（约 3×），主体居中并留 8% 安全边。"
+                        sourceWidth={sourceWidth}
+                        sourceHeight={sourceHeight}
+                        testId={
+                          card.id === "watergun"
+                            ? "config-card-preview-watergun"
+                            : undefined
+                        }
+                        sizeHintTestId={
+                          index === 0 ? "config-card-size-hint" : undefined
                         }
                       />
-                    </Field>
-                    <div className="studio-two-fields">
-                      <Field label="Emoji 兜底">
+                      <Field label="卡片名称">
                         <input
                           type="text"
-                          value={card.emoji}
+                          value={card.name}
                           onChange={(event) =>
-                            updateCard(index, {
-                              emoji: event.target.value,
-                            })
+                            updateCard(index, { name: event.target.value })
                           }
                         />
                       </Field>
-                      <ColorField
-                        label="卡片强调色"
-                        value={card.accent}
-                        onChange={(value) =>
-                          updateCard(index, { accent: value })
-                        }
-                      />
+                      <div className="studio-two-fields">
+                        <Field label="Emoji 兜底">
+                          <input
+                            type="text"
+                            value={card.emoji}
+                            onChange={(event) =>
+                              updateCard(index, {
+                                emoji: event.target.value,
+                              })
+                            }
+                          />
+                        </Field>
+                        <ColorField
+                          label="卡片强调色"
+                          value={card.accent}
+                          onChange={(value) =>
+                            updateCard(index, { accent: value })
+                          }
+                        />
+                      </div>
+                      <Field label="素材地址">
+                        <input
+                          type="text"
+                          value={card.image ?? ""}
+                          onChange={(event) => {
+                            const image = event.target.value || undefined;
+                            const size = image
+                              ? KNOWN_ASSET_SIZES[image]
+                              : undefined;
+                            updateCard(index, {
+                              image,
+                              imageWidth: size?.width,
+                              imageHeight: size?.height,
+                            });
+                          }}
+                        />
+                      </Field>
+                      <label className="studio-mini-upload">
+                        上传替换 · 推荐 180 × 220 px
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => uploadCard(index, event)}
+                        />
+                      </label>
                     </div>
-                    <Field label="素材地址">
-                      <input
-                        type="text"
-                        value={card.image ?? ""}
-                        onChange={(event) =>
-                          updateCard(index, {
-                            image: event.target.value || undefined,
-                          })
-                        }
-                      />
-                    </Field>
-                    <label className="studio-mini-upload">
-                      上传替换
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(event) => uploadCard(index, event)}
-                      />
-                    </label>
-                  </div>
-                </details>
-              ))}
+                  </details>
+                );
+              })}
             </div>
             <h3 className="studio-small-heading">奖励档位</h3>
             <div className="studio-item-list">
-              {activeDraft.content.tiers.map((tier, index) => (
-                <details className="studio-item" key={tier.id}>
-                  <summary>
-                    <span>
-                      集齐 {tier.threshold} 种 · {tier.title}
-                    </span>
-                    <small>{tier.icon}</small>
-                  </summary>
-                  <div>
-                    <div className="studio-two-fields">
-                      <Field label="集齐种数">
-                        <input
-                          type="number"
-                          min="1"
-                          max="9"
-                          value={tier.threshold}
-                          onChange={(event) =>
-                            updateTier(index, {
-                              threshold: Math.max(
-                                1,
-                                Math.min(9, Number(event.target.value)),
-                              ),
-                            })
-                          }
-                        />
-                      </Field>
-                      <Field label="金额/奖励">
+              {activeDraft.content.tiers.map((tier, index) => {
+                const rewardImage =
+                  tier.image ??
+                  (tier.kind === "grand"
+                    ? activeDraft.pack.assets.grandRewardImage
+                    : undefined);
+                const knownSize = rewardImage
+                  ? KNOWN_ASSET_SIZES[rewardImage]
+                  : undefined;
+                const sourceWidth = tier.imageWidth ?? knownSize?.width;
+                const sourceHeight = tier.imageHeight ?? knownSize?.height;
+                const isGrand = tier.kind === "grand";
+                return (
+                  <details className="studio-item" key={tier.id}>
+                    <summary>
+                      <i
+                        className={`studio-item-thumb reward ${
+                          isGrand ? "grand" : "coupon"
+                        }`}
+                      >
+                        {rewardImage ? (
+                          <img src={rewardImage} alt="" />
+                        ) : (
+                          <span>{tier.icon}</span>
+                        )}
+                      </i>
+                      <span className="studio-item-name">
+                        集齐 {tier.threshold} 种 · {tier.title}
+                      </span>
+                      <small>{tier.icon}</small>
+                    </summary>
+                    <div>
+                      <AssetPreview
+                        src={rewardImage}
+                        fallback={tier.icon}
+                        alt={`${tier.title}当前素材`}
+                        variant={isGrand ? "grand" : "coupon"}
+                        displaySize={
+                          isGrand
+                            ? "44 × 30 px（约 1.46:1）"
+                            : "46 × 27 px（约 1.7:1）"
+                        }
+                        recommended={
+                          isGrand
+                            ? "建议透明 PNG/WebP 至少 132 × 90 px，主体居中。"
+                            : "默认券框由模板实时绘制；如替换图片，建议透明 PNG/WebP 至少 140 × 82 px。"
+                        }
+                        sourceWidth={sourceWidth}
+                        sourceHeight={sourceHeight}
+                        testId={
+                          isGrand
+                            ? "config-grand-reward-preview"
+                            : undefined
+                        }
+                        sizeHintTestId={
+                          index === 0
+                            ? "config-reward-size-hint"
+                            : undefined
+                        }
+                      />
+                      <div className="studio-two-fields">
+                        <Field label="集齐种数">
+                          <input
+                            type="number"
+                            min="1"
+                            max="9"
+                            value={tier.threshold}
+                            onChange={(event) =>
+                              updateTier(index, {
+                                threshold: Math.max(
+                                  1,
+                                  Math.min(9, Number(event.target.value)),
+                                ),
+                              })
+                            }
+                          />
+                        </Field>
+                        <Field label="金额/奖励">
+                          <input
+                            type="text"
+                            value={tier.amount}
+                            onChange={(event) =>
+                              updateTier(index, {
+                                amount: event.target.value,
+                              })
+                            }
+                          />
+                        </Field>
+                      </div>
+                      <Field label="奖励名称">
                         <input
                           type="text"
-                          value={tier.amount}
+                          value={tier.title}
                           onChange={(event) =>
                             updateTier(index, {
-                              amount: event.target.value,
+                              title: event.target.value,
                             })
                           }
                         />
                       </Field>
+                      <Field label="使用条件">
+                        <input
+                          type="text"
+                          value={tier.condition}
+                          onChange={(event) =>
+                            updateTier(index, {
+                              condition: event.target.value,
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field
+                        label="奖励图中文字 / 无图片时兜底"
+                        hint="前三档默认由模板实时绘制券框与文字"
+                      >
+                        <input
+                          type="text"
+                          value={tier.icon}
+                          onChange={(event) =>
+                            updateTier(index, {
+                              icon: event.target.value,
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="奖励图片地址">
+                        <input
+                          type="text"
+                          value={rewardImage ?? ""}
+                          onChange={(event) => {
+                            const image = event.target.value || undefined;
+                            const size = image
+                              ? KNOWN_ASSET_SIZES[image]
+                              : undefined;
+                            updateTierAsset(index, {
+                              image,
+                              imageWidth: size?.width,
+                              imageHeight: size?.height,
+                            });
+                          }}
+                        />
+                      </Field>
+                      <label className="studio-mini-upload">
+                        上传奖励图 ·{" "}
+                        {isGrand ? "建议至少 132 × 90 px" : "建议至少 140 × 82 px"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => uploadTier(index, event)}
+                        />
+                      </label>
                     </div>
-                    <Field label="奖励名称">
-                      <input
-                        type="text"
-                        value={tier.title}
-                        onChange={(event) =>
-                          updateTier(index, {
-                            title: event.target.value,
-                          })
-                        }
-                      />
-                    </Field>
-                    <Field label="使用条件">
-                      <input
-                        type="text"
-                        value={tier.condition}
-                        onChange={(event) =>
-                          updateTier(index, {
-                            condition: event.target.value,
-                          })
-                        }
-                      />
-                    </Field>
-                  </div>
-                </details>
-              ))}
+                  </details>
+                );
+              })}
             </div>
           </div>
         </details>
 
         <details>
-          <summary>
-            <span>06</span>
-            高级皮肤素材
-          </summary>
+          <SectionSummary index="06">高级皮肤素材</SectionSummary>
           <div className="studio-section-body">
             <p className="studio-section-note">
               可选透明 UI 皮肤；留空时使用模板内置样式。
             </p>
             {ADVANCED_ASSET_FIELDS.map((field) => (
-              <Field label={field.label} key={field.key}>
+              <Field
+                label={field.label}
+                hint={field.hint}
+                key={field.key}
+              >
                 <input
                   type="text"
                   value={

@@ -116,9 +116,31 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "config-export",
     "config-field-title",
     "config-field-hero-media",
+    "config-card-preview-watergun",
+    "config-grand-reward-preview",
+    "config-card-size-hint",
+    "config-reward-size-hint",
   ]) {
     assert.match(html, new RegExp(`data-testid="${testId}"`));
   }
+  assert.match(
+    html,
+    /data-testid="config-preview"[^>]*data-preview-ratio="9:21"/,
+  );
+  assert.match(html, /画布 375 × 875 px · 9:21/);
+  assert.match(
+    html,
+    /data-testid="config-card-preview-watergun"[^>]*src="\/figma\/equipment-water-gun\.webp"|src="\/figma\/equipment-water-gun\.webp"[^>]*data-testid="config-card-preview-watergun"/,
+  );
+  assert.match(
+    html,
+    /data-testid="config-grand-reward-preview"[^>]*src="\/figma\/reward-gold-horse\.webp"|src="\/figma\/reward-gold-horse\.webp"[^>]*data-testid="config-grand-reward-preview"/,
+  );
+  const textHtml = html.replaceAll("<!-- -->", "");
+  assert.match(textHtml, /页面展示容器：59 × 72 px/);
+  assert.match(textHtml, /页面展示容器：46 × 27 px/);
+  assert.match(textHtml, /当前为模板实时样式/);
+  assert.match(textHtml, /当前文件：180 × 156 px/);
 
   assert.match(html, /复制当前方案/);
   assert.match(html, /导入 JSON/);
@@ -137,9 +159,10 @@ test("server-renders the campaign studio with starter drafts and a live campaign
 });
 
 test("keeps the Studio import, export, preview, and applied-skin contracts wired", async () => {
-  const [page, studio] = await Promise.all([
+  const [page, studio, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/studio/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(
@@ -170,6 +193,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /function resetActive\s*\(/);
   assert.match(studio, /function importDraft\s*\(/);
   assert.match(studio, /function exportActive\s*\(/);
+  assert.match(studio, /function uploadTier\s*\(/);
   assert.match(studio, /new FileReader\(\)/);
   assert.match(studio, /new Blob\(/);
   assert.match(
@@ -195,6 +219,32 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
       new RegExp(`data-testid=["']${testId}["']`),
     );
   }
+  for (const dynamicTestId of [
+    "config-card-preview-watergun",
+    "config-grand-reward-preview",
+    "config-card-size-hint",
+    "config-reward-size-hint",
+  ]) {
+    assert.match(studio, new RegExp(`["']${dynamicTestId}["']`));
+  }
+  assert.match(
+    studio,
+    /data-preview-ratio=["']9:21["']/,
+  );
+  assert.match(
+    css,
+    /\.studio-phone\s*\{(?=[^}]*box-sizing:\s*content-box)(?=[^}]*width:\s*375px)(?=[^}]*aspect-ratio:\s*9\s*\/\s*21)[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-inspector\s*>\s*details\s*>\s*summary::after\s*\{[^}]*content:\s*["']\+["'][^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-inspector\s*>\s*details\[open\]\s*>\s*summary::after\s*\{[^}]*content:\s*["'](?:−|-)["'][^}]*\}/s,
+  );
+  assert.match(studio, /studio-details-collapsed["']>展开/);
+  assert.match(studio, /studio-details-expanded["']>收起/);
 });
 
 test("keeps the campaign mechanics and local Figma assets wired", async () => {
@@ -443,6 +493,12 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
       "../public/theme-assets/summer/hero-scene-v2.png",
       "../public/figma/crops/brand-logo.png",
       "../public/figma/equipment-water-gun.webp",
+      "../public/figma/equipment-watermelon-bucket.webp",
+      "../public/figma/equipment-paddle-board.webp",
+      "../public/figma/equipment-palm-tree.webp",
+      "../public/figma/equipment-pineapple-float.webp",
+      "../public/figma/equipment-sun-chair.webp",
+      "../public/figma/reward-gold-horse.webp",
       "../public/figma/topic-sunset-card.webp",
       "../public/figma/content-card-lions.webp",
       "../public/theme-assets/night/hero-scene.webp",

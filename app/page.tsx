@@ -18,6 +18,8 @@ export type CardDefinition = {
   name: string;
   emoji: string;
   image?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   accent: string;
   rarity: "普通" | "稀有";
   weight: number;
@@ -31,6 +33,9 @@ export type TierDefinition = {
   condition: string;
   icon: string;
   kind: "coupon" | "grand";
+  image?: string;
+  imageWidth?: number;
+  imageHeight?: number;
 };
 
 export type TaskId = "browse" | "post" | "share" | "store" | "gift";
@@ -308,6 +313,8 @@ const SUMMER_CARDS: CardDefinition[] = [
     name: "鲨鲨水枪",
     emoji: "🔫",
     image: "/figma/equipment-water-gun.webp",
+    imageWidth: 180,
+    imageHeight: 156,
     accent: "#38bdf8",
     rarity: "普通",
     weight: 1,
@@ -317,6 +324,8 @@ const SUMMER_CARDS: CardDefinition[] = [
     name: "冰镇西瓜",
     emoji: "🍉",
     image: "/figma/equipment-watermelon-bucket.webp",
+    imageWidth: 180,
+    imageHeight: 179,
     accent: "#77e36b",
     rarity: "普通",
     weight: 1,
@@ -326,6 +335,8 @@ const SUMMER_CARDS: CardDefinition[] = [
     name: "顺风冲浪板",
     emoji: "🏄",
     image: "/figma/equipment-paddle-board.webp",
+    imageWidth: 93,
+    imageHeight: 180,
     accent: "#ffd84d",
     rarity: "普通",
     weight: 1,
@@ -335,6 +346,8 @@ const SUMMER_CARDS: CardDefinition[] = [
     name: "海岛椰树",
     emoji: "🌴",
     image: "/figma/equipment-palm-tree.webp",
+    imageWidth: 159,
+    imageHeight: 180,
     accent: "#5de08c",
     rarity: "普通",
     weight: 1,
@@ -344,6 +357,8 @@ const SUMMER_CARDS: CardDefinition[] = [
     name: "好运泳圈",
     emoji: "🛟",
     image: "/figma/equipment-pineapple-float.webp",
+    imageWidth: 180,
+    imageHeight: 138,
     accent: "#ff7791",
     rarity: "普通",
     weight: 1,
@@ -353,6 +368,8 @@ const SUMMER_CARDS: CardDefinition[] = [
     name: "躺赢沙滩椅",
     emoji: "⛱️",
     image: "/figma/equipment-sun-chair.webp",
+    imageWidth: 150,
+    imageHeight: 180,
     accent: "#7f9cff",
     rarity: "普通",
     weight: 0.95,
@@ -419,6 +436,9 @@ const SUMMER_TIERS: TierDefinition[] = [
     condition: "集齐全套即可领取",
     icon: "足金",
     kind: "grand",
+    image: "/figma/reward-gold-horse.webp",
+    imageWidth: 132,
+    imageHeight: 112,
   },
 ];
 
@@ -1440,10 +1460,11 @@ export function CampaignExperience({
       unlocked,
       claimed,
       visual:
-        tier.kind === "grand" && pack.assets.grandRewardImage ? (
+        tier.image ||
+        (tier.kind === "grand" && pack.assets.grandRewardImage) ? (
           <img
             className="tier-prize-image"
-            src={pack.assets.grandRewardImage}
+            src={tier.image ?? pack.assets.grandRewardImage}
             alt=""
             aria-hidden="true"
             loading="lazy"
