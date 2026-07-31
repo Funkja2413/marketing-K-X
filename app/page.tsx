@@ -9,10 +9,11 @@ import {
 import {
   getThemePackStyle,
   THEME_PACKS,
+  type CampaignThemePack,
   type ThemeId,
 } from "./campaign-theme-packs";
 
-type CardDefinition = {
+export type CardDefinition = {
   id: string;
   name: string;
   emoji: string;
@@ -22,7 +23,7 @@ type CardDefinition = {
   weight: number;
 };
 
-type TierDefinition = {
+export type TierDefinition = {
   id: string;
   threshold: number;
   amount: string;
@@ -32,9 +33,9 @@ type TierDefinition = {
   kind: "coupon" | "grand";
 };
 
-type TaskId = "browse" | "post" | "share" | "store" | "gift";
+export type TaskId = "browse" | "post" | "share" | "store" | "gift";
 
-type TaskDefinition = {
+export type TaskDefinition = {
   id: TaskId;
   icon: string;
   title: string;
@@ -45,13 +46,13 @@ type TaskDefinition = {
   repeatable?: boolean;
 };
 
-type VenueDefinition = {
+export type VenueDefinition = {
   image: string;
   location: string;
   title: string;
 };
 
-type ActivityBannerDefinition = {
+export type ActivityBannerDefinition = {
   eyebrow: string;
   title: string;
 };
@@ -82,7 +83,7 @@ type CampaignState = {
   themes: Record<ThemeId, CampaignProgress>;
 };
 
-type ThemeDefinition = {
+export type ThemeDefinition = {
   id: ThemeId;
   navLabel: string;
   accessibleTitle: string;
@@ -473,7 +474,7 @@ const SUMMER_TASKS: TaskDefinition[] = [
   },
 ];
 
-const THEMES: Record<ThemeId, ThemeDefinition> = {
+export const THEMES: Record<ThemeId, ThemeDefinition> = {
   summer: {
     id: "summer",
     navLabel: "夏天马上顺",
@@ -665,9 +666,58 @@ const THEMES: Record<ThemeId, ThemeDefinition> = {
   },
 };
 
-const THEME_ORDER: ThemeId[] = ["summer", "night"];
+export const THEME_ORDER: ThemeId[] = ["summer", "night"];
 const FEATURED_TASK_IDS: TaskId[] = ["post", "share"];
 const COMPACT_TASK_IDS: TaskId[] = ["store", "post", "gift", "browse"];
+
+export const ACTIVE_SKIN_STORAGE_KEY = "campaign-active-skin-v1";
+
+export type CampaignSkinDraft = {
+  version: 1;
+  id: string;
+  name: string;
+  baseTheme: ThemeId;
+  content: ThemeDefinition;
+  pack: CampaignThemePack;
+  updatedAt: string;
+};
+
+export type CampaignRuntimeConfiguration = {
+  themes: Record<ThemeId, ThemeDefinition>;
+  themePacks: Record<ThemeId, CampaignThemePack>;
+};
+
+export function createConfigurationFromSkin(
+  skin: CampaignSkinDraft,
+): CampaignRuntimeConfiguration {
+  return {
+    themes: {
+      ...THEMES,
+      [skin.baseTheme]: {
+        ...skin.content,
+        id: skin.baseTheme,
+      },
+    },
+    themePacks: {
+      ...THEME_PACKS,
+      [skin.baseTheme]: skin.pack,
+    },
+  };
+}
+
+function isCampaignSkinDraft(input: unknown): input is CampaignSkinDraft {
+  if (!input || typeof input !== "object") return false;
+  const candidate = input as Partial<CampaignSkinDraft>;
+  return Boolean(
+    candidate.version === 1 &&
+      typeof candidate.id === "string" &&
+      typeof candidate.name === "string" &&
+      (candidate.baseTheme === "summer" ||
+        candidate.baseTheme === "night") &&
+      candidate.content &&
+      candidate.pack,
+  );
+}
 
 function CardArtwork({
   card,
@@ -720,10 +770,10 @@ function createInitialProgress(drawBalance = 1): CampaignProgress {
   };
 }
 
-function createInitialState(): CampaignState {
+function createInitialState(activeTheme: ThemeId = "summer"): CampaignState {
   return {
     version: 2,
-    activeTheme: "summer",
+    activeTheme,
     themes: {
       summer: createInitialProgress(2),
       night: createInitialProgress(1),
@@ -731,8 +781,10 @@ function createInitialState(): CampaignState {
   };
 }
 
-function createFigmaFixtureState(): CampaignState {
-  const state = createInitialState();
+function createFigmaFixtureState(
+  activeTheme: ThemeId = "summer",
+): CampaignState {
+  const state = createInitialState(activeTheme);
   state.themes.summer = {
     ...state.themes.summer,
     drawBalance: 99,
@@ -837,7 +889,11 @@ function normalizeProgress(
   };
 }
 
-function normalizeState(input: unknown, legacyNight?: unknown): CampaignState {
+function normalizeState(
+  input: unknown,
+  legacyNight?: unknown,
+  themes: Record<ThemeId, ThemeDefinition> = THEMES,
+): CampaignState {
   if (!input || typeof input !== "object") {
     const initial = createInitialState();
     return {
@@ -845,7 +901,7 @@ function normalizeState(input: unknown, legacyNight?: unknown): CampaignState {
       themes: {
         summer: createInitialProgress(2),
         night: legacyNight
-          ? normalizeProgress(legacyNight, THEMES.night)
+          ? normalizeProgress(legacyNight, themes.night)
           : createInitialProgress(1),
       },
     };
@@ -858,10 +914,10 @@ function normalizeState(input: unknown, legacyNight?: unknown): CampaignState {
     activeTheme,
     themes: {
       summer: candidate.themes?.summer
-        ? normalizeProgress(candidate.themes.summer, THEMES.summer)
+        ? normalizeProgress(candidate.themes.summer, themes.summer)
         : createInitialProgress(2),
       night: candidate.themes?.night
-        ? normalizeProgress(candidate.themes.night, THEMES.night)
+        ? normalizeProgress(candidate.themes.night, themes.night)
         : createInitialProgress(1),
     },
   };
@@ -892,9 +948,29 @@ function pickWeightedCard(
   };
 }
 
-export default function Home() {
+type CampaignExperienceProps = {
+  configuration?: CampaignRuntimeConfiguration;
+  initialTheme?: ThemeId;
+  persistProgress?: boolean;
+  fixture?: boolean;
+};
+
+export function CampaignExperience({
+  configuration: providedConfiguration,
+  initialTheme = "summer",
+  persistProgress = true,
+  fixture = false,
+}: CampaignExperienceProps = {}) {
+  const [appliedConfiguration, setAppliedConfiguration] =
+    useState<CampaignRuntimeConfiguration | null>(
+      providedConfiguration ?? null,
+    );
   const [campaignState, setCampaignState] =
-    useState<CampaignState>(() => createInitialState());
+    useState<CampaignState>(() =>
+      fixture
+        ? createFigmaFixtureState(initialTheme)
+        : createInitialState(initialTheme),
+    );
   const [ready, setReady] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawResult, setDrawResult] = useState<DrawResult | null>(null);
@@ -915,10 +991,15 @@ export default function Home() {
   const claimedTierIdsRef = useRef<Set<string>>(new Set());
   const giftClaimPendingRef = useRef(false);
   const stateEpochRef = useRef(0);
-  const fixtureModeRef = useRef(false);
+  const fixtureModeRef = useRef(fixture);
 
-  const theme = THEMES[campaignState.activeTheme];
-  const pack = THEME_PACKS[theme.id];
+  const runtimeConfiguration =
+    providedConfiguration ?? appliedConfiguration;
+  const runtimeThemes = runtimeConfiguration?.themes ?? THEMES;
+  const runtimeThemePacks =
+    runtimeConfiguration?.themePacks ?? THEME_PACKS;
+  const theme = runtimeThemes[campaignState.activeTheme];
+  const pack = runtimeThemePacks[theme.id];
   const state = campaignState.themes[campaignState.activeTheme];
   const CARD_DEFINITIONS = theme.cards;
   const TIERS = theme.tiers;
@@ -953,6 +1034,10 @@ export default function Home() {
 
   useEffect(() => {
     const hydrateFromStorage = () => {
+      if (!persistProgress) {
+        setReady(true);
+        return;
+      }
       try {
         const searchParams = new URLSearchParams(window.location.search);
         setShowHeroMeasurements(
@@ -965,36 +1050,63 @@ export default function Home() {
           setCampaignState(createFigmaFixtureState());
           return;
         }
+        let storedThemes = THEMES;
+        let storedSkin: CampaignSkinDraft | null = null;
+        const savedSkin = window.localStorage.getItem(
+          ACTIVE_SKIN_STORAGE_KEY,
+        );
+        if (savedSkin) {
+          const parsedSkin: unknown = JSON.parse(savedSkin);
+          if (isCampaignSkinDraft(parsedSkin)) {
+            storedSkin = parsedSkin;
+            const nextConfiguration =
+              createConfigurationFromSkin(parsedSkin);
+            storedThemes = nextConfiguration.themes;
+            setAppliedConfiguration(nextConfiguration);
+          }
+        }
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved) {
-          setCampaignState(normalizeState(JSON.parse(saved)));
+          const nextState = normalizeState(
+            JSON.parse(saved),
+            undefined,
+            storedThemes,
+          );
+          if (storedSkin) nextState.activeTheme = storedSkin.baseTheme;
+          setCampaignState(nextState);
         } else {
           const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-          setCampaignState(
-            normalizeState(undefined, legacy ? JSON.parse(legacy) : undefined),
+          const nextState = normalizeState(
+            undefined,
+            legacy ? JSON.parse(legacy) : undefined,
+            storedThemes,
           );
+          if (storedSkin) nextState.activeTheme = storedSkin.baseTheme;
+          setCampaignState(nextState);
         }
       } catch {
         window.localStorage.removeItem(STORAGE_KEY);
         window.localStorage.removeItem(LEGACY_STORAGE_KEY);
-        setCampaignState(createInitialState());
+        setAppliedConfiguration(null);
+        setCampaignState(createInitialState(initialTheme));
       } finally {
         setReady(true);
       }
     };
     window.queueMicrotask(hydrateFromStorage);
-  }, []);
+  }, [initialTheme, persistProgress]);
 
   useEffect(() => {
-    if (!ready || fixtureModeRef.current) return;
+    if (!persistProgress || !ready || fixtureModeRef.current) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(campaignState));
     } catch {
       // The demo stays usable even if browser storage is unavailable.
     }
-  }, [campaignState, ready]);
+  }, [campaignState, persistProgress, ready]);
 
   useEffect(() => {
+    if (!persistProgress) return;
     const refreshDailyTasks = () => {
       const currentCycle = getDailyCycle();
       setCampaignState((current) => {
@@ -1015,7 +1127,7 @@ export default function Home() {
       window.removeEventListener("focus", refreshDailyTasks);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [persistProgress]);
 
   useEffect(() => {
     return () => {
@@ -1315,7 +1427,7 @@ export default function Home() {
       : `解锁${nextTier.title}`;
   const stageTabs = THEME_ORDER.map((themeId) => ({
     id: themeId,
-    label: THEMES[themeId].navLabel,
+    label: runtimeThemes[themeId].navLabel,
   }));
   const stageTiers: StageTier[] = TIERS.map((tier) => {
     const unlocked = uniqueCount >= tier.threshold;
@@ -2020,4 +2132,8 @@ export default function Home() {
       )}
     </main>
   );
+}
+
+export default function Home() {
+  return <CampaignExperience />;
 }

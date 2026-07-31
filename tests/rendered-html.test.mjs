@@ -96,6 +96,107 @@ test("server-renders the unified summer campaign template", async () => {
   assert.doesNotMatch(html, /figma\.com\/api\/mcp\/asset/i);
 });
 
+test("server-renders the campaign studio with starter drafts and a live campaign preview", async () => {
+  const response = await render("/studio");
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+
+  const html = await response.text();
+  assert.match(html, /data-testid="config-tool"/);
+  assert.match(html, /class="studio-sidebar studio-library"/);
+  assert.match(html, /class="studio-canvas"/);
+  assert.match(html, /class="studio-sidebar studio-inspector"/);
+  assert.match(html, /活动换肤配置器/);
+  assert.match(html, /夏天马上顺 · 默认/);
+  assert.match(html, /夏日夜食 · 默认/);
+
+  for (const testId of [
+    "config-preview",
+    "config-import-input",
+    "config-export",
+    "config-field-title",
+    "config-field-hero-media",
+  ]) {
+    assert.match(html, new RegExp(`data-testid="${testId}"`));
+  }
+
+  assert.match(html, /复制当前方案/);
+  assert.match(html, /导入 JSON/);
+  assert.match(html, /导出当前方案/);
+  assert.match(html, /应用到活动页/);
+  assert.doesNotMatch(html, /data-testid="config-error"/);
+
+  assert.match(
+    html,
+    /class="campaign-shell campaign-template theme-summer"/,
+  );
+  assert.match(html, /data-testid="campaign-stage"/);
+  assert.match(html, /data-testid="draw-button"/);
+  assert.match(html, /data-testid="draw-balance"/);
+  assert.match(html, /class="featured-task-rail"/);
+});
+
+test("keeps the Studio import, export, preview, and applied-skin contracts wired", async () => {
+  const [page, studio] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/studio/page.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(
+    page,
+    /export const ACTIVE_SKIN_STORAGE_KEY\s*=\s*["']campaign-active-skin-v1["']/,
+  );
+  assert.match(page, /export type CampaignSkinDraft\s*=/);
+  assert.match(page, /export function createConfigurationFromSkin\s*\(/);
+  assert.match(page, /export function CampaignExperience\s*\(/);
+  assert.match(
+    page,
+    /localStorage\.getItem\(\s*ACTIVE_SKIN_STORAGE_KEY\s*,?\s*\)/,
+  );
+  assert.match(page, /isCampaignSkinDraft\(parsedSkin\)/);
+  assert.match(page, /createConfigurationFromSkin\(parsedSkin\)/);
+  assert.match(page, /export default function Home\s*\(\)/);
+  assert.match(page, /return <CampaignExperience \/>/);
+
+  assert.match(
+    studio,
+    /const DRAFTS_STORAGE_KEY\s*=\s*["']campaign-studio-drafts-v1["']/,
+  );
+  assert.match(studio, /id:\s*["']starter-summer["']/);
+  assert.match(studio, /name:\s*["']夏天马上顺 · 默认["']/);
+  assert.match(studio, /id:\s*["']starter-night["']/);
+  assert.match(studio, /name:\s*["']夏日夜食 · 默认["']/);
+  assert.match(studio, /function duplicateActive\s*\(/);
+  assert.match(studio, /function resetActive\s*\(/);
+  assert.match(studio, /function importDraft\s*\(/);
+  assert.match(studio, /function exportActive\s*\(/);
+  assert.match(studio, /new FileReader\(\)/);
+  assert.match(studio, /new Blob\(/);
+  assert.match(
+    studio,
+    /localStorage\.setItem\(\s*ACTIVE_SKIN_STORAGE_KEY\s*,/,
+  );
+  assert.match(
+    studio,
+    /<CampaignExperience[\s\S]*?configuration=\{runtimeConfiguration\}[\s\S]*?initialTheme=\{activeDraft\.baseTheme\}[\s\S]*?persistProgress=\{false\}[\s\S]*?fixture/,
+  );
+
+  for (const testId of [
+    "config-tool",
+    "config-preview",
+    "config-import-input",
+    "config-export",
+    "config-error",
+    "config-field-title",
+    "config-field-hero-media",
+  ]) {
+    assert.match(
+      studio,
+      new RegExp(`data-testid=["']${testId}["']`),
+    );
+  }
+});
+
 test("keeps the campaign mechanics and local Figma assets wired", async () => {
   const [page, campaignStage, themePacks, themePackGuide, css] =
     await Promise.all([
