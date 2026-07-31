@@ -225,9 +225,10 @@ test("server-renders the campaign studio with starter drafts and a live campaign
 });
 
 test("keeps the Studio import, export, preview, and applied-skin contracts wired", async () => {
-  const [page, studio, css] = await Promise.all([
+  const [page, studio, campaignStage, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/studio/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/campaign-stage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
@@ -250,10 +251,6 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     page,
     /storedSkin\s*=\s*await resolveCampaignSkinPreviewAssets\(/,
   );
-  assert.match(
-    page,
-    /searchParams\.get\(\s*["']previewTransitionCard["']/,
-  );
   assert.match(page, /createConfigurationFromSkin\(storedSkin\)/);
   assert.match(page, /export default function Home\s*\(\)/);
   assert.match(page, /return <CampaignExperience \/>/);
@@ -275,7 +272,6 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /function persistActivePreviewDraft\s*\(/);
   assert.match(studio, /function openActivityPreview\s*\(/);
   assert.match(studio, /onClick=\{openActivityPreview\}/);
-  assert.match(studio, /previewTransitionCard/);
   assert.match(
     studio,
     /serializeDraftAssets\(\[activeDraft\]\)\[0\]/,
@@ -372,7 +368,25 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /积分获得/);
   assert.match(studio, /图片叠加到 Hero/);
   assert.match(studio, /播放视频过场/);
-  assert.match(page, /data-testid=["']hero-unlock-transition["']/);
+  assert.match(
+    studio,
+    /studioPreview:\s*String\(Date\.now\(\)\)/,
+  );
+  assert.match(page, /const STUDIO_PREVIEW_DRAW_SEQUENCE/);
+  assert.match(
+    page,
+    /STUDIO_PREVIEW_DRAW_SEQUENCE\s*=\s*\[\s*["']watergun["']\s*,\s*["']surfboard["']\s*\]/,
+  );
+  assert.match(page, /function createStudioPreviewState\s*\(/);
+  assert.match(page, /studioPreviewModeRef\.current/);
+  assert.match(page, /studioPreviewDrawIndexRef\.current/);
+  assert.match(page, /forcedPreviewCard/);
+  assert.match(
+    campaignStage,
+    /data-testid=["']hero-unlock-transition["']/,
+  );
+  assert.match(css, /\.campaign-template \.campaign-hero-unlock-transition\s*\{/);
+  assert.doesNotMatch(css, /\.hero-transition-backdrop\s*\{/);
   assert.match(page, /heroLayer\?\.presentation === ["']video-transition["']/);
   assert.ok(
     studio.indexOf("<HeroLayerComposer") <

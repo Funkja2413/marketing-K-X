@@ -691,6 +691,7 @@ export const THEMES: Record<ThemeId, ThemeDefinition> = {
 export const THEME_ORDER: ThemeId[] = ["summer", "night"];
 const FEATURED_TASK_IDS: TaskId[] = ["post", "share"];
 const COMPACT_TASK_IDS: TaskId[] = ["store", "post", "gift", "browse"];
+const STUDIO_PREVIEW_DRAW_SEQUENCE = ["watergun", "surfboard"];
 
 export const ACTIVE_SKIN_STORAGE_KEY = "campaign-active-skin-v1";
 const PREVIEW_ASSET_DB_NAME = "campaign-studio-assets-v1";
@@ -975,6 +976,16 @@ function createInitialState(
   };
 }
 
+function createStudioPreviewState(
+  activeTheme: ThemeId,
+  themes: Record<ThemeId, ThemeDefinition>,
+  themePacks: Record<ThemeId, CampaignThemePack>,
+) {
+  const state = createInitialState(activeTheme, themes, themePacks);
+  state.themes[activeTheme] = createInitialProgress(2, []);
+  return state;
+}
+
 function createFigmaFixtureState(
   activeTheme: ThemeId = "summer",
   themes: Record<ThemeId, ThemeDefinition> = THEMES,
@@ -1232,6 +1243,8 @@ export function CampaignExperience({
   const giftClaimPendingRef = useRef(false);
   const stateEpochRef = useRef(0);
   const fixtureModeRef = useRef(fixture);
+  const studioPreviewModeRef = useRef(false);
+  const studioPreviewDrawIndexRef = useRef(0);
 
   const runtimeConfiguration =
     providedConfiguration ?? appliedConfiguration;
@@ -1280,6 +1293,8 @@ export function CampaignExperience({
       }
       try {
         const searchParams = new URLSearchParams(window.location.search);
+        studioPreviewModeRef.current = searchParams.has("studioPreview");
+        studioPreviewDrawIndexRef.current = 0;
         setShowHeroMeasurements(
           searchParams.get("inspectHero") === "1",
         );
@@ -1307,25 +1322,18 @@ export function CampaignExperience({
             storedThemes = nextConfiguration.themes;
             storedThemePacks = nextConfiguration.themePacks;
             setAppliedConfiguration(nextConfiguration);
-            const previewTransitionCard = searchParams.get(
-              "previewTransitionCard",
-            );
-            if (previewTransitionCard) {
-              const previewLayer =
-                storedSkin.pack.assets.collectionHeroComposition?.layers.find(
-                  (layer) =>
-                    layer.cardId === previewTransitionCard &&
-                    layer.presentation === "video-transition" &&
-                    layer.transitionMedia?.src,
-                );
-              if (previewLayer?.transitionMedia) {
-                setActiveHeroTransition({
-                  cardId: previewLayer.cardId,
-                  media: previewLayer.transitionMedia,
-                });
-              }
-            }
           }
+        }
+        if (studioPreviewModeRef.current) {
+          const previewTheme = storedSkin?.baseTheme ?? initialTheme;
+          setCampaignState(
+            createStudioPreviewState(
+              previewTheme,
+              storedThemes,
+              storedThemePacks,
+            ),
+          );
+          return;
         }
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved) {
@@ -1361,7 +1369,14 @@ export function CampaignExperience({
   }, [initialTheme, persistProgress]);
 
   useEffect(() => {
-    if (!persistProgress || !ready || fixtureModeRef.current) return;
+    if (
+      !persistProgress ||
+      !ready ||
+      fixtureModeRef.current ||
+      studioPreviewModeRef.current
+    ) {
+      return;
+    }
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(campaignState));
     } catch {
@@ -1459,12 +1474,30 @@ export function CampaignExperience({
       );
       return !layer?.unlockMethod || layer.unlockMethod === "draw";
     });
-    const { card, isNew } = pickWeightedCard(
-      state,
-      configuredDrawCards.length > 0
-        ? configuredDrawCards
-        : CARD_DEFINITIONS,
-    );
+    const forcedPreviewCardId = studioPreviewModeRef.current
+      ? STUDIO_PREVIEW_DRAW_SEQUENCE[
+          studioPreviewDrawIndexRef.current
+        ]
+      : undefined;
+    const forcedPreviewCard = forcedPreviewCardId
+      ? CARD_DEFINITIONS.find(
+          (card) => card.id === forcedPreviewCardId,
+        )
+      : undefined;
+    const { card, isNew } = forcedPreviewCard
+      ? {
+          card: forcedPreviewCard,
+          isNew: (state.cardCounts[forcedPreviewCard.id] ?? 0) === 0,
+        }
+      : pickWeightedCard(
+          state,
+          configuredDrawCards.length > 0
+            ? configuredDrawCards
+            : CARD_DEFINITIONS,
+        );
+    if (forcedPreviewCard) {
+      studioPreviewDrawIndexRef.current += 1;
+    }
     drawPendingRef.current = true;
     setIsDrawing(true);
 
@@ -1678,6 +1711,7 @@ export function CampaignExperience({
       clearTimeout(drawTimerRef.current);
       drawTimerRef.current = null;
     }
+    studioPreviewDrawIndexRef.current = 0;
     setCampaignState(
       fixtureModeRef.current
         ? createFigmaFixtureState(
@@ -1685,11 +1719,17 @@ export function CampaignExperience({
             runtimeThemes,
             runtimeThemePacks,
           )
-        : createInitialState(
-            campaignState.activeTheme,
-            runtimeThemes,
-            runtimeThemePacks,
-          ),
+        : studioPreviewModeRef.current
+          ? createStudioPreviewState(
+              campaignState.activeTheme,
+              runtimeThemes,
+              runtimeThemePacks,
+            )
+          : createInitialState(
+              campaignState.activeTheme,
+              runtimeThemes,
+              runtimeThemePacks,
+            ),
     );
     setIsDrawing(false);
     drawPendingRef.current = false;
@@ -1888,6 +1928,7 @@ export function CampaignExperience({
         collectionSubheading={collectionSubheading}
         tiers={stageTiers}
         cards={stageCards}
+        heroTransition={activeHeroTransition}
         onSwitchTheme={switchTheme}
         onOpenCollection={() => setActiveModal("cards")}
         onDraw={handleDraw}
@@ -1910,6 +1951,7 @@ export function CampaignExperience({
           setActiveModal("cards");
           if (count > 1) announce(`${card.name}有${count - 1}张可赠送`);
         }}
+        onHeroTransitionEnd={() => setActiveHeroTransition(null)}
       />
 
       <section className="energy-teaser" aria-label={theme.sideGame.eyebrow}>
@@ -2120,46 +2162,6 @@ export function CampaignExperience({
           玩法与演示说明
         </button>
       </footer>
-
-      {activeHeroTransition && (
-        <div
-          className="hero-transition-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="道具点亮动画"
-          data-testid="hero-unlock-transition"
-          data-card-id={activeHeroTransition.cardId}
-        >
-          {activeHeroTransition.media.type === "video" ? (
-            <video
-              src={activeHeroTransition.media.src}
-              poster={activeHeroTransition.media.poster}
-              autoPlay
-              muted
-              playsInline
-              onEnded={() => setActiveHeroTransition(null)}
-              onError={() => setActiveHeroTransition(null)}
-            />
-          ) : (
-            <img
-              src={activeHeroTransition.media.src}
-              alt=""
-              onLoad={() =>
-                window.setTimeout(
-                  () => setActiveHeroTransition(null),
-                  1200,
-                )
-              }
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => setActiveHeroTransition(null)}
-          >
-            跳过
-          </button>
-        </div>
-      )}
 
       {drawResult && resultCard && !activeHeroTransition && (
         <div className="modal-backdrop" role="presentation">

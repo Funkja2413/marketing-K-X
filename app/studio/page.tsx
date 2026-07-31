@@ -2696,15 +2696,6 @@ export default function CampaignStudio() {
     const previewParams = new URLSearchParams({
       studioPreview: String(Date.now()),
     });
-    if (
-      selectedHeroLayer?.presentation === "video-transition" &&
-      selectedHeroLayer.transitionMedia?.src
-    ) {
-      previewParams.set(
-        "previewTransitionCard",
-        selectedHeroLayer.cardId,
-      );
-    }
     window.open(
       `/?${previewParams.toString()}`,
       "_blank",

@@ -55,6 +55,10 @@ type CampaignStageProps = {
   collectionSubheading: string;
   tiers: StageTier[];
   cards: StageCard[];
+  heroTransition: {
+    cardId: string;
+    media: CampaignHeroMedia;
+  } | null;
   onSwitchTheme: (themeId: ThemeId) => void;
   onOpenCollection: () => void;
   onDraw: () => void;
@@ -63,6 +67,7 @@ type CampaignStageProps = {
   onOpenRules: () => void;
   onTierSelect: (tierId: string) => void;
   onCardSelect: (cardId: string) => void;
+  onHeroTransitionEnd: () => void;
 };
 
 const HERO_DESIGN_WIDTH = 375;
@@ -201,6 +206,7 @@ export function CampaignStage({
   collectionSubheading,
   tiers,
   cards,
+  heroTransition,
   onSwitchTheme,
   onOpenCollection,
   onDraw,
@@ -209,6 +215,7 @@ export function CampaignStage({
   onOpenRules,
   onTierSelect,
   onCardSelect,
+  onHeroTransitionEnd,
 }: CampaignStageProps) {
   const collectionHeadingMatch = collectionHeading.match(
     /^(.*?)(\d+)(.*)$/,
@@ -295,6 +302,39 @@ export function CampaignStage({
             className="campaign-hero-transition-layer"
             aria-hidden="true"
           />
+
+          {heroTransition && (
+            <div
+              className="campaign-hero-unlock-transition"
+              role="status"
+              aria-label="道具点亮动画"
+              data-testid="hero-unlock-transition"
+              data-card-id={heroTransition.cardId}
+            >
+              {heroTransition.media.type === "video" ? (
+                <video
+                  src={heroTransition.media.src}
+                  poster={heroTransition.media.poster}
+                  autoPlay
+                  muted
+                  playsInline
+                  onEnded={onHeroTransitionEnd}
+                  onError={onHeroTransitionEnd}
+                />
+              ) : (
+                <img
+                  src={heroTransition.media.src}
+                  alt=""
+                  onLoad={() =>
+                    window.setTimeout(onHeroTransitionEnd, 1200)
+                  }
+                />
+              )}
+              <button type="button" onClick={onHeroTransitionEnd}>
+                跳过
+              </button>
+            </div>
+          )}
 
           <div className="campaign-hero-effect-layer" aria-hidden="true">
             <div className="hero-progress-visual">{heroCards}</div>
