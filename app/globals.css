@@ -5537,29 +5537,23 @@ footer button {
   gap: 7px;
 }
 
-.studio-hero-layer-preview-toolbar > div {
-  display: flex;
+.studio-hero-layer-composition-status {
+  display: grid;
   min-width: 0;
-  padding: 2px;
-  border-radius: 7px;
-  background: #dfe8f6;
+  gap: 2px;
 }
 
-.studio-hero-layer-preview-toolbar button {
-  min-height: 25px;
-  padding: 0 7px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #647287;
+.studio-hero-layer-composition-status strong {
+  color: #24334a;
+  font-size: 9px;
+}
+
+.studio-hero-layer-composition-status span {
+  overflow: hidden;
+  color: #718096;
   font-size: 7px;
-  font-weight: 800;
-}
-
-.studio-hero-layer-preview-toolbar button.active {
-  background: #fff;
-  color: #245ed2;
-  box-shadow: 0 1px 3px rgba(28, 51, 88, 0.12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .studio-hero-layer-preview-toolbar > label {
@@ -5570,6 +5564,24 @@ footer button {
   color: #63738b;
   font-size: 7px;
   font-weight: 750;
+}
+
+.studio-hero-layer-list-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.studio-hero-layer-list-heading strong {
+  color: #24334a;
+  font-size: 9px;
+}
+
+.studio-hero-layer-list-heading span {
+  color: #718096;
+  font-size: 7px;
 }
 
 .studio-hero-composer-canvas {

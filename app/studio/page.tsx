@@ -946,14 +946,11 @@ function AssetPreview({
   );
 }
 
-type HeroLayerPreviewMode = "actual" | "selected" | "all";
-
 function HeroLayerComposer({
   baseMedia,
   finalReference,
   layers,
   selectedLayerId,
-  visibleCardIds,
   showReference,
   onSelect,
   onCommit,
@@ -962,7 +959,6 @@ function HeroLayerComposer({
   finalReference?: CampaignHeroMedia;
   layers: CampaignCollectionHeroLayer[];
   selectedLayerId: string;
-  visibleCardIds: string[];
   showReference: boolean;
   onSelect: (layerId: string) => void;
   onCommit: (
@@ -994,8 +990,9 @@ function HeroLayerComposer({
     rectWidth: number;
     rectHeight: number;
   } | null>(null);
-  const visibleSet = new Set(visibleCardIds);
-
+  const compositionLayers = layers
+    .filter((layer) => layer.media?.src && !layer.embeddedInBase)
+    .sort((left, right) => left.zIndex - right.zIndex);
   function beginLayerInteraction(
     event: ReactPointerEvent<HTMLElement>,
     layer: CampaignCollectionHeroLayer,
@@ -1114,67 +1111,60 @@ function HeroLayerComposer({
     <div
       className="studio-hero-composer-canvas"
       data-testid="config-hero-layer-canvas"
+      data-composition-layer-count={compositionLayers.length}
     >
       {renderMedia(baseMedia, "studio-hero-composer-base", "Hero 基础图")}
-      {layers
-        .filter(
-          (layer) =>
-            visibleSet.has(layer.cardId) &&
-            layer.media?.src &&
-            !layer.embeddedInBase,
-        )
-        .sort((left, right) => left.zIndex - right.zIndex)
-        .map((layer) => {
-          const frame =
-            transient?.layerId === layer.id ? transient : layer;
-          const selected = selectedLayerId === layer.id;
-          return (
-            <div
-              className={`studio-hero-composer-layer ${
-                selected ? "selected" : ""
-              }`}
-              style={{
-                left: `${(frame.x / 375) * 100}%`,
-                top: `${(frame.y / 460) * 100}%`,
-                width: `${(frame.width / 375) * 100}%`,
-                zIndex: layer.zIndex + 2,
-                transform: `rotate(${layer.rotation}deg)`,
-              }}
-              onPointerDown={(event) =>
-                beginLayerInteraction(event, layer, "move")
-              }
-              onPointerMove={moveLayerInteraction}
-              onPointerUp={finishLayerInteraction}
-              onPointerCancel={finishLayerInteraction}
-              data-card-id={layer.cardId}
-              key={layer.id}
-            >
-              {renderMedia(
-                layer.media!,
-                "studio-hero-composer-layer-media",
-                "",
-              )}
-              {selected && (
-                <>
-                  <span className="studio-hero-composer-label">
-                    {layer.label}
-                  </span>
-                  <button
-                    type="button"
-                    className="studio-hero-composer-resize"
-                    aria-label={`缩放${layer.label}`}
-                    onPointerDown={(event) =>
-                      beginLayerInteraction(event, layer, "resize")
-                    }
-                    onPointerMove={moveLayerInteraction}
-                    onPointerUp={finishLayerInteraction}
-                    onPointerCancel={finishLayerInteraction}
-                  />
-                </>
-              )}
-            </div>
-          );
-        })}
+      {compositionLayers.map((layer) => {
+        const frame =
+          transient?.layerId === layer.id ? transient : layer;
+        const selected = selectedLayerId === layer.id;
+        return (
+          <div
+            className={`studio-hero-composer-layer ${
+              selected ? "selected" : ""
+            }`}
+            style={{
+              left: `${(frame.x / 375) * 100}%`,
+              top: `${(frame.y / 460) * 100}%`,
+              width: `${(frame.width / 375) * 100}%`,
+              zIndex: layer.zIndex + 2,
+              transform: `rotate(${layer.rotation}deg)`,
+            }}
+            onPointerDown={(event) =>
+              beginLayerInteraction(event, layer, "move")
+            }
+            onPointerMove={moveLayerInteraction}
+            onPointerUp={finishLayerInteraction}
+            onPointerCancel={finishLayerInteraction}
+            data-card-id={layer.cardId}
+            key={layer.id}
+          >
+            {renderMedia(
+              layer.media!,
+              "studio-hero-composer-layer-media",
+              "",
+            )}
+            {selected && (
+              <>
+                <span className="studio-hero-composer-label">
+                  {layer.label}
+                </span>
+                <button
+                  type="button"
+                  className="studio-hero-composer-resize"
+                  aria-label={`缩放${layer.label}`}
+                  onPointerDown={(event) =>
+                    beginLayerInteraction(event, layer, "resize")
+                  }
+                  onPointerMove={moveLayerInteraction}
+                  onPointerUp={finishLayerInteraction}
+                  onPointerCancel={finishLayerInteraction}
+                />
+              </>
+            )}
+          </div>
+        );
+      })}
       {showReference &&
         finalReference?.src &&
         renderMedia(
@@ -1201,8 +1191,6 @@ export default function CampaignStudio() {
     useState("campaign-main");
   const [heroLayerEditId, setHeroLayerEditId] =
     useState("hero-layer-watergun");
-  const [heroLayerPreviewMode, setHeroLayerPreviewMode] =
-    useState<HeroLayerPreviewMode>("actual");
   const [showHeroFinalReference, setShowHeroFinalReference] =
     useState(false);
   const [flowEdges, setFlowEdges] = useState<CampaignFlowEdge[]>(
@@ -1266,13 +1254,14 @@ export default function CampaignStudio() {
   const configuredHeroLayerCount = heroLayers.filter(
     (layer) => Boolean(layer.media?.src) || layer.embeddedInBase,
   ).length;
-  const editorVisibleHeroCardIds =
-    heroLayerPreviewMode === "all"
-      ? heroLayers.map((layer) => layer.cardId)
-      : heroLayerPreviewMode === "selected" && selectedHeroLayer
-        ? [selectedHeroLayer.cardId]
-      : collectionHeroComposition?.initialUnlockedCardIds ?? [];
-  const h5HeroLayerPreviewCardIds = editorVisibleHeroCardIds;
+  const positionedHeroLayerCount = heroLayers.filter(
+    (layer) => Boolean(layer.media?.src) && !layer.embeddedInBase,
+  ).length;
+  const embeddedHeroLayerCount = heroLayers.filter(
+    (layer) => layer.embeddedInBase,
+  ).length;
+  const h5HeroLayerPreviewCardIds =
+    collectionHeroComposition?.initialUnlockedCardIds ?? [];
   const previewDraft = useMemo(() => {
     if (!aiTrial || aiTrial.target.draftId !== activeDraft.id) {
       return activeDraft;
@@ -1462,7 +1451,6 @@ export default function CampaignStudio() {
       setAdoptedCandidateId(null);
       setAdoptedGroupId(null);
       setHeroLayerEditId("hero-layer-watergun");
-      setHeroLayerPreviewMode("actual");
       setShowHeroFinalReference(false);
     });
     return () => window.cancelAnimationFrame(frame);
@@ -3778,8 +3766,54 @@ export default function CampaignStudio() {
                   </label>
                 </div>
                 <p className="studio-hero-layer-note">
-                  每张道具卡按稳定 cardId 控制一个透明图层。解锁顺序可以随机，位置不会变化。
+                  组合画布常显所有已配置图层；选择卡片只切换编辑焦点，不会隐藏其他素材。
                 </p>
+                <div className="studio-hero-layer-preview-toolbar">
+                  <div className="studio-hero-layer-composition-status">
+                    <strong>组合画布</strong>
+                    <span>
+                      {positionedHeroLayerCount} 个独立图层 ·{" "}
+                      {embeddedHeroLayerCount} 个已在底图
+                    </span>
+                  </div>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showHeroFinalReference}
+                      onChange={(event) =>
+                        setShowHeroFinalReference(event.target.checked)
+                      }
+                    />
+                    最终图对位
+                  </label>
+                </div>
+                <HeroLayerComposer
+                  baseMedia={activeDraft.pack.assets.heroMedia}
+                  finalReference={
+                    collectionHeroComposition.finalReference
+                  }
+                  layers={heroLayers}
+                  selectedLayerId={selectedHeroLayer?.id ?? ""}
+                  showReference={showHeroFinalReference}
+                  onSelect={(layerId) => setHeroLayerEditId(layerId)}
+                  onCommit={updateHeroLayer}
+                />
+                <div className="studio-hero-layer-canvas-hint">
+                  画布始终显示全部已放置素材。点击或拖动图层切换编辑对象，拖右下角控制点等比缩放；坐标按
+                  375 × 460 可见区保存。
+                </div>
+                <label className="studio-mini-upload">
+                  上传最终效果参考图 · 仅供半透明对位，不参与发布
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={uploadHeroFinalReference}
+                  />
+                </label>
+                <div className="studio-hero-layer-list-heading">
+                  <strong>9 个道具素材</strong>
+                  <span>点选后在上方组合画布中定位</span>
+                </div>
                 <div
                   className="studio-hero-layer-cards"
                   role="tablist"
@@ -3800,10 +3834,7 @@ export default function CampaignStudio() {
                             ? "configured"
                             : "missing"
                         }`}
-                        onClick={() => {
-                          setHeroLayerEditId(layer.id);
-                          setHeroLayerPreviewMode("selected");
-                        }}
+                        onClick={() => setHeroLayerEditId(layer.id)}
                         data-testid={`config-hero-layer-${layer.cardId}`}
                         key={layer.id}
                       >
@@ -3828,62 +3859,6 @@ export default function CampaignStudio() {
                     );
                   })}
                 </div>
-                <div className="studio-hero-layer-preview-toolbar">
-                  <div role="group" aria-label="H5 图层预览模式">
-                    {(
-                      [
-                        ["actual", "默认进入"],
-                        ["selected", "只看当前"],
-                        ["all", "全部点亮"],
-                      ] as const
-                    ).map(([mode, label]) => (
-                      <button
-                        type="button"
-                        className={
-                          heroLayerPreviewMode === mode ? "active" : ""
-                        }
-                        onClick={() => setHeroLayerPreviewMode(mode)}
-                        key={mode}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={showHeroFinalReference}
-                      onChange={(event) =>
-                        setShowHeroFinalReference(event.target.checked)
-                      }
-                    />
-                    最终图对位
-                  </label>
-                </div>
-                <HeroLayerComposer
-                  baseMedia={activeDraft.pack.assets.heroMedia}
-                  finalReference={
-                    collectionHeroComposition.finalReference
-                  }
-                  layers={heroLayers}
-                  selectedLayerId={selectedHeroLayer?.id ?? ""}
-                  visibleCardIds={editorVisibleHeroCardIds}
-                  showReference={showHeroFinalReference}
-                  onSelect={(layerId) => setHeroLayerEditId(layerId)}
-                  onCommit={updateHeroLayer}
-                />
-                <div className="studio-hero-layer-canvas-hint">
-                  拖动道具改变位置，拖右下角控制点等比缩放。坐标按
-                  375 × 460 可见区保存；原图底部 14px 会被 Hero 裁切。
-                </div>
-                <label className="studio-mini-upload">
-                  上传最终效果参考图 · 仅供半透明对位，不参与发布
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={uploadHeroFinalReference}
-                  />
-                </label>
                 {selectedHeroLayer && (
                   <div className="studio-hero-layer-properties">
                     <div className="studio-hero-layer-selected">

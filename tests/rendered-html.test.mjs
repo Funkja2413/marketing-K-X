@@ -325,6 +325,21 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(
     studio,
+    /const compositionLayers = layers[\s\S]*?layer\.media\?\.src && !layer\.embeddedInBase/,
+  );
+  assert.match(
+    studio,
+    /data-composition-layer-count=\{compositionLayers\.length\}/,
+  );
+  assert.doesNotMatch(studio, /visibleCardIds/);
+  assert.doesNotMatch(studio, /只看当前|全部点亮/);
+  assert.ok(
+    studio.indexOf("<HeroLayerComposer") <
+      studio.indexOf('className="studio-hero-layer-cards"'),
+    "the always-visible composition canvas should appear before the card selector",
+  );
+  assert.match(
+    studio,
     /data-preview-ratio=["']9:21["']/,
   );
   assert.match(
