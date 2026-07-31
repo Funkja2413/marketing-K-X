@@ -31,14 +31,28 @@ const DRAFTS_STORAGE_KEY = "campaign-studio-drafts-v1";
 const DEFAULT_UPDATED_AT = "2026-07-31T00:00:00.000Z";
 const CANVAS_MIN_ZOOM = 0.4;
 const CANVAS_MAX_ZOOM = 1.25;
+const DEFAULT_HERO_AI_PROMPT =
+  "生成一张更有冲浪速度感的夏日首焦，保留当前 IP 和标题";
+const DEFAULT_COLLECTION_AI_PROMPT =
+  "生成一整套夏日冲浪主题的 9 张道具卡与 4 档奖励，透明底、统一果冻质感";
 
 type AiStatus = "idle" | "generating" | "ready";
 type StudioCanvasMode = "page" | "flow";
 
+type AiBatchSlot = {
+  kind: "card" | "reward";
+  slotId: string;
+  entityId: string;
+  label: string;
+  displaySize: string;
+  outputSize: string;
+  accepts: string;
+};
+
 type AiTarget = {
   draftId: string;
   pageId: string;
-  kind: "hero" | "card" | "reward";
+  kind: "hero" | "card" | "reward" | "collection-kit";
   moduleId: "M1" | "M2";
   slotId: string;
   entityId?: string;
@@ -46,6 +60,7 @@ type AiTarget = {
   displaySize: string;
   outputSize: string;
   accepts: string;
+  batchSlots?: AiBatchSlot[];
 };
 
 type AiCandidate = {
@@ -66,6 +81,16 @@ type AiReference = {
   height: number;
 };
 
+type M2BatchCandidate = {
+  id: string;
+  kind: "m2-batch";
+  draftId: string;
+  pageId: string;
+  cardCount: 9;
+  rewardCount: 4;
+  assets: AiCandidate[];
+};
+
 type AiCandidateGroup = {
   id: string;
   draftId: string;
@@ -74,6 +99,7 @@ type AiCandidateGroup = {
   target: AiTarget | null;
   references: AiReference[];
   candidates: AiCandidate[];
+  batch?: M2BatchCandidate;
   position: { x: number; y: number };
   collapsed: boolean;
 };
@@ -254,6 +280,25 @@ const KNOWN_ASSET_SIZES: Record<
   "/figma/reward-gold-horse.webp": { width: 132, height: 112 },
 };
 
+const CARD_BATCH_SOURCES = [
+  "/figma/equipment-water-gun.webp",
+  "/figma/equipment-watermelon-bucket.webp",
+  "/figma/equipment-paddle-board.webp",
+  "/figma/equipment-palm-tree.webp",
+  "/figma/equipment-pineapple-float.webp",
+  "/figma/equipment-sun-chair.webp",
+  "/figma/equipment-water-gun.webp",
+  "/figma/equipment-watermelon-bucket.webp",
+  "/figma/equipment-paddle-board.webp",
+] as const;
+
+const REWARD_BATCH_SOURCES = [
+  "/figma/equipment-pineapple-float.webp",
+  "/figma/mascot-side-horse.webp",
+  "/figma/equipment-watermelon-bucket.webp",
+  "/figma/reward-gold-horse.webp",
+] as const;
+
 function createHeroAiTarget(draft: CampaignSkinDraft): AiTarget {
   return {
     draftId: draft.id,
@@ -265,6 +310,57 @@ function createHeroAiTarget(draft: CampaignSkinDraft): AiTarget {
     displaySize: "375 × 460 px",
     outputSize: "1125 × 1380 px",
     accepts: "图片 / 视频 · Cover · UI 安全区",
+  };
+}
+
+function createCollectionKitAiTarget(
+  draft: CampaignSkinDraft,
+): AiTarget {
+  const cardSlots: AiBatchSlot[] = draft.content.cards.flatMap((card) => {
+    const target = createCardAiTarget(draft, card.id);
+    return target
+      ? [
+          {
+            kind: "card",
+            slotId: target.slotId,
+            entityId: card.id,
+            label: card.name,
+            displaySize: target.displaySize,
+            outputSize: target.outputSize,
+            accepts: target.accepts,
+          } satisfies AiBatchSlot,
+        ]
+      : [];
+  });
+  const rewardSlots: AiBatchSlot[] = draft.content.tiers.flatMap(
+    (tier) => {
+      const target = createRewardAiTarget(draft, tier.id);
+      return target
+        ? [
+            {
+              kind: "reward",
+              slotId: target.slotId,
+              entityId: tier.id,
+              label: tier.title,
+              displaySize: target.displaySize,
+              outputSize: target.outputSize,
+              accepts: target.accepts,
+            } satisfies AiBatchSlot,
+          ]
+        : [];
+    },
+  );
+  return {
+    draftId: draft.id,
+    pageId: "campaign-main",
+    kind: "collection-kit",
+    moduleId: "M2",
+    slotId: "m2.collection-reward-kit",
+    label: "M2 · 集卡与奖励整套",
+    displaySize: "9 个卡槽 + 4 个奖励槽",
+    outputSize: "9 × 180×220 + 4 档奖励规格",
+    accepts: "13 张透明图片 · 同一套风格 · 稳定 ID 映射",
+    batchSlots: [...cardSlots, ...rewardSlots],
   };
 }
 
@@ -313,6 +409,40 @@ function createMockAiCandidates(
   target: AiTarget | null,
 ): AiCandidate[] {
   const targetSnapshot = target ? { ...target } : null;
+  if (target?.kind === "collection-kit") {
+    const slots = target.batchSlots ?? [];
+    let cardIndex = 0;
+    let rewardIndex = 0;
+    return slots.map((slot, index) => {
+      const isCard = slot.kind === "card";
+      const source = isCard
+        ? CARD_BATCH_SOURCES[cardIndex++ % CARD_BATCH_SOURCES.length]
+        : REWARD_BATCH_SOURCES[
+            rewardIndex++ % REWARD_BATCH_SOURCES.length
+          ];
+      const knownSize = KNOWN_ASSET_SIZES[source];
+      const slotTarget: AiTarget = {
+        draftId: target.draftId,
+        pageId: target.pageId,
+        kind: slot.kind,
+        moduleId: "M2",
+        slotId: slot.slotId,
+        entityId: slot.entityId,
+        label: `M2 · ${slot.label}`,
+        displaySize: slot.displaySize,
+        outputSize: slot.outputSize,
+        accepts: slot.accepts,
+      };
+      return {
+        id: `collection-kit-${slot.kind}-${slot.entityId}-${Date.now()}-${index}`,
+        label: slot.label,
+        src: source,
+        width: knownSize?.width ?? (isCard ? 180 : 140),
+        height: knownSize?.height ?? (isCard ? 220 : 82),
+        target: slotTarget,
+      };
+    });
+  }
   if (target?.kind === "card") {
     return [
       {
@@ -450,6 +580,82 @@ function applyAiCandidateToDraft(
     if (selectedTier?.kind === "grand") {
       next.pack.assets.grandRewardImage = candidate.src;
     }
+  }
+  return next;
+}
+
+function applyM2BatchToDraft(
+  draft: CampaignSkinDraft,
+  batch: M2BatchCandidate,
+): CampaignSkinDraft {
+  if (batch.draftId !== draft.id) {
+    throw new Error("批次属于其他方案");
+  }
+  if (
+    draft.content.cards.length !== batch.cardCount ||
+    draft.content.tiers.length !== batch.rewardCount
+  ) {
+    throw new Error("当前模块结构已经变化");
+  }
+  const cardAssets = new Map<string, AiCandidate>();
+  const rewardAssets = new Map<string, AiCandidate>();
+  for (const candidate of batch.assets) {
+    const target = candidate.target;
+    if (!target?.entityId) continue;
+    if (target.kind === "card") {
+      if (cardAssets.has(target.entityId)) {
+        throw new Error("卡片槽位重复");
+      }
+      cardAssets.set(target.entityId, candidate);
+    }
+    if (target.kind === "reward") {
+      if (rewardAssets.has(target.entityId)) {
+        throw new Error("奖励槽位重复");
+      }
+      rewardAssets.set(target.entityId, candidate);
+    }
+  }
+  const expectedCardIds = new Set(
+    draft.content.cards.map((card) => card.id),
+  );
+  const expectedRewardIds = new Set(
+    draft.content.tiers.map((tier) => tier.id),
+  );
+  if (
+    cardAssets.size !== expectedCardIds.size ||
+    rewardAssets.size !== expectedRewardIds.size ||
+    [...cardAssets.keys()].some((id) => !expectedCardIds.has(id)) ||
+    [...rewardAssets.keys()].some((id) => !expectedRewardIds.has(id))
+  ) {
+    throw new Error("批次没有完整覆盖当前 9 张卡片与 4 档奖励");
+  }
+
+  const next = cloneValue(draft);
+  next.content.cards = next.content.cards.map((card) => {
+    const candidate = cardAssets.get(card.id);
+    if (!candidate) return card;
+    return {
+      ...card,
+      image: candidate.src,
+      imageWidth: candidate.width,
+      imageHeight: candidate.height,
+    };
+  });
+  next.content.tiers = next.content.tiers.map((tier) => {
+    const candidate = rewardAssets.get(tier.id);
+    if (!candidate) return tier;
+    return {
+      ...tier,
+      image: candidate.src,
+      imageWidth: candidate.width,
+      imageHeight: candidate.height,
+    };
+  });
+  const grandTier = next.content.tiers.find(
+    (tier) => tier.kind === "grand",
+  );
+  if (grandTier?.image) {
+    next.pack.assets.grandRewardImage = grandTier.image;
   }
   return next;
 }
@@ -687,9 +893,7 @@ export default function CampaignStudio() {
     () => cloneValue(CAMPAIGN_FLOW_EDGES),
   );
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
-  const [aiPrompt, setAiPrompt] = useState(
-    "生成一张更有冲浪速度感的夏日首焦，保留当前 IP 和标题",
-  );
+  const [aiPrompt, setAiPrompt] = useState(DEFAULT_HERO_AI_PROMPT);
   const [aiStatus, setAiStatus] = useState<AiStatus>("idle");
   const [aiReferences, setAiReferences] = useState<AiReference[]>([]);
   const [lastAiPrompt, setLastAiPrompt] = useState("");
@@ -702,6 +906,9 @@ export default function CampaignStudio() {
   const [adoptedCandidateId, setAdoptedCandidateId] = useState<
     string | null
   >(null);
+  const [adoptedGroupId, setAdoptedGroupId] = useState<string | null>(
+    null,
+  );
   const [lastAiCommit, setLastAiCommit] =
     useState<AiCommitHistory | null>(null);
   const [canvasZoom, setCanvasZoom] = useState(0.75);
@@ -710,7 +917,7 @@ export default function CampaignStudio() {
   const spaceHeldRef = useRef(false);
   const fitModeRef = useRef(true);
   const previewWorldRef = useRef<HTMLDivElement>(null);
-  const phoneStageRef = useRef<HTMLDivElement>(null);
+  const canvasSceneRef = useRef<HTMLDivElement>(null);
   const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const aiJobIdRef = useRef(0);
   const aiTimerRef = useRef<number | null>(null);
@@ -728,6 +935,7 @@ export default function CampaignStudio() {
     startY: number;
     x: number;
     y: number;
+    zoom: number;
   } | null>(null);
 
   const activeDraft =
@@ -854,23 +1062,27 @@ export default function CampaignStudio() {
 
   useEffect(() => {
     const world = previewWorldRef.current;
-    if (!world) return;
+    const scene = canvasSceneRef.current;
+    if (!world || !scene) return;
     const updateFit = () => {
       if (!fitModeRef.current) return;
-      setCanvasZoom(calculateCanvasFitZoom());
-      setCanvasPan({ x: 0, y: 0 });
+      const layout = calculateCanvasFitLayout();
+      setCanvasZoom(layout.zoom);
+      setCanvasPan(layout.pan);
     };
     updateFit();
     const observer = new ResizeObserver(updateFit);
     observer.observe(world);
+    observer.observe(scene);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
     fitModeRef.current = true;
     const frame = window.requestAnimationFrame(() => {
-      setCanvasZoom(calculateCanvasFitZoom());
-      setCanvasPan({ x: 0, y: 0 });
+      const layout = calculateCanvasFitLayout();
+      setCanvasZoom(layout.zoom);
+      setCanvasPan(layout.pan);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activeId, canvasMode]);
@@ -889,6 +1101,7 @@ export default function CampaignStudio() {
       setAiReferences([]);
       setAiTrial(null);
       setAdoptedCandidateId(null);
+      setAdoptedGroupId(null);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activeId]);
@@ -910,20 +1123,51 @@ export default function CampaignStudio() {
   }
 
   function calculateCanvasFitZoom() {
+    return calculateCanvasFitLayout().zoom;
+  }
+
+  function calculateCanvasFitLayout() {
     const world = previewWorldRef.current;
-    const stage = phoneStageRef.current;
-    if (!world || !stage) return 0.75;
+    const scene = canvasSceneRef.current;
+    if (!world || !scene) {
+      return { zoom: 0.75, pan: { x: 0, y: 0 } };
+    }
     const bounds = world.getBoundingClientRect();
-    return Math.min(
+    let minX = 0;
+    let minY = 0;
+    let maxX = scene.offsetWidth;
+    let maxY = scene.offsetHeight;
+    scene
+      .querySelectorAll<HTMLElement>(".studio-ai-candidate-group")
+      .forEach((group) => {
+        if (group.offsetWidth === 0 || group.offsetHeight === 0) return;
+        const match = group.style.transform.match(
+          /translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*0(?:px)?\)/,
+        );
+        const x = Number(match?.[1] ?? 0);
+        const y = Number(match?.[2] ?? 0);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + group.offsetWidth);
+        maxY = Math.max(maxY, y + group.offsetHeight);
+      });
+    const zoom = Math.min(
       1,
       Math.max(
         CANVAS_MIN_ZOOM,
         Math.min(
-          (bounds.width - 96) / stage.offsetWidth,
-          (bounds.height - 72) / stage.offsetHeight,
+          (bounds.width - 96) / (maxX - minX),
+          (bounds.height - 72) / (maxY - minY),
         ),
       ),
     );
+    return {
+      zoom,
+      pan: {
+        x: (scene.offsetWidth / 2 - (minX + maxX) / 2) * zoom,
+        y: (scene.offsetHeight / 2 - (minY + maxY) / 2) * zoom,
+      },
+    };
   }
 
   function adjustCanvasZoom(delta: number) {
@@ -935,8 +1179,9 @@ export default function CampaignStudio() {
 
   function fitCanvas() {
     fitModeRef.current = true;
-    setCanvasZoom(calculateCanvasFitZoom());
-    setCanvasPan({ x: 0, y: 0 });
+    const layout = calculateCanvasFitLayout();
+    setCanvasZoom(layout.zoom);
+    setCanvasPan(layout.pan);
   }
 
   function handleCanvasWheel(event: ReactWheelEvent<HTMLDivElement>) {
@@ -993,6 +1238,7 @@ export default function CampaignStudio() {
     group: AiCandidateGroup,
   ) {
     if (event.button !== 0 || spaceHeldRef.current) return;
+    fitModeRef.current = false;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -1003,6 +1249,7 @@ export default function CampaignStudio() {
       startY: event.clientY,
       x: group.position.x,
       y: group.position.y,
+      zoom: canvasZoom,
     };
   }
 
@@ -1019,8 +1266,12 @@ export default function CampaignStudio() {
           ? {
               ...group,
               position: {
-                x: drag.x + event.clientX - drag.startX,
-                y: drag.y + event.clientY - drag.startY,
+                x:
+                  drag.x +
+                  (event.clientX - drag.startX) / drag.zoom,
+                y:
+                  drag.y +
+                  (event.clientY - drag.startY) / drag.zoom,
               },
             }
           : group,
@@ -1230,6 +1481,22 @@ export default function CampaignStudio() {
     setCanvasMode("page");
     if (target) {
       setSelectedPageId(target.pageId);
+      setAiPrompt((current) => {
+        if (
+          target.kind === "collection-kit" &&
+          (current.trim() === "" || current === DEFAULT_HERO_AI_PROMPT)
+        ) {
+          return DEFAULT_COLLECTION_AI_PROMPT;
+        }
+        if (
+          target.kind === "hero" &&
+          (current.trim() === "" ||
+            current === DEFAULT_COLLECTION_AI_PROMPT)
+        ) {
+          return DEFAULT_HERO_AI_PROMPT;
+        }
+        return current;
+      });
       setMessage(`已把「${target.label}」约束挂到左侧 Chat`);
     } else {
       setMessage("已切换为自由生成；候选不会自动写入 H5");
@@ -1274,7 +1541,7 @@ export default function CampaignStudio() {
     const jobId = aiJobIdRef.current + 1;
     aiJobIdRef.current = jobId;
     const draftSnapshot = cloneValue(activeDraft);
-    const targetSnapshot = aiTarget ? { ...aiTarget } : null;
+    const targetSnapshot = aiTarget ? cloneValue(aiTarget) : null;
     const references = cloneValue(aiReferences);
     const pageId = targetSnapshot?.pageId ?? selectedPageId;
     setAiStatus("generating");
@@ -1282,6 +1549,7 @@ export default function CampaignStudio() {
     setSelectedAiAsset(null);
     setAiTrial(null);
     setAdoptedCandidateId(null);
+    setAdoptedGroupId(null);
     setMessage(
       targetSnapshot
         ? `正在为「${targetSnapshot.label}」生成：「${prompt.slice(0, 18)}${prompt.length > 18 ? "…" : ""}」`
@@ -1296,10 +1564,39 @@ export default function CampaignStudio() {
         draftSnapshot,
         targetSnapshot,
       );
+      const batch: M2BatchCandidate | undefined =
+        targetSnapshot?.kind === "collection-kit"
+          ? {
+              id: `m2-batch-${jobId}-${Date.now()}`,
+              kind: "m2-batch",
+              draftId: draftSnapshot.id,
+              pageId,
+              cardCount: 9,
+              rewardCount: 4,
+              assets: candidates,
+            }
+          : undefined;
       const canvasWidth = previewWorldRef.current?.clientWidth ?? 1200;
-      const leftRoom = Math.max(0, (canvasWidth - 395) / 2);
-      const groupX =
-        leftRoom >= 430 ? -448 : -Math.max(24, leftRoom - 14);
+      const groupWidth = batch ? 760 : 468;
+      const groupX = -(groupWidth + 36);
+      if (fitModeRef.current) {
+        const widestGroup = Math.max(
+          groupWidth,
+          ...aiCandidateGroups.map((group) =>
+            group.target?.kind === "collection-kit" ? 760 : 468,
+          ),
+        );
+        const combinedWidth = widestGroup + 36 + 395;
+        const nextZoom = Math.min(
+          calculateCanvasFitZoom(),
+          clampCanvasZoom((canvasWidth - 96) / combinedWidth),
+        );
+        setCanvasZoom(nextZoom);
+        setCanvasPan({
+          x: ((widestGroup + 36) / 2) * nextZoom,
+          y: 0,
+        });
+      }
       setAiCandidateGroups((current) => [
         ...current,
         {
@@ -1310,9 +1607,19 @@ export default function CampaignStudio() {
           target: targetSnapshot,
           references,
           candidates,
+          batch,
           position: {
             x: groupX + (current.length % 2) * 22,
-            y: 56 + current.length * 226,
+            y:
+              56 +
+              current.reduce(
+                (total, group) =>
+                  total +
+                  (group.target?.kind === "collection-kit"
+                    ? 430
+                    : 286),
+                0,
+              ),
           },
           collapsed: false,
         },
@@ -1320,7 +1627,9 @@ export default function CampaignStudio() {
       setAiStatus("ready");
       setMessage(
         targetSnapshot
-          ? `已把 3 个「${targetSnapshot.label}」候选作为一组放进 Canvas`
+          ? targetSnapshot.kind === "collection-kit"
+            ? "已按模块契约生成 9 张卡片与 4 档奖励，并作为完整批次放进 Canvas"
+            : `已把 ${candidates.length} 个「${targetSnapshot.label}」候选作为一组放进 Canvas`
           : "已把 3 个自由素材作为一组放进 Canvas",
       );
       aiTimerRef.current = null;
@@ -1380,8 +1689,36 @@ export default function CampaignStudio() {
     );
     setLastAiCommit({ draftId: activeDraft.id, before });
     setAdoptedCandidateId(aiTrial.candidate.id);
+    setAdoptedGroupId(null);
     setAiTrial(null);
     setMessage("已确认到当前草稿；尚未应用到活动页");
+  }
+
+  function applyAiCandidateGroup(group: AiCandidateGroup) {
+    if (!group.batch) return;
+    try {
+      const before = cloneValue(activeDraft);
+      const next = applyM2BatchToDraft(activeDraft, group.batch);
+      next.updatedAt = new Date().toISOString();
+      setDrafts((current) =>
+        current.map((draft) =>
+          draft.id === activeDraft.id ? next : draft,
+        ),
+      );
+      setLastAiCommit({ draftId: activeDraft.id, before });
+      setAdoptedCandidateId(null);
+      setAdoptedGroupId(group.id);
+      setAiTrial(null);
+      setMessage(
+        "已将 9 张卡片和 4 档奖励作为一个原子批次引用到当前草稿",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `整组引用失败：${error.message}`
+          : "整组引用失败",
+      );
+    }
   }
 
   function undoLastAiCommit() {
@@ -1394,6 +1731,7 @@ export default function CampaignStudio() {
     );
     setLastAiCommit(null);
     setAdoptedCandidateId(null);
+    setAdoptedGroupId(null);
     setAiTrial(null);
     setMessage("已撤销最近一次 AI 素材确认");
   }
@@ -1615,6 +1953,64 @@ export default function CampaignStudio() {
     }
   }
 
+  function renderCanvasCandidate(
+    group: AiCandidateGroup,
+    candidate: AiCandidate,
+    slotLabel: string,
+  ) {
+    const isSelected =
+      selectedAiAsset?.groupId === group.id &&
+      selectedAiAsset.candidateId === candidate.id;
+    const isTrying =
+      group.id === aiTrial?.groupId &&
+      candidate.id === aiTrial.candidate.id;
+    const isAdopted =
+      candidate.id === adoptedCandidateId ||
+      group.id === adoptedGroupId;
+    return (
+      <button
+        type="button"
+        className={[
+          "studio-ai-candidate-tile",
+          isSelected ? "selected" : "",
+          isTrying ? "trying" : "",
+          isAdopted ? "adopted" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        data-candidate-kind={
+          group.batch ? "m2-batch-asset" : candidate.target?.kind ?? "free"
+        }
+        aria-label={`引用 ${candidate.label} 到 ${
+          candidate.target?.label ?? "Canvas"
+        }`}
+        title={`${candidate.label} · ${candidate.width} × ${candidate.height}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (candidate.target) {
+            tryAiCandidate(candidate, group.id, candidate.target);
+            return;
+          }
+          setSelectedAiAsset({
+            groupId: group.id,
+            candidateId: candidate.id,
+          });
+        }}
+        key={candidate.id}
+      >
+        <span className="studio-ai-candidate-image">
+          <img
+            src={candidate.src}
+            alt=""
+            draggable={false}
+            style={{ objectPosition: candidate.position ?? "center" }}
+          />
+          <i>{slotLabel}</i>
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div
       className="studio-shell"
@@ -1659,7 +2055,8 @@ export default function CampaignStudio() {
               <div className="studio-ai-message assistant">
                 <small>生成完成</small>
                 <p>
-                  新候选已打成一组放进 Canvas；点击其中一张即可出现快捷工具。
+                  新素材已打成一组放进 Canvas；点击图片即可引用到 H5
+                  预览，整套模块可一次回填。
                 </p>
               </div>
             )}
@@ -1880,13 +2277,18 @@ export default function CampaignStudio() {
                   )
                 }
               >
-                {selectedCandidate.target ? "试用" : "绑定到 H5"}
+                {aiTrial?.candidate.id === selectedCandidate.id
+                  ? "已引用预览"
+                  : selectedCandidate.target
+                    ? "引用到 H5"
+                    : "绑定到 H5"}
               </button>
               <button
                 type="button"
                 onClick={() =>
                   selectAiTarget(
-                    selectedCandidate.target ??
+                    selectedCandidateGroup?.target ??
+                      selectedCandidate.target ??
                       createHeroAiTarget(activeDraft),
                   )
                 }
@@ -1967,6 +2369,17 @@ export default function CampaignStudio() {
             }}
           >
             <div
+              className="studio-canvas-scene"
+              ref={canvasSceneRef}
+              data-testid="studio-canvas-root"
+              data-canvas-zoom={canvasZoom.toFixed(2)}
+              style={
+                {
+                  "--studio-canvas-scale": canvasZoom,
+                } as CSSProperties
+              }
+            >
+            <div
               className="studio-ai-candidate-groups"
               data-testid="studio-ai-candidate-groups"
               hidden={canvasMode !== "page" || aiCandidateGroups.length === 0}
@@ -1979,6 +2392,8 @@ export default function CampaignStudio() {
                   }`}
                   data-candidate-group-id={group.id}
                   data-target-kind={group.target?.kind ?? "free"}
+                  data-card-count={group.batch?.cardCount}
+                  data-reward-count={group.batch?.rewardCount}
                   style={{
                     transform: `translate3d(${group.position.x}px, ${group.position.y}px, 0)`,
                     zIndex: 4 + groupIndex,
@@ -2001,95 +2416,110 @@ export default function CampaignStudio() {
                         <small>AI 素材组 · {group.pageId}</small>
                         <strong>
                           {group.target?.label ?? "自由生成"} ·{" "}
-                          {group.candidates.length} 个候选
+                          {group.batch
+                            ? "1 套（9 卡 + 4 奖励）"
+                            : `${group.candidates.length} 个候选`}
                         </strong>
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleCandidateGroup(group.id)}
-                      aria-expanded={!group.collapsed}
-                    >
-                      {group.collapsed ? "展开" : "收起"}
-                    </button>
+                    <div className="studio-ai-candidate-group-actions">
+                      {group.batch && (
+                        <button
+                          type="button"
+                          className="primary"
+                          onClick={() => applyAiCandidateGroup(group)}
+                          data-testid="studio-apply-m2-batch"
+                        >
+                          {adoptedGroupId === group.id
+                            ? "已整组引用"
+                            : "整组引用到 H5"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => toggleCandidateGroup(group.id)}
+                        aria-expanded={!group.collapsed}
+                      >
+                        {group.collapsed ? "展开" : "收起"}
+                      </button>
+                    </div>
                   </header>
 
-                  {!group.collapsed && (
-                    <>
-                      <div className="studio-ai-candidate-grid">
-                        {group.candidates.map((candidate, index) => {
-                          const isSelected =
-                            selectedAiAsset?.groupId === group.id &&
-                            selectedAiAsset.candidateId === candidate.id;
-                          const isTrying =
-                            group.id === aiTrial?.groupId &&
-                            candidate.id === aiTrial.candidate.id;
-                          const isAdopted =
-                            candidate.id === adoptedCandidateId;
-                          return (
-                            <button
-                              type="button"
-                              className={[
-                                "studio-ai-candidate-tile",
-                                isSelected ? "selected" : "",
-                                isTrying ? "trying" : "",
-                                isAdopted ? "adopted" : "",
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedAiAsset({
-                                  groupId: group.id,
-                                  candidateId: candidate.id,
-                                });
-                              }}
-                              key={candidate.id}
-                            >
-                              <span className="studio-ai-candidate-image">
-                                <img
-                                  src={candidate.src}
-                                  alt=""
-                                  draggable={false}
-                                />
-                                <i>0{index + 1}</i>
-                              </span>
-                              <span>
-                                <strong>{candidate.label}</strong>
-                                <small>
-                                  {candidate.width} × {candidate.height}
-                                </small>
-                              </span>
-                            </button>
-                          );
-                        })}
+                  {!group.collapsed &&
+                    (group.batch ? (
+                      <div
+                        className="studio-ai-batch-layout"
+                        data-candidate-kind="m2-batch"
+                      >
+                        <section className="studio-ai-batch-section cards">
+                          <header>
+                            <span>
+                              卡片素材 <b>9/9</b>
+                            </span>
+                            <small>180 × 220 px · 透明底</small>
+                          </header>
+                          <div className="studio-ai-candidate-grid studio-ai-card-batch-grid">
+                            {group.candidates
+                              .filter(
+                                (candidate) =>
+                                  candidate.target?.kind === "card",
+                              )
+                              .map((candidate, index) =>
+                                renderCanvasCandidate(
+                                  group,
+                                  candidate,
+                                  `C${index + 1}`,
+                                ),
+                              )}
+                          </div>
+                        </section>
+                        <section className="studio-ai-batch-section rewards">
+                          <header>
+                            <span>
+                              奖励素材 <b>4/4</b>
+                            </span>
+                            <small>券 140 × 82 · 大奖 132 × 90</small>
+                          </header>
+                          <div className="studio-ai-candidate-grid studio-ai-reward-batch-grid">
+                            {group.candidates
+                              .filter(
+                                (candidate) =>
+                                  candidate.target?.kind === "reward",
+                              )
+                              .map((candidate, index) =>
+                                renderCanvasCandidate(
+                                  group,
+                                  candidate,
+                                  `R${index + 1}`,
+                                ),
+                              )}
+                          </div>
+                        </section>
                       </div>
-                      <footer>
-                        <span title={group.prompt}>{group.prompt}</span>
-                        <small>
-                          {group.references.length > 0
-                            ? `${group.references.length} 张参考图`
-                            : "无参考图"}
-                        </small>
-                      </footer>
-                    </>
-                  )}
+                    ) : (
+                      <div
+                        className="studio-ai-candidate-grid studio-ai-hero-candidate-grid"
+                        data-candidate-kind="hero"
+                      >
+                        {group.candidates.map((candidate, index) =>
+                          renderCanvasCandidate(
+                            group,
+                            candidate,
+                            `0${index + 1}`,
+                          ),
+                        )}
+                      </div>
+                    ))}
                 </section>
               ))}
             </div>
 
             <div
               className="studio-phone-stage"
-              ref={canvasMode === "page" ? phoneStageRef : undefined}
               data-testid="studio-phone-stage"
               data-canvas-zoom={canvasZoom.toFixed(2)}
               data-h5-mode={h5EditMode ? "edit" : "preview"}
               hidden={canvasMode !== "page"}
-              style={
-                {
-                  "--studio-canvas-scale": canvasZoom,
-                } as CSSProperties
-              }
             >
               {h5EditMode && selectedPageId === "campaign-main" && (
                 <nav
@@ -2113,13 +2543,15 @@ export default function CampaignStudio() {
                   <button
                     type="button"
                     className={
-                      aiTarget?.kind === "card" ? "active" : ""
+                      aiTarget?.kind === "collection-kit" ? "active" : ""
                     }
                     onClick={() =>
-                      selectAiTarget(createCardAiTarget(activeDraft))
+                      selectAiTarget(
+                        createCollectionKitAiTarget(activeDraft),
+                      )
                     }
                   >
-                    M2 首卡
+                    M2 整套 9+4
                   </button>
                 </nav>
               )}
@@ -2212,13 +2644,7 @@ export default function CampaignStudio() {
 
             <div
               className="studio-page-flow-stage"
-              ref={canvasMode === "flow" ? phoneStageRef : undefined}
               hidden={canvasMode !== "flow"}
-              style={
-                {
-                  "--studio-canvas-scale": canvasZoom,
-                } as CSSProperties
-              }
               data-testid="studio-page-flow-canvas"
             >
               <header>
@@ -2313,6 +2739,7 @@ export default function CampaignStudio() {
               <footer>
                 单击选择页面与跳转配置 · 双击进入该页面画布
               </footer>
+            </div>
             </div>
           </div>
         </div>
@@ -2822,23 +3249,16 @@ export default function CampaignStudio() {
                 type="button"
                 className="studio-ai-slot-action"
                 onClick={() =>
-                  selectAiTarget(createCardAiTarget(activeDraft))
+                  selectAiTarget(
+                    createCollectionKitAiTarget(activeDraft),
+                  )
                 }
-                data-testid="studio-ai-target-card"
+                data-testid="studio-ai-target-m2-batch"
               >
-                <span>AI 生成首张卡片</span>
-                <small>180 × 220 · 透明背景 · 8% 安全边</small>
-              </button>
-              <button
-                type="button"
-                className="studio-ai-slot-action"
-                onClick={() =>
-                  selectAiTarget(createRewardAiTarget(activeDraft))
-                }
-                data-testid="studio-ai-target-reward"
-              >
-                <span>AI 生成终极奖励</span>
-                <small>按大奖槽位自动处理透明图</small>
+                <span>AI 生成整套集卡与奖励</span>
+                <small>
+                  一次外挂 9 个卡片槽 + 4 个奖励槽的数量、尺寸与稳定 ID
+                </small>
               </button>
             </div>
             <Field label="卡册名称">

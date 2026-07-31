@@ -124,6 +124,7 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "inspector-group-global",
     "inspector-group-modules",
     "studio-canvas-surface",
+    "studio-canvas-root",
     "studio-phone-stage",
     "studio-canvas-zoom-out",
     "studio-canvas-zoom",
@@ -144,8 +145,7 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "studio-flow-edge-editor",
     "studio-scheme-panel",
     "studio-ai-target-hero",
-    "studio-ai-target-card",
-    "studio-ai-target-reward",
+    "studio-ai-target-m2-batch",
   ]) {
     assert.match(html, new RegExp(`data-testid="${testId}"`));
   }
@@ -275,6 +275,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     "inspector-group-global",
     "inspector-group-modules",
     "studio-canvas-surface",
+    "studio-canvas-root",
     "studio-phone-stage",
     "studio-canvas-zoom-out",
     "studio-canvas-zoom",
@@ -342,7 +343,9 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /isTypingTarget\(event\.target\)/);
   assert.match(studio, /!event\.ctrlKey\s*&&\s*!event\.metaKey/);
   assert.match(studio, /function createMockAiCandidates\s*\(/);
+  assert.match(studio, /function createCollectionKitAiTarget\s*\(/);
   assert.match(studio, /function applyAiCandidateToDraft\s*\(/);
+  assert.match(studio, /function applyM2BatchToDraft\s*\(/);
   assert.match(
     studio,
     /const previewDraft\s*=\s*useMemo\([\s\S]*?applyAiCandidateToDraft\(/,
@@ -356,6 +359,8 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /function confirmAiTrial\s*\(/);
   assert.match(studio, /function undoLastAiCommit\s*\(/);
   assert.match(studio, /type AiReference\s*=/);
+  assert.match(studio, /type AiBatchSlot\s*=/);
+  assert.match(studio, /type M2BatchCandidate\s*=/);
   assert.match(studio, /type AiCandidateGroup\s*=/);
   assert.match(
     studio,
@@ -366,6 +371,18 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     /setAiCandidateGroups\(\(current\)\s*=>\s*\[\s*\.\.\.current,/,
   );
   assert.match(studio, /group\.candidates\.map\(/);
+  assert.match(studio, /data-card-count=\{group\.batch\?\.cardCount\}/);
+  assert.match(studio, /data-reward-count=\{group\.batch\?\.rewardCount\}/);
+  assert.match(studio, /data-testid=["']studio-canvas-root["']/);
+  assert.match(studio, /data-testid=["']studio-ai-target-m2-batch["']/);
+  assert.match(studio, /data-testid=["']studio-apply-m2-batch["']/);
+  assert.match(studio, /studio-ai-card-batch-grid/);
+  assert.match(studio, /studio-ai-reward-batch-grid/);
+  assert.match(studio, /renderCanvasCandidate\(/);
+  assert.match(
+    studio,
+    /onClick=\{\(event\)\s*=>\s*\{[\s\S]*?tryAiCandidate\(/,
+  );
   assert.match(studio, /data-candidate-group-id=\{group\.id\}/);
   assert.match(studio, /data-testid=["']studio-ai-candidate-groups["']/);
   assert.match(studio, /data-testid=["']studio-asset-quickbar["']/);
@@ -376,7 +393,11 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(
     studio,
-    /fitModeRef\.current\s*=\s*true[\s\S]*?requestAnimationFrame\([\s\S]*?setCanvasZoom\(calculateCanvasFitZoom\(\)\)[\s\S]*?setCanvasPan\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)[\s\S]*?\},\s*\[activeId,\s*canvasMode\]\)/,
+    /fitModeRef\.current\s*=\s*true[\s\S]*?requestAnimationFrame\([\s\S]*?const layout\s*=\s*calculateCanvasFitLayout\(\)[\s\S]*?setCanvasZoom\(layout\.zoom\)[\s\S]*?setCanvasPan\(layout\.pan\)[\s\S]*?\},\s*\[activeId,\s*canvasMode\]\)/,
+  );
+  assert.match(
+    studio,
+    /function calculateCanvasFitLayout\s*\([\s\S]*?studio-ai-candidate-group[\s\S]*?minX[\s\S]*?maxX[\s\S]*?pan:/,
   );
   assert.match(
     css,
@@ -396,6 +417,20 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(css, /\.studio-ai-candidate-groups\s*\{/);
   assert.match(css, /\.studio-ai-candidate-group\s*\{/);
+  assert.match(
+    css,
+    /\.studio-canvas-scene\s*\{(?=[^}]*transform:\s*scale\(var\(--studio-canvas-scale\)\))[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-phone-stage\s*\{[^}]*transform:\s*scale\(/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-page-flow-stage\s*\{[^}]*transform:\s*scale\(/s,
+  );
+  assert.match(css, /\.studio-ai-card-batch-grid\s*\{/);
+  assert.match(css, /\.studio-ai-reward-batch-grid\s*\{/);
   assert.match(css, /\.studio-page-flow-stage\s*\{/);
   assert.match(css, /\.studio-ai-composer-box\s*\{/);
   assert.match(css, /\.studio-asset-quickbar\s*\{/);

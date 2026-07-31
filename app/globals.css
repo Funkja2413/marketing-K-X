@@ -4609,15 +4609,21 @@ footer button {
   will-change: transform;
 }
 
-.studio-phone-stage {
+.studio-canvas-scene {
   --studio-canvas-scale: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  transform: scale(var(--studio-canvas-scale));
+  transform-origin: center;
+  will-change: transform;
+}
+
+.studio-phone-stage {
   display: flex;
   width: 395px;
   height: 923px;
   flex-direction: column;
-  transform: scale(var(--studio-canvas-scale));
-  transform-origin: center;
-  will-change: transform;
 }
 
 .studio-preview-world[data-space-held="true"] {
@@ -6161,7 +6167,7 @@ footer button {
   position: absolute;
   top: 0;
   left: 0;
-  width: 408px;
+  width: 468px;
   padding: 10px;
   border: 1px solid #cfd6df;
   border-radius: 14px;
@@ -6169,6 +6175,10 @@ footer button {
   box-shadow: 0 18px 44px rgba(25, 35, 49, 0.16);
   pointer-events: auto;
   will-change: transform;
+}
+
+.studio-ai-candidate-group[data-target-kind="collection-kit"] {
+  width: 760px;
 }
 
 .studio-ai-candidate-group.collapsed {
@@ -6226,7 +6236,14 @@ footer button {
   white-space: nowrap;
 }
 
-.studio-ai-candidate-group > header > button {
+.studio-ai-candidate-group-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.studio-ai-candidate-group-actions button {
   min-height: 25px;
   padding: 0 8px;
   border: 0;
@@ -6237,6 +6254,11 @@ footer button {
   font-weight: 750;
 }
 
+.studio-ai-candidate-group-actions button.primary {
+  background: #2563eb;
+  color: #fff;
+}
+
 .studio-ai-candidate-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6245,10 +6267,10 @@ footer button {
 
 .studio-ai-candidate-tile {
   min-width: 0;
-  padding: 5px;
-  border: 1px solid #e0e5eb;
+  padding: 3px;
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: #f8fafc;
+  background: transparent;
   color: #25303b;
   text-align: left;
 }
@@ -6263,12 +6285,13 @@ footer button {
 }
 
 .studio-ai-candidate-tile.trying {
-  background: #edf4ff;
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .studio-ai-candidate-tile.adopted {
   border-color: #54a977;
-  background: #f0fbf5;
+  background: rgba(84, 169, 119, 0.08);
 }
 
 .studio-ai-candidate-image {
@@ -6293,6 +6316,11 @@ footer button {
   background-size: 10px 10px;
 }
 
+.studio-ai-hero-candidate-grid .studio-ai-candidate-image {
+  height: auto;
+  aspect-ratio: 375 / 460;
+}
+
 .studio-ai-candidate-image img {
   display: block;
   width: 100%;
@@ -6308,6 +6336,68 @@ footer button {
   .studio-ai-candidate-image
   img {
   padding: 8px;
+  object-fit: contain;
+}
+
+.studio-ai-batch-layout {
+  display: grid;
+  gap: 10px;
+}
+
+.studio-ai-batch-section {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #e1e6ec;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.studio-ai-batch-section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.studio-ai-batch-section > header span {
+  color: #273342;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.studio-ai-batch-section > header b {
+  color: #2563eb;
+}
+
+.studio-ai-batch-section > header small {
+  color: #7c8793;
+  font-size: 7px;
+}
+
+.studio-ai-card-batch-grid {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.studio-ai-reward-batch-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.studio-ai-card-batch-grid .studio-ai-candidate-image {
+  height: auto;
+  aspect-ratio: 180 / 220;
+}
+
+.studio-ai-reward-batch-grid .studio-ai-candidate-image {
+  height: auto;
+  aspect-ratio: 140 / 82;
+}
+
+.studio-ai-card-batch-grid .studio-ai-candidate-image img,
+.studio-ai-reward-batch-grid .studio-ai-candidate-image img {
+  padding: 6px;
   object-fit: contain;
 }
 
@@ -6383,9 +6473,6 @@ footer button {
   border-radius: 18px;
   background: #f8fafc;
   box-shadow: 0 28px 70px rgba(27, 34, 44, 0.16);
-  transform: scale(var(--studio-canvas-scale));
-  transform-origin: center;
-  will-change: transform;
 }
 
 .studio-page-flow-stage > header {
@@ -6970,7 +7057,9 @@ footer button {
     grid-template-columns: 260px minmax(520px, 1fr) 0;
   }
 
-  .studio-ai-candidate-group {
+  .studio-ai-candidate-group:not(
+      [data-target-kind="collection-kit"]
+    ) {
     width: 372px;
   }
 }
