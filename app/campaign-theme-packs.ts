@@ -21,6 +21,37 @@ export type CampaignHeroMedia =
       sourceHeight?: number;
     };
 
+export type CampaignCollectionHeroLayer = {
+  id: string;
+  /** Stable collection card ID that controls this layer. */
+  cardId: string;
+  label: string;
+  media?: CampaignHeroMedia;
+  /** The item is already baked into the base Hero and needs no overlay. */
+  embeddedInBase?: boolean;
+  /** Horizontal offset in the 375px Hero design coordinate space. */
+  x: number;
+  /** Vertical offset in the 460px Hero design coordinate space. */
+  y: number;
+  /** Layer width in the 375px Hero design coordinate space. */
+  width: number;
+  /** Clockwise rotation in degrees. */
+  rotation: number;
+  zIndex: number;
+};
+
+export type CampaignCollectionHeroComposition = {
+  enabled: boolean;
+  /** Stable card IDs granted to a visitor on first entry. */
+  initialUnlockedCardIds: string[];
+  /**
+   * Editor-only flattened reference. It can be shown as an alignment guide,
+   * but runtime output is always composed from the base Hero and card layers.
+   */
+  finalReference?: CampaignHeroMedia;
+  layers: CampaignCollectionHeroLayer[];
+};
+
 export type CampaignThemePack = {
   assets: {
     /**
@@ -33,6 +64,8 @@ export type CampaignThemePack = {
      * The transition mask and live UI are independent overlays.
      */
     heroMedia: CampaignHeroMedia;
+    /** Optional card-ID-driven transparent layers rendered above the Hero. */
+    collectionHeroComposition?: CampaignCollectionHeroComposition;
     /** Optional transparent art used by the final reward tier. */
     grandRewardImage?: string;
     /** Optional full-bleed UI skins; geometry still comes from CampaignStage. */
@@ -73,11 +106,149 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
       mapBackgroundImage: "/figma/crops/map-cap.png",
       heroMedia: {
         type: "image",
-        src: "/theme-assets/summer/hero-scene-v2.png",
+        src: "/theme-assets/summer/hero-layer-base.png",
         fit: "cover",
         position: "center top",
-        sourceWidth: 375,
-        sourceHeight: 474,
+        sourceWidth: 750,
+        sourceHeight: 949,
+      },
+      collectionHeroComposition: {
+        enabled: true,
+        initialUnlockedCardIds: ["watergun"],
+        finalReference: {
+          type: "image",
+          src: "/theme-assets/summer/hero-scene-v2.png",
+          fit: "cover",
+          position: "center top",
+          sourceWidth: 375,
+          sourceHeight: 474,
+        },
+        layers: [
+          {
+            id: "hero-layer-watergun",
+            cardId: "watergun",
+            label: "鲨鲨水枪",
+            embeddedInBase: true,
+            x: 0,
+            y: 0,
+            width: 76,
+            rotation: 0,
+            zIndex: 1,
+          },
+          {
+            id: "hero-layer-watermelon",
+            cardId: "watermelon",
+            label: "冰镇西瓜",
+            media: {
+              type: "image",
+              src: "/figma/equipment-watermelon-bucket.webp",
+              fit: "contain",
+              position: "center",
+              sourceWidth: 180,
+              sourceHeight: 179,
+            },
+            x: 1,
+            y: 330,
+            width: 108,
+            rotation: -4,
+            zIndex: 4,
+          },
+          {
+            id: "hero-layer-surfboard",
+            cardId: "surfboard",
+            label: "顺风冲浪板",
+            embeddedInBase: true,
+            x: 0,
+            y: 0,
+            width: 118,
+            rotation: 0,
+            zIndex: 1,
+          },
+          {
+            id: "hero-layer-palmtree",
+            cardId: "palmtree",
+            label: "海岛椰树",
+            media: {
+              type: "image",
+              src: "/figma/equipment-palm-tree.webp",
+              fit: "contain",
+              position: "center",
+              sourceWidth: 159,
+              sourceHeight: 180,
+            },
+            x: 300,
+            y: 112,
+            width: 78,
+            rotation: 0,
+            zIndex: 2,
+          },
+          {
+            id: "hero-layer-floatie",
+            cardId: "floatie",
+            label: "好运泳圈",
+            media: {
+              type: "image",
+              src: "/figma/equipment-pineapple-float.webp",
+              fit: "contain",
+              position: "center",
+              sourceWidth: 180,
+              sourceHeight: 138,
+            },
+            x: 285,
+            y: 292,
+            width: 84,
+            rotation: 0,
+            zIndex: 3,
+          },
+          {
+            id: "hero-layer-deckchair",
+            cardId: "deckchair",
+            label: "躺赢沙滩椅",
+            media: {
+              type: "image",
+              src: "/figma/equipment-sun-chair.webp",
+              fit: "contain",
+              position: "center",
+              sourceWidth: 150,
+              sourceHeight: 180,
+            },
+            x: 300,
+            y: 218,
+            width: 62,
+            rotation: 0,
+            zIndex: 2,
+          },
+          {
+            id: "hero-layer-icecream",
+            cardId: "icecream",
+            label: "浪花冰淇淋",
+            x: 0,
+            y: 0,
+            width: 64,
+            rotation: 0,
+            zIndex: 2,
+          },
+          {
+            id: "hero-layer-sunhat",
+            cardId: "sunhat",
+            label: "遮阳幸运帽",
+            x: 0,
+            y: 0,
+            width: 64,
+            rotation: 0,
+            zIndex: 2,
+          },
+          {
+            id: "hero-layer-luckyhorse",
+            cardId: "luckyhorse",
+            label: "马上顺金牌",
+            x: 0,
+            y: 0,
+            width: 64,
+            rotation: 0,
+            zIndex: 2,
+          },
+        ],
       },
       grandRewardImage: "/figma/reward-gold-horse.webp",
     },

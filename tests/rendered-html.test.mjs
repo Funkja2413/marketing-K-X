@@ -49,6 +49,7 @@ test("server-renders the unified summer campaign template", async () => {
     "campaign-map-layer",
     "campaign-hero-mask",
     "campaign-hero-media-layer",
+    "campaign-hero-card-layer-stack",
     "campaign-hero-transition-layer",
     "campaign-hero-effect-layer",
     "campaign-hero-ui-layer",
@@ -60,12 +61,14 @@ test("server-renders the unified summer campaign template", async () => {
   }
   assert.match(
     html,
-    /src="\/theme-assets\/summer\/hero-scene-v2\.png"/,
+    /src="\/theme-assets\/summer\/hero-layer-base\.png"/,
   );
   assert.match(
     html,
-    /class="[^"]*\bcampaign-hero-media-layer\b[^"]*"[\s\S]*?<img\b[^>]*src="\/theme-assets\/summer\/hero-scene-v2\.png"/,
+    /class="[^"]*\bcampaign-hero-media-layer\b[^"]*"[\s\S]*?<img\b[^>]*src="\/theme-assets\/summer\/hero-layer-base\.png"/,
   );
+  assert.match(html, /data-unlocked-card-count="1"/);
+  assert.match(html, /data-visible-hero-layer-count="0"/);
   assert.match(
     html,
     /\bcampaign-hero-media-layer\b[\s\S]*\bcampaign-hero-transition-layer\b[\s\S]*\bcampaign-hero-effect-layer\b[\s\S]*\bcampaign-hero-ui-layer\b/,
@@ -146,6 +149,9 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "studio-scheme-panel",
     "studio-ai-target-hero",
     "studio-ai-target-m2-batch",
+    "config-hero-layer-editor",
+    "config-hero-layer-canvas",
+    "config-hero-layers-enabled",
   ]) {
     assert.match(html, new RegExp(`data-testid="${testId}"`));
   }
@@ -252,6 +258,9 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /function importDraft\s*\(/);
   assert.match(studio, /function exportActive\s*\(/);
   assert.match(studio, /function uploadTier\s*\(/);
+  assert.match(studio, /function updateHeroLayer\s*\(/);
+  assert.match(studio, /function uploadHeroLayer\s*\(/);
+  assert.match(studio, /function HeroLayerComposer\s*\(/);
   assert.match(studio, /new FileReader\(\)/);
   assert.match(studio, /new Blob\(/);
   assert.match(
@@ -290,6 +299,9 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     "studio-project-pages",
     "studio-flow-edge-editor",
     "studio-scheme-panel",
+    "config-hero-layer-editor",
+    "config-hero-layer-canvas",
+    "config-hero-layers-enabled",
   ]) {
     assert.match(
       studio,
@@ -304,6 +316,10 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   ]) {
     assert.match(studio, new RegExp(`["']${dynamicTestId}["']`));
   }
+  assert.match(
+    studio,
+    /data-testid=\{`config-hero-layer-\$\{layer\.cardId\}`\}/,
+  );
   assert.match(
     studio,
     /data-preview-ratio=["']9:21["']/,
@@ -481,6 +497,11 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(page, /completeTask/);
   assert.match(page, /getThemePackStyle/);
   assert.match(page, /<CampaignStage/);
+  assert.match(page, /heroLayerPreviewCardIds/);
+  assert.match(
+    page,
+    /const unlockedHeroCardIds[\s\S]*?state\.cardCounts\[card\.id\][\s\S]*?\.map\(\(card\)\s*=>\s*card\.id\)/,
+  );
   assert.match(
     page,
     /searchParams\.get\(["']inspectHero["']\)\s*===\s*["']1["']/,
@@ -523,13 +544,22 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(themePacks, /export const THEME_PACKS/);
   assert.match(themePacks, /export function getThemePackStyle/);
   assert.match(themePacks, /export type CampaignHeroMedia\s*=/);
+  assert.match(themePacks, /export type CampaignCollectionHeroLayer\s*=/);
+  assert.match(
+    themePacks,
+    /export type CampaignCollectionHeroComposition\s*=/,
+  );
   assert.match(themePacks, /heroMedia:\s*CampaignHeroMedia/);
   assert.match(themePacks, /\bheroMedia\b/);
   assert.match(themePacks, /type:\s*["']image["']/);
   assert.match(themePacks, /type:\s*["']video["']/);
   assert.match(
     themePacks,
-    /src:\s*["']\/theme-assets\/summer\/hero-scene-v2\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*375[\s\S]*?sourceHeight:\s*474/,
+    /src:\s*["']\/theme-assets\/summer\/hero-layer-base\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*750[\s\S]*?sourceHeight:\s*949/,
+  );
+  assert.match(
+    themePacks,
+    /collectionHeroComposition:\s*\{[\s\S]*?initialUnlockedCardIds:\s*\[["']watergun["']\][\s\S]*?finalReference:[\s\S]*?\/theme-assets\/summer\/hero-scene-v2\.png[\s\S]*?cardId:\s*["']watermelon["']/,
   );
   assert.match(
     themePacks,
@@ -551,6 +581,10 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(campaignStage, /campaign-map-layer/);
   assert.match(campaignStage, /campaign-hero-mask/);
   assert.match(campaignStage, /campaign-hero-media-layer/);
+  assert.match(campaignStage, /campaign-hero-card-layer-stack/);
+  assert.match(campaignStage, /campaign-hero-card-layer/);
+  assert.match(campaignStage, /unlockedHeroCardIds/);
+  assert.match(campaignStage, /data-card-id=\{layer\.cardId\}/);
   assert.match(campaignStage, /campaign-hero-transition-layer/);
   assert.match(campaignStage, /campaign-hero-effect-layer/);
   assert.match(campaignStage, /campaign-hero-ui-layer/);
@@ -614,6 +648,12 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
     css,
     /\.campaign-template\s+\.campaign-hero-media\s*\{(?=[^}]*width:\s*100%)(?=[^}]*height:\s*100%)[^}]*\}/s,
   );
+  assert.match(
+    css,
+    /\.campaign-template\s+\.campaign-hero-media\s+\.campaign-hero-card-layer\s*\{(?=[^}]*position:\s*absolute)(?=[^}]*height:\s*auto)[^}]*\}/s,
+  );
+  assert.match(css, /\.studio-hero-composer-canvas\s*\{/);
+  assert.match(css, /\.studio-hero-composer-resize\s*\{/);
   assert.doesNotMatch(
     css,
     /\.campaign-template\s+\.campaign-hero-media\s*\{[^}]*height:\s*88\.2353%[^}]*\}/s,
@@ -696,6 +736,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   await Promise.all(
     [
       "../public/figma/crops/map-cap.png",
+      "../public/theme-assets/summer/hero-layer-base.png",
       "../public/theme-assets/summer/hero-scene-v2.png",
       "../public/figma/crops/brand-logo.png",
       "../public/figma/equipment-water-gun.webp",

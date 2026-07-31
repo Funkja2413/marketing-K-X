@@ -3308,6 +3308,43 @@ footer button {
   filter: none;
 }
 
+.campaign-template .campaign-hero-media .campaign-hero-card-layer-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.campaign-template .campaign-hero-media .campaign-hero-card-layer {
+  position: absolute;
+  right: auto;
+  bottom: auto;
+  display: block;
+  max-width: none;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  transform-origin: center;
+  filter: none;
+  animation: hero-card-layer-in 420ms cubic-bezier(0.2, 0.9, 0.24, 1.18)
+    both;
+}
+
+@keyframes hero-card-layer-in {
+  from {
+    opacity: 0;
+    scale: 0.76;
+    translate: 0 8px;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+
 .campaign-template .campaign-hero .campaign-theme-tabs,
 .campaign-template.theme-night .campaign-hero .campaign-theme-tabs {
   position: absolute;
@@ -5326,6 +5363,378 @@ footer button {
   font-size: 10px;
   font-weight: 750;
   cursor: pointer;
+}
+
+.studio-three-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.studio-hero-layer-editor {
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid #c9d8f3;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f7faff, #eef5ff);
+}
+
+.studio-hero-layer-heading,
+.studio-hero-layer-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.studio-hero-layer-heading > div,
+.studio-hero-layer-selected > div {
+  display: grid;
+  gap: 2px;
+}
+
+.studio-hero-layer-heading strong,
+.studio-hero-layer-selected strong {
+  color: #24334a;
+  font-size: 11px;
+}
+
+.studio-hero-layer-heading span,
+.studio-hero-layer-selected span {
+  color: #718096;
+  font-size: 8px;
+}
+
+.studio-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  color: #526170;
+  font-size: 8px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.studio-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.studio-toggle i {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  border-radius: 999px;
+  background: #c7cfdb;
+  transition: background 160ms ease;
+}
+
+.studio-toggle i::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 3px rgba(27, 40, 61, 0.24);
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.studio-toggle input:checked + i {
+  background: #2f6cf0;
+}
+
+.studio-toggle input:checked + i::after {
+  transform: translateX(12px);
+}
+
+.studio-hero-layer-note,
+.studio-hero-layer-canvas-hint {
+  margin: 0;
+  color: #63738b;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+.studio-hero-layer-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.studio-hero-layer-cards > button {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 1px 6px;
+  align-items: center;
+  padding: 5px;
+  border: 1px solid #d8e1ef;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #46556a;
+  text-align: left;
+}
+
+.studio-hero-layer-cards > button.selected {
+  border-color: #2f6cf0;
+  box-shadow: 0 0 0 2px rgba(47, 108, 240, 0.13);
+}
+
+.studio-hero-layer-cards > button.missing {
+  border-style: dashed;
+}
+
+.studio-hero-layer-cards > button > i {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  grid-row: 1 / 3;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #eaf1fb;
+  font-style: normal;
+}
+
+.studio-hero-layer-cards > button > i img {
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  object-fit: contain;
+}
+
+.studio-hero-layer-cards > button b,
+.studio-hero-layer-cards > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-hero-layer-cards > button b {
+  font-size: 8px;
+}
+
+.studio-hero-layer-cards > button small {
+  color: #8390a1;
+  font-size: 7px;
+}
+
+.studio-hero-layer-cards > button.configured small {
+  color: #26845f;
+}
+
+.studio-hero-layer-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+.studio-hero-layer-preview-toolbar > div {
+  display: flex;
+  min-width: 0;
+  padding: 2px;
+  border-radius: 7px;
+  background: #dfe8f6;
+}
+
+.studio-hero-layer-preview-toolbar button {
+  min-height: 25px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #647287;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.studio-hero-layer-preview-toolbar button.active {
+  background: #fff;
+  color: #245ed2;
+  box-shadow: 0 1px 3px rgba(28, 51, 88, 0.12);
+}
+
+.studio-hero-layer-preview-toolbar > label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  color: #63738b;
+  font-size: 7px;
+  font-weight: 750;
+}
+
+.studio-hero-composer-canvas {
+  position: relative;
+  width: min(100%, 300px);
+  aspect-ratio: 375 / 460;
+  justify-self: center;
+  overflow: hidden;
+  border: 1px solid #a9bddf;
+  border-radius: 16px 16px 0 0;
+  background: #31aef0;
+  box-shadow:
+    0 10px 22px rgba(42, 77, 126, 0.13),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.46);
+  isolation: isolate;
+  touch-action: none;
+}
+
+.studio-hero-composer-base,
+.studio-hero-composer-reference {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.studio-hero-composer-base {
+  z-index: 1;
+}
+
+.studio-hero-composer-reference {
+  z-index: 99;
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.studio-hero-composer-layer {
+  position: absolute;
+  height: auto;
+  transform-origin: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.studio-hero-composer-layer:active {
+  cursor: grabbing;
+}
+
+.studio-hero-composer-layer.selected {
+  outline: 1.5px solid #1476ff;
+  outline-offset: 2px;
+}
+
+.studio-hero-composer-layer-media {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.studio-hero-composer-label {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 0;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #1476ff;
+  color: #fff;
+  font-size: 6px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.studio-hero-composer-resize {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  background: #1476ff;
+  box-shadow: 0 1px 4px rgba(15, 56, 119, 0.35);
+  cursor: nwse-resize;
+}
+
+.studio-hero-composer-size {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  z-index: 120;
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: rgba(13, 35, 66, 0.72);
+  color: #fff;
+  font-size: 6px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.studio-hero-layer-properties {
+  display: grid;
+  gap: 9px;
+  padding-top: 2px;
+}
+
+.studio-hero-layer-selected {
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.studio-hero-layer-selected code {
+  color: #2f6cf0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 7px;
+}
+
+.studio-hero-layer-selected > label,
+.studio-hero-layer-embedded {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #4d5d72;
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.studio-hero-layer-asset-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.studio-hero-layer-asset-actions > button,
+.studio-hero-layer-reset {
+  min-height: 34px;
+  border: 1px solid #b8c8df;
+  border-radius: 7px;
+  background: #fff;
+  color: #3f6fab;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.studio-hero-layer-embedded {
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.studio-hero-layer-embedded span {
+  display: grid;
+  gap: 2px;
+}
+
+.studio-hero-layer-embedded small {
+  color: #8995a4;
+  font-size: 7px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .studio-small-heading {

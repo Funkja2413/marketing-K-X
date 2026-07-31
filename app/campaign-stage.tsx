@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import type {
+  CampaignCollectionHeroLayer,
   CampaignHeroMedia,
   CampaignThemePack,
   ThemeId,
@@ -36,6 +37,8 @@ export type StageCard = {
 type CampaignStageProps = {
   activeTheme: ThemeId;
   pack: CampaignThemePack;
+  unlockedHeroCardIds: string[];
+  unlockedCardCount: number;
   showHeroMeasurements?: boolean;
   tabs: ThemeTab[];
   accessibleTitle: string;
@@ -136,9 +139,52 @@ function CampaignHeroMediaSlot({ media }: { media: CampaignHeroMedia }) {
   );
 }
 
+function CampaignHeroCardLayer({
+  layer,
+}: {
+  layer: CampaignCollectionHeroLayer;
+}) {
+  if (!layer.media?.src || layer.embeddedInBase) return null;
+  const style: CSSProperties = {
+    left: `${(layer.x / HERO_DESIGN_WIDTH) * 100}%`,
+    top: `${(layer.y / HERO_DESIGN_HEIGHT) * 100}%`,
+    width: `${(layer.width / HERO_DESIGN_WIDTH) * 100}%`,
+    zIndex: layer.zIndex,
+    transform: `rotate(${layer.rotation}deg)`,
+  };
+  if (layer.media.type === "video") {
+    return (
+      <video
+        className="campaign-hero-card-layer"
+        src={layer.media.src}
+        poster={layer.media.poster}
+        style={style}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        data-card-id={layer.cardId}
+      />
+    );
+  }
+  return (
+    <img
+      className="campaign-hero-card-layer"
+      src={layer.media.src}
+      alt=""
+      style={style}
+      decoding="async"
+      data-card-id={layer.cardId}
+    />
+  );
+}
+
 export function CampaignStage({
   activeTheme,
   pack,
+  unlockedHeroCardIds,
+  unlockedCardCount,
   showHeroMeasurements = false,
   tabs,
   accessibleTitle,
@@ -168,6 +214,19 @@ export function CampaignStage({
     /^(.*?)(\d+)(.*)$/,
   );
   const heroMediaMeasurement = getHeroMediaMeasurement(pack.assets.heroMedia);
+  const heroComposition = pack.assets.collectionHeroComposition;
+  const unlockedHeroCardIdSet = new Set(unlockedHeroCardIds);
+  const visibleHeroLayers =
+    heroComposition?.enabled
+      ? heroComposition.layers
+          .filter(
+            (layer) =>
+              unlockedHeroCardIdSet.has(layer.cardId) &&
+              !layer.embeddedInBase &&
+              Boolean(layer.media?.src),
+          )
+          .sort((left, right) => left.zIndex - right.zIndex)
+      : [];
 
   return (
     <section
@@ -209,6 +268,11 @@ export function CampaignStage({
           className="hero campaign-hero campaign-hero-mask"
           aria-labelledby="campaign-title"
           data-tier={heroTier}
+          data-unlocked-card-count={unlockedCardCount}
+          data-visible-hero-layer-count={visibleHeroLayers.length}
+          data-visible-hero-card-ids={visibleHeroLayers
+            .map((layer) => layer.cardId)
+            .join(",")}
         >
           <h1 id="campaign-title" className="sr-only">
             {accessibleTitle}
@@ -219,6 +283,11 @@ export function CampaignStage({
             aria-hidden="true"
           >
             <CampaignHeroMediaSlot media={pack.assets.heroMedia} />
+            <div className="campaign-hero-card-layer-stack">
+              {visibleHeroLayers.map((layer) => (
+                <CampaignHeroCardLayer layer={layer} key={layer.id} />
+              ))}
+            </div>
           </div>
 
           <div

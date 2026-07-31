@@ -2,12 +2,13 @@
 
 `CampaignStage` 是活动首屏的统一容器。首屏采用固定分层：底部静止地图、前景活动场、首焦媒体、渐变过渡、动效层和实时 UI 层。主题 Tab、主操作按钮、奖励档位和收集卡槽都由同一套组件与共享 CSS 负责排版。
 
-主题包只负责两类内容：
+主题包负责三类内容：
 
 - 素材：Hero、顶部装饰和终极奖励图。
 - 视觉 Token：页面、面板、按钮、Tab、卡槽等颜色。
+- Hero 道具图层：卡片 ID、透明素材与在 `375 × 460` 坐标系中的落位。
 
-主题包不得定义组件高度、宽度、比例、间距、栅格或定位。这样切换主题时，页面结构与触控区域不会发生变化。
+除 Hero 道具图层的局部 `x/y/width/rotation/zIndex` 外，主题包不得定义组件高度、宽度、比例、间距、栅格或定位。这样切换主题时，页面结构与触控区域不会发生变化。
 
 当前入口：
 
@@ -57,6 +58,22 @@ assets: {
   heroMedia:
     | { type: "image"; src: string; fit?: "cover" | "contain"; position?: string }
     | { type: "video"; src: string; poster?: string; fit?: "cover" | "contain"; position?: string };
+  collectionHeroComposition?: {
+    enabled: boolean;
+    initialUnlockedCardIds: string[];
+    finalReference?: CampaignHeroMedia;
+    layers: Array<{
+      id: string;
+      cardId: string;
+      media?: CampaignHeroMedia;
+      embeddedInBase?: boolean;
+      x: number;
+      y: number;
+      width: number;
+      rotation: number;
+      zIndex: number;
+    }>;
+  };
   grandRewardImage?: string;
   rewardShelfImage?: string;
   actionButtonImage?: string;
@@ -68,6 +85,8 @@ assets: {
 
 - `mapBackgroundImage` 是活动场背后的地图层；省略时由 `mapBackground` 填充，仍保留相同空间。
 - `heroMedia` 是必填项，可选择图片或视频。
+- `collectionHeroComposition` 按具体卡片 ID 控制透明图层；抽卡顺序不影响图层落位。
+- `finalReference` 只用于 Studio 半透明对位，不会进入活动页运行时。
 - `grandRewardImage` 可省略；它用于终极奖励档位的透明底奖品图。
 - 其余 `*Image` 字段是整套 UI 框体素材，可按需提供；省略时自动使用颜色 Token 生成的默认 UI。
 
@@ -187,6 +206,15 @@ public/
 - 图片只包含卡片物件本身；已获得边框、未获得遮罩、数量角标和卡名由共享 UI 绘制。
 - 推荐使用 WebP 或 PNG，避免带大面积空白。
 
+### Hero 道具图层
+
+- 运行时关系固定为 `cardCounts[cardId] > 0 → 显示对应透明图层`，不能按“已集齐第 N 种”切整张 Hero。
+- 定位坐标使用 Hero 可见区 `375 × 460`，不是原始导出图的尺寸。
+- 右侧 Studio 小画布支持拖动和等比缩放；最终保存的是 `x/y/width/rotation/zIndex`。
+- `embeddedInBase` 只适合首次默认赠送、且已烘焙在底图中的道具；其他道具应提供独立透明 PNG/WebP。
+- 原始 Hero 如果是 `375 × 474`，页面会顶对齐并裁掉底部 `14px`，图层不要放进这段不可见区域。
+- 最终合成图可以放进 `finalReference` 作半透明校对，但集齐 9 种时仍由底图与 9 个图层实时合成。
+
 ### 奖励图
 
 - 使用透明底 PNG 或 WebP。
@@ -209,6 +237,7 @@ public/
 
 - 图片路径。
 - 背景色、文字色、边框色、按钮渐变色等视觉 Token。
+- Hero 道具图层在固定 `375 × 460` 坐标系中的局部落位数据。
 
 禁止在主题包或主题专属选择器中放：
 
@@ -224,7 +253,7 @@ bottom
 left
 margin
 padding
-transform
+transform /* Hero 道具图层的 rotation 除外 */
 ```
 
 特别不要重新引入以下形式的布局覆盖：

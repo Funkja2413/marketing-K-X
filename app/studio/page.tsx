@@ -23,6 +23,9 @@ import {
 } from "../page";
 import {
   THEME_PACKS,
+  type CampaignCollectionHeroComposition,
+  type CampaignCollectionHeroLayer,
+  type CampaignHeroMedia,
   type CampaignThemePack,
   type ThemeId,
 } from "../campaign-theme-packs";
@@ -225,7 +228,7 @@ const CAMPAIGN_FLOW_EDGES: CampaignFlowEdge[] = [
 type PackColorKey = keyof CampaignThemePack["colors"];
 type PackAssetKey = Exclude<
   keyof CampaignThemePack["assets"],
-  "heroMedia"
+  "heroMedia" | "collectionHeroComposition"
 >;
 
 const CORE_COLOR_FIELDS: Array<{
@@ -562,6 +565,24 @@ function applyAiCandidateToDraft(
           }
         : card,
     );
+    const composition = next.pack.assets.collectionHeroComposition;
+    if (composition) {
+      composition.layers = composition.layers.map((layer) =>
+        layer.cardId === target.entityId && !layer.embeddedInBase
+          ? {
+              ...layer,
+              media: {
+                type: "image",
+                src: candidate.src,
+                fit: "contain",
+                position: "center",
+                sourceWidth: candidate.width,
+                sourceHeight: candidate.height,
+              },
+            }
+          : layer,
+      );
+    }
   }
   if (target.kind === "reward" && target.entityId) {
     const selectedTier = next.content.tiers.find(
@@ -641,6 +662,24 @@ function applyM2BatchToDraft(
       imageHeight: candidate.height,
     };
   });
+  const composition = next.pack.assets.collectionHeroComposition;
+  if (composition) {
+    composition.layers = composition.layers.map((layer) => {
+      const candidate = cardAssets.get(layer.cardId);
+      if (!candidate || layer.embeddedInBase) return layer;
+      return {
+        ...layer,
+        media: {
+          type: "image",
+          src: candidate.src,
+          fit: "contain",
+          position: "center",
+          sourceWidth: candidate.width,
+          sourceHeight: candidate.height,
+        },
+      };
+    });
+  }
   next.content.tiers = next.content.tiers.map((tier) => {
     const candidate = rewardAssets.get(tier.id);
     if (!candidate) return tier;
@@ -680,6 +719,28 @@ function createDraft(
     content: cloneValue(THEMES[baseTheme]),
     pack: cloneValue(THEME_PACKS[baseTheme]),
     updatedAt: options?.updatedAt ?? new Date().toISOString(),
+  };
+}
+
+function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
+  const defaultPack = THEME_PACKS[draft.baseTheme];
+  return {
+    ...draft,
+    pack: {
+      ...defaultPack,
+      ...draft.pack,
+      assets: {
+        ...defaultPack.assets,
+        ...draft.pack.assets,
+        collectionHeroComposition:
+          draft.pack.assets.collectionHeroComposition ??
+          cloneValue(defaultPack.assets.collectionHeroComposition),
+      },
+      colors: {
+        ...defaultPack.colors,
+        ...draft.pack.colors,
+      },
+    },
   };
 }
 
@@ -877,6 +938,247 @@ function AssetPreview({
   );
 }
 
+type HeroLayerPreviewMode = "actual" | "selected" | "all";
+
+function HeroLayerComposer({
+  baseMedia,
+  finalReference,
+  layers,
+  selectedLayerId,
+  visibleCardIds,
+  showReference,
+  onSelect,
+  onCommit,
+}: {
+  baseMedia: CampaignHeroMedia;
+  finalReference?: CampaignHeroMedia;
+  layers: CampaignCollectionHeroLayer[];
+  selectedLayerId: string;
+  visibleCardIds: string[];
+  showReference: boolean;
+  onSelect: (layerId: string) => void;
+  onCommit: (
+    layerId: string,
+    patch: Partial<CampaignCollectionHeroLayer>,
+  ) => void;
+}) {
+  const [transient, setTransient] = useState<{
+    layerId: string;
+    x: number;
+    y: number;
+    width: number;
+  } | null>(null);
+  const transientRef = useRef<{
+    layerId: string;
+    x: number;
+    y: number;
+    width: number;
+  } | null>(null);
+  const interactionRef = useRef<{
+    pointerId: number;
+    layerId: string;
+    mode: "move" | "resize";
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    rectWidth: number;
+    rectHeight: number;
+  } | null>(null);
+  const visibleSet = new Set(visibleCardIds);
+
+  function beginLayerInteraction(
+    event: ReactPointerEvent<HTMLElement>,
+    layer: CampaignCollectionHeroLayer,
+    mode: "move" | "resize",
+  ) {
+    if (!layer.media?.src || layer.embeddedInBase) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect(layer.id);
+    const canvas = event.currentTarget.closest(
+      ".studio-hero-composer-canvas",
+    );
+    if (!(canvas instanceof HTMLElement)) return;
+    const rect = canvas.getBoundingClientRect();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    interactionRef.current = {
+      pointerId: event.pointerId,
+      layerId: layer.id,
+      mode,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: layer.x,
+      startY: layer.y,
+      startWidth: layer.width,
+      rectWidth: rect.width,
+      rectHeight: rect.height,
+    };
+    const nextFrame = {
+      layerId: layer.id,
+      x: layer.x,
+      y: layer.y,
+      width: layer.width,
+    };
+    transientRef.current = nextFrame;
+    setTransient(nextFrame);
+  }
+
+  function moveLayerInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = interactionRef.current;
+    if (!interaction || interaction.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const deltaX =
+      ((event.clientX - interaction.startClientX) /
+        interaction.rectWidth) *
+      375;
+    const deltaY =
+      ((event.clientY - interaction.startClientY) /
+        interaction.rectHeight) *
+      460;
+    if (interaction.mode === "resize") {
+      const nextFrame = {
+        layerId: interaction.layerId,
+        x: interaction.startX,
+        y: interaction.startY,
+        width: Math.max(16, interaction.startWidth + deltaX),
+      };
+      transientRef.current = nextFrame;
+      setTransient(nextFrame);
+      return;
+    }
+    const nextFrame = {
+      layerId: interaction.layerId,
+      x: interaction.startX + deltaX,
+      y: interaction.startY + deltaY,
+      width: interaction.startWidth,
+    };
+    transientRef.current = nextFrame;
+    setTransient(nextFrame);
+  }
+
+  function finishLayerInteraction(event: ReactPointerEvent<HTMLElement>) {
+    const interaction = interactionRef.current;
+    if (!interaction || interaction.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    const finalFrame = transientRef.current;
+    if (finalFrame?.layerId === interaction.layerId) {
+      onCommit(interaction.layerId, {
+        x: Math.round(finalFrame.x * 10) / 10,
+        y: Math.round(finalFrame.y * 10) / 10,
+        width: Math.round(finalFrame.width * 10) / 10,
+      });
+    }
+    interactionRef.current = null;
+    transientRef.current = null;
+    setTransient(null);
+  }
+
+  function renderMedia(
+    media: CampaignHeroMedia,
+    className: string,
+    alt = "",
+  ) {
+    const style: CSSProperties = {
+      objectFit: media.fit ?? "cover",
+      objectPosition: media.position ?? "center top",
+    };
+    return media.type === "video" ? (
+      <video
+        className={className}
+        src={media.src}
+        poster={media.poster}
+        style={style}
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
+    ) : (
+      <img className={className} src={media.src} alt={alt} style={style} />
+    );
+  }
+
+  return (
+    <div
+      className="studio-hero-composer-canvas"
+      data-testid="config-hero-layer-canvas"
+    >
+      {renderMedia(baseMedia, "studio-hero-composer-base", "Hero 基础图")}
+      {layers
+        .filter(
+          (layer) =>
+            visibleSet.has(layer.cardId) &&
+            layer.media?.src &&
+            !layer.embeddedInBase,
+        )
+        .sort((left, right) => left.zIndex - right.zIndex)
+        .map((layer) => {
+          const frame =
+            transient?.layerId === layer.id ? transient : layer;
+          const selected = selectedLayerId === layer.id;
+          return (
+            <div
+              className={`studio-hero-composer-layer ${
+                selected ? "selected" : ""
+              }`}
+              style={{
+                left: `${(frame.x / 375) * 100}%`,
+                top: `${(frame.y / 460) * 100}%`,
+                width: `${(frame.width / 375) * 100}%`,
+                zIndex: layer.zIndex + 2,
+                transform: `rotate(${layer.rotation}deg)`,
+              }}
+              onPointerDown={(event) =>
+                beginLayerInteraction(event, layer, "move")
+              }
+              onPointerMove={moveLayerInteraction}
+              onPointerUp={finishLayerInteraction}
+              onPointerCancel={finishLayerInteraction}
+              data-card-id={layer.cardId}
+              key={layer.id}
+            >
+              {renderMedia(
+                layer.media!,
+                "studio-hero-composer-layer-media",
+                "",
+              )}
+              {selected && (
+                <>
+                  <span className="studio-hero-composer-label">
+                    {layer.label}
+                  </span>
+                  <button
+                    type="button"
+                    className="studio-hero-composer-resize"
+                    aria-label={`缩放${layer.label}`}
+                    onPointerDown={(event) =>
+                      beginLayerInteraction(event, layer, "resize")
+                    }
+                    onPointerMove={moveLayerInteraction}
+                    onPointerUp={finishLayerInteraction}
+                    onPointerCancel={finishLayerInteraction}
+                  />
+                </>
+              )}
+            </div>
+          );
+        })}
+      {showReference &&
+        finalReference?.src &&
+        renderMedia(
+          finalReference,
+          "studio-hero-composer-reference",
+          "最终效果对齐参考",
+        )}
+      <span className="studio-hero-composer-size">375 × 460</span>
+    </div>
+  );
+}
+
 export default function CampaignStudio() {
   const [drafts, setDrafts] =
     useState<CampaignSkinDraft[]>(createStarterDrafts);
@@ -889,6 +1191,12 @@ export default function CampaignStudio() {
     useState<StudioCanvasMode>("page");
   const [selectedPageId, setSelectedPageId] =
     useState("campaign-main");
+  const [heroLayerEditId, setHeroLayerEditId] =
+    useState("hero-layer-watergun");
+  const [heroLayerPreviewMode, setHeroLayerPreviewMode] =
+    useState<HeroLayerPreviewMode>("actual");
+  const [showHeroFinalReference, setShowHeroFinalReference] =
+    useState(false);
   const [flowEdges, setFlowEdges] = useState<CampaignFlowEdge[]>(
     () => cloneValue(CAMPAIGN_FLOW_EDGES),
   );
@@ -940,6 +1248,23 @@ export default function CampaignStudio() {
 
   const activeDraft =
     drafts.find((draft) => draft.id === activeId) ?? drafts[0];
+  const collectionHeroComposition =
+    activeDraft.pack.assets.collectionHeroComposition;
+  const heroLayers = collectionHeroComposition?.layers ?? [];
+  const selectedHeroLayer =
+    heroLayers.find((layer) => layer.id === heroLayerEditId) ??
+    heroLayers[0] ??
+    null;
+  const configuredHeroLayerCount = heroLayers.filter(
+    (layer) => Boolean(layer.media?.src) || layer.embeddedInBase,
+  ).length;
+  const editorVisibleHeroCardIds =
+    heroLayerPreviewMode === "all"
+      ? heroLayers.map((layer) => layer.cardId)
+      : heroLayerPreviewMode === "selected" && selectedHeroLayer
+        ? [selectedHeroLayer.cardId]
+      : collectionHeroComposition?.initialUnlockedCardIds ?? [];
+  const h5HeroLayerPreviewCardIds = editorVisibleHeroCardIds;
   const previewDraft = useMemo(() => {
     if (!aiTrial || aiTrial.target.draftId !== activeDraft.id) {
       return activeDraft;
@@ -987,6 +1312,32 @@ export default function CampaignStudio() {
     ) {
       issues.push("奖励门槛未递增");
     }
+    const composition =
+      activeDraft.pack.assets.collectionHeroComposition;
+    if (composition?.enabled) {
+      const cardIds = composition.layers.map((layer) => layer.cardId);
+      if (
+        new Set(cardIds).size !== cardIds.length ||
+        cardIds.some(
+          (cardId) =>
+            !activeDraft.content.cards.some((card) => card.id === cardId),
+        )
+      ) {
+        issues.push("Hero 图层与道具卡 ID 映射异常");
+      }
+      if (
+        composition.layers.some(
+          (layer) =>
+            !Number.isFinite(layer.x) ||
+            !Number.isFinite(layer.y) ||
+            !Number.isFinite(layer.width) ||
+            layer.width < 8 ||
+            layer.width > 750,
+        )
+      ) {
+        issues.push("Hero 道具图层位置或尺寸异常");
+      }
+    }
     return issues;
   }, [activeDraft]);
 
@@ -997,7 +1348,7 @@ export default function CampaignStudio() {
         if (saved) {
           const parsed: unknown = JSON.parse(saved);
           if (Array.isArray(parsed)) {
-            const validDrafts = parsed.filter(isDraft);
+            const validDrafts = parsed.filter(isDraft).map(normalizeDraft);
             if (validDrafts.length > 0) {
               setDrafts(validDrafts);
               setActiveId(validDrafts[0].id);
@@ -1102,6 +1453,9 @@ export default function CampaignStudio() {
       setAiTrial(null);
       setAdoptedCandidateId(null);
       setAdoptedGroupId(null);
+      setHeroLayerEditId("hero-layer-watergun");
+      setHeroLayerPreviewMode("actual");
+      setShowHeroFinalReference(false);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activeId]);
@@ -1364,6 +1718,123 @@ export default function CampaignStudio() {
         },
       },
     }));
+  }
+
+  function updateCollectionHeroComposition(
+    updater: (
+      composition: CampaignCollectionHeroComposition,
+    ) => CampaignCollectionHeroComposition,
+  ) {
+    updateActive((draft) => {
+      const currentComposition =
+        draft.pack.assets.collectionHeroComposition ??
+        cloneValue(
+          THEME_PACKS[draft.baseTheme].assets
+            .collectionHeroComposition,
+        );
+      if (!currentComposition) return draft;
+      return {
+        ...draft,
+        pack: {
+          ...draft.pack,
+          assets: {
+            ...draft.pack.assets,
+            collectionHeroComposition: updater(currentComposition),
+          },
+        },
+      };
+    });
+  }
+
+  function updateHeroLayer(
+    layerId: string,
+    patch: Partial<CampaignCollectionHeroLayer>,
+  ) {
+    updateCollectionHeroComposition((composition) => ({
+      ...composition,
+      layers: composition.layers.map((layer) =>
+        layer.id === layerId ? { ...layer, ...patch } : layer,
+      ),
+    }));
+  }
+
+  async function uploadHeroLayer(
+    layerId: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const asset = await readImageAsset(file);
+      const currentLayer =
+        activeDraft.pack.assets.collectionHeroComposition?.layers.find(
+          (layer) => layer.id === layerId,
+        );
+      updateHeroLayer(layerId, {
+        embeddedInBase: false,
+        media: {
+          type: "image",
+          src: asset.src,
+          sourceWidth: asset.width,
+          sourceHeight: asset.height,
+          fit: "contain",
+          position: "center",
+        },
+      });
+      setMessage(
+        `已替换「${currentLayer?.label ?? "Hero 道具图层"}」透明素材`,
+      );
+    } catch {
+      setMessage("Hero 道具图层读取失败");
+    }
+  }
+
+  async function uploadHeroFinalReference(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const asset = await readImageAsset(file);
+      updateCollectionHeroComposition((composition) => ({
+        ...composition,
+        finalReference: {
+          type: "image",
+          src: asset.src,
+          sourceWidth: asset.width,
+          sourceHeight: asset.height,
+          fit: "cover",
+          position: "center top",
+        },
+      }));
+      setMessage("最终效果图已载入，仅用于图层对位参考");
+    } catch {
+      setMessage("最终效果参考图读取失败");
+    }
+  }
+
+  function syncHeroLayerFromCard(layer: CampaignCollectionHeroLayer) {
+    const card = activeDraft.content.cards.find(
+      (item) => item.id === layer.cardId,
+    );
+    if (!card?.image) {
+      setMessage("这张道具卡还没有独立图片，请先上传透明素材");
+      return;
+    }
+    updateHeroLayer(layer.id, {
+      embeddedInBase: false,
+      media: {
+        type: "image",
+        src: card.image,
+        sourceWidth: card.imageWidth,
+        sourceHeight: card.imageHeight,
+        fit: "contain",
+        position: "center",
+      },
+    });
+    setMessage(`已把「${card.name}」卡片图同步为 Hero 图层`);
   }
 
   function updateCard(index: number, patch: Partial<CardDefinition>) {
@@ -1816,7 +2287,7 @@ export default function CampaignStudio() {
           throw new Error("配置结构不完整");
         }
         const imported = {
-          ...parsed,
+          ...normalizeDraft(parsed),
           id: `${parsed.baseTheme}-${Date.now()}`,
           name: `${parsed.name} · 导入`,
           updatedAt: new Date().toISOString(),
@@ -2590,6 +3061,7 @@ export default function CampaignStudio() {
                     initialTheme={activeDraft.baseTheme}
                     persistProgress={false}
                     fixture
+                    heroLayerPreviewCardIds={h5HeroLayerPreviewCardIds}
                   />
                 ) : (
                   <div
@@ -3261,6 +3733,363 @@ export default function CampaignStudio() {
                 </small>
               </button>
             </div>
+            {collectionHeroComposition && (
+              <section
+                className="studio-hero-layer-editor"
+                data-testid="config-hero-layer-editor"
+                aria-label="Hero 道具图层"
+              >
+                <div className="studio-hero-layer-heading">
+                  <div>
+                    <strong>Hero 道具图层</strong>
+                    <span>
+                      已配置 {configuredHeroLayerCount}/
+                      {heroLayers.length} 个道具
+                    </span>
+                  </div>
+                  <label className="studio-toggle">
+                    <input
+                      type="checkbox"
+                      checked={collectionHeroComposition.enabled}
+                      onChange={(event) =>
+                        updateCollectionHeroComposition(
+                          (composition) => ({
+                            ...composition,
+                            enabled: event.target.checked,
+                          }),
+                        )
+                      }
+                      data-testid="config-hero-layers-enabled"
+                    />
+                    <i aria-hidden="true" />
+                    <span>
+                      {collectionHeroComposition.enabled
+                        ? "已启用"
+                        : "已停用"}
+                    </span>
+                  </label>
+                </div>
+                <p className="studio-hero-layer-note">
+                  每张道具卡按稳定 cardId 控制一个透明图层。解锁顺序可以随机，位置不会变化。
+                </p>
+                <div
+                  className="studio-hero-layer-cards"
+                  role="tablist"
+                  aria-label="选择要定位的道具图层"
+                >
+                  {heroLayers.map((layer) => {
+                    const card = activeDraft.content.cards.find(
+                      (item) => item.id === layer.cardId,
+                    );
+                    const selected = selectedHeroLayer?.id === layer.id;
+                    return (
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        className={`${selected ? "selected" : ""} ${
+                          layer.media?.src || layer.embeddedInBase
+                            ? "configured"
+                            : "missing"
+                        }`}
+                        onClick={() => {
+                          setHeroLayerEditId(layer.id);
+                          setHeroLayerPreviewMode("selected");
+                        }}
+                        data-testid={`config-hero-layer-${layer.cardId}`}
+                        key={layer.id}
+                      >
+                        <i style={{ background: card?.accent }}>
+                          {layer.media?.src ? (
+                            <img src={layer.media.src} alt="" />
+                          ) : card?.image ? (
+                            <img src={card.image} alt="" />
+                          ) : (
+                            <span>{card?.emoji ?? "?"}</span>
+                          )}
+                        </i>
+                        <b>{card?.name ?? layer.label}</b>
+                        <small>
+                          {layer.embeddedInBase
+                            ? "底图已含"
+                            : layer.media?.src
+                              ? "独立图层"
+                              : "待上传"}
+                        </small>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="studio-hero-layer-preview-toolbar">
+                  <div role="group" aria-label="H5 图层预览模式">
+                    {(
+                      [
+                        ["actual", "默认进入"],
+                        ["selected", "只看当前"],
+                        ["all", "全部点亮"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        type="button"
+                        className={
+                          heroLayerPreviewMode === mode ? "active" : ""
+                        }
+                        onClick={() => setHeroLayerPreviewMode(mode)}
+                        key={mode}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showHeroFinalReference}
+                      onChange={(event) =>
+                        setShowHeroFinalReference(event.target.checked)
+                      }
+                    />
+                    最终图对位
+                  </label>
+                </div>
+                <HeroLayerComposer
+                  baseMedia={activeDraft.pack.assets.heroMedia}
+                  finalReference={
+                    collectionHeroComposition.finalReference
+                  }
+                  layers={heroLayers}
+                  selectedLayerId={selectedHeroLayer?.id ?? ""}
+                  visibleCardIds={editorVisibleHeroCardIds}
+                  showReference={showHeroFinalReference}
+                  onSelect={(layerId) => setHeroLayerEditId(layerId)}
+                  onCommit={updateHeroLayer}
+                />
+                <div className="studio-hero-layer-canvas-hint">
+                  拖动道具改变位置，拖右下角控制点等比缩放。坐标按
+                  375 × 460 可见区保存；原图底部 14px 会被 Hero 裁切。
+                </div>
+                <label className="studio-mini-upload">
+                  上传最终效果参考图 · 仅供半透明对位，不参与发布
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={uploadHeroFinalReference}
+                  />
+                </label>
+                {selectedHeroLayer && (
+                  <div className="studio-hero-layer-properties">
+                    <div className="studio-hero-layer-selected">
+                      <div>
+                        <strong>{selectedHeroLayer.label}</strong>
+                        <span>
+                          触发：获得{" "}
+                          <code>{selectedHeroLayer.cardId}</code>
+                        </span>
+                      </div>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={collectionHeroComposition.initialUnlockedCardIds.includes(
+                            selectedHeroLayer.cardId,
+                          )}
+                          onChange={(event) =>
+                            updateCollectionHeroComposition(
+                              (composition) => ({
+                                ...composition,
+                                initialUnlockedCardIds: event.target.checked
+                                  ? Array.from(
+                                      new Set([
+                                        ...composition.initialUnlockedCardIds,
+                                        selectedHeroLayer.cardId,
+                                      ]),
+                                    )
+                                  : composition.initialUnlockedCardIds.filter(
+                                      (cardId) =>
+                                        cardId !==
+                                        selectedHeroLayer.cardId,
+                                    ),
+                              }),
+                            )
+                          }
+                        />
+                        首次赠送
+                      </label>
+                    </div>
+                    <Field
+                      label="透明图层素材"
+                      hint={
+                        selectedHeroLayer.media?.sourceWidth &&
+                        selectedHeroLayer.media?.sourceHeight
+                          ? `当前文件 ${selectedHeroLayer.media.sourceWidth} × ${selectedHeroLayer.media.sourceHeight} px`
+                          : "建议透明 PNG/WebP，主体贴边裁切；上传后可在上方画布直接定位。"
+                      }
+                    >
+                      <input
+                        type="text"
+                        value={selectedHeroLayer.media?.src ?? ""}
+                        onChange={(event) => {
+                          const src = event.target.value;
+                          updateHeroLayer(selectedHeroLayer.id, {
+                            embeddedInBase: false,
+                            media: src
+                              ? {
+                                  type:
+                                    selectedHeroLayer.media?.type ??
+                                    "image",
+                                  src,
+                                  fit: "contain",
+                                  position: "center",
+                                }
+                              : undefined,
+                          });
+                        }}
+                        data-testid="config-hero-layer-source"
+                      />
+                    </Field>
+                    <div className="studio-hero-layer-asset-actions">
+                      <label className="studio-mini-upload">
+                        上传透明图
+                        <input
+                          type="file"
+                          accept="image/png,image/webp,image/avif"
+                          onChange={(event) =>
+                            uploadHeroLayer(
+                              selectedHeroLayer.id,
+                              event,
+                            )
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          syncHeroLayerFromCard(selectedHeroLayer)
+                        }
+                      >
+                        使用卡片图
+                      </button>
+                    </div>
+                    <label className="studio-hero-layer-embedded">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(
+                          selectedHeroLayer.embeddedInBase,
+                        )}
+                        onChange={(event) =>
+                          updateHeroLayer(selectedHeroLayer.id, {
+                            embeddedInBase: event.target.checked,
+                          })
+                        }
+                      />
+                      <span>
+                        已烘焙进基础图
+                        <small>
+                          此状态不会再叠加图片，适合默认赠送的首个道具。
+                        </small>
+                      </span>
+                    </label>
+                    <div className="studio-three-fields">
+                      <Field label="X">
+                        <input
+                          type="number"
+                          value={selectedHeroLayer.x}
+                          disabled={selectedHeroLayer.embeddedInBase}
+                          onChange={(event) =>
+                            updateHeroLayer(selectedHeroLayer.id, {
+                              x: Number(event.target.value) || 0,
+                            })
+                          }
+                          data-testid="config-hero-layer-x"
+                        />
+                      </Field>
+                      <Field label="Y">
+                        <input
+                          type="number"
+                          value={selectedHeroLayer.y}
+                          disabled={selectedHeroLayer.embeddedInBase}
+                          onChange={(event) =>
+                            updateHeroLayer(selectedHeroLayer.id, {
+                              y: Number(event.target.value) || 0,
+                            })
+                          }
+                          data-testid="config-hero-layer-y"
+                        />
+                      </Field>
+                      <Field label="宽度">
+                        <input
+                          type="number"
+                          min="8"
+                          max="750"
+                          value={selectedHeroLayer.width}
+                          disabled={selectedHeroLayer.embeddedInBase}
+                          onChange={(event) =>
+                            updateHeroLayer(selectedHeroLayer.id, {
+                              width: Math.max(
+                                8,
+                                Number(event.target.value) || 8,
+                              ),
+                            })
+                          }
+                          data-testid="config-hero-layer-width"
+                        />
+                      </Field>
+                    </div>
+                    <div className="studio-two-fields">
+                      <Field label="旋转角度">
+                        <input
+                          type="number"
+                          min="-180"
+                          max="180"
+                          value={selectedHeroLayer.rotation}
+                          disabled={selectedHeroLayer.embeddedInBase}
+                          onChange={(event) =>
+                            updateHeroLayer(selectedHeroLayer.id, {
+                              rotation:
+                                Number(event.target.value) || 0,
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="图层顺序">
+                        <input
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={selectedHeroLayer.zIndex}
+                          disabled={selectedHeroLayer.embeddedInBase}
+                          onChange={(event) =>
+                            updateHeroLayer(selectedHeroLayer.id, {
+                              zIndex: Math.max(
+                                1,
+                                Math.min(
+                                  20,
+                                  Number(event.target.value) || 1,
+                                ),
+                              ),
+                            })
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <button
+                      type="button"
+                      className="studio-hero-layer-reset"
+                      onClick={() =>
+                        updateHeroLayer(selectedHeroLayer.id, {
+                          x: 0,
+                          y: 0,
+                          width: 64,
+                          rotation: 0,
+                          zIndex: 2,
+                        })
+                      }
+                    >
+                      重置当前图层位置
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
             <Field label="卡册名称">
               <input
                 type="text"

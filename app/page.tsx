@@ -710,6 +710,19 @@ export type CampaignRuntimeConfiguration = {
 export function createConfigurationFromSkin(
   skin: CampaignSkinDraft,
 ): CampaignRuntimeConfiguration {
+  const defaultPack = THEME_PACKS[skin.baseTheme];
+  const mergedPack: CampaignThemePack = {
+    ...defaultPack,
+    ...skin.pack,
+    assets: {
+      ...defaultPack.assets,
+      ...skin.pack.assets,
+    },
+    colors: {
+      ...defaultPack.colors,
+      ...skin.pack.colors,
+    },
+  };
   return {
     themes: {
       ...THEMES,
@@ -720,7 +733,7 @@ export function createConfigurationFromSkin(
     },
     themePacks: {
       ...THEME_PACKS,
-      [skin.baseTheme]: skin.pack,
+      [skin.baseTheme]: mergedPack,
     },
   };
 }
@@ -772,12 +785,17 @@ function getDailyCycle() {
   }).format(new Date());
 }
 
-function createInitialProgress(drawBalance = 1): CampaignProgress {
+function createInitialProgress(
+  drawBalance = 1,
+  initialCardIds: string[] = [],
+): CampaignProgress {
   return {
     dailyCycle: getDailyCycle(),
     drawBalance,
     duplicateStreak: 0,
-    cardCounts: {},
+    cardCounts: Object.fromEntries(
+      initialCardIds.map((cardId) => [cardId, 1]),
+    ),
     taskProgress: {
       browse: 1,
       post: 0,
@@ -790,28 +808,54 @@ function createInitialProgress(drawBalance = 1): CampaignProgress {
   };
 }
 
-function createInitialState(activeTheme: ThemeId = "summer"): CampaignState {
+function getInitialCardIds(
+  theme: ThemeDefinition,
+  pack: CampaignThemePack,
+) {
+  const composition = pack.assets.collectionHeroComposition;
+  if (!composition?.enabled) return [];
+  const validIds = new Set(theme.cards.map((card) => card.id));
+  return Array.from(
+    new Set(
+      composition.initialUnlockedCardIds.filter((cardId) =>
+        validIds.has(cardId),
+      ),
+    ),
+  );
+}
+
+function createInitialState(
+  activeTheme: ThemeId = "summer",
+  themes: Record<ThemeId, ThemeDefinition> = THEMES,
+  themePacks: Record<ThemeId, CampaignThemePack> = THEME_PACKS,
+): CampaignState {
   return {
     version: 2,
     activeTheme,
     themes: {
-      summer: createInitialProgress(2),
-      night: createInitialProgress(1),
+      summer: createInitialProgress(
+        2,
+        getInitialCardIds(themes.summer, themePacks.summer),
+      ),
+      night: createInitialProgress(
+        1,
+        getInitialCardIds(themes.night, themePacks.night),
+      ),
     },
   };
 }
 
 function createFigmaFixtureState(
   activeTheme: ThemeId = "summer",
+  themes: Record<ThemeId, ThemeDefinition> = THEMES,
+  themePacks: Record<ThemeId, CampaignThemePack> = THEME_PACKS,
 ): CampaignState {
-  const state = createInitialState(activeTheme);
+  const state = createInitialState(activeTheme, themes, themePacks);
   state.themes.summer = {
     ...state.themes.summer,
     drawBalance: 99,
     cardCounts: {
-      watergun: 5,
-      watermelon: 3,
-      surfboard: 1,
+      watergun: 1,
     },
     claimedTiers: ["tier-1"],
     coupons: [
@@ -839,10 +883,13 @@ function countDistinctCards(
 function normalizeProgress(
   input: unknown,
   theme: ThemeDefinition,
+  initialCardIds: string[] = [],
 ): CampaignProgress {
-  if (!input || typeof input !== "object") return createInitialProgress();
+  if (!input || typeof input !== "object") {
+    return createInitialProgress(1, initialCardIds);
+  }
   const candidate = input as Partial<CampaignProgress>;
-  const defaults = createInitialProgress();
+  const defaults = createInitialProgress(1, initialCardIds);
   const currentCycle = getDailyCycle();
   const savedCycle =
     typeof candidate.dailyCycle === "string"
@@ -852,7 +899,14 @@ function normalizeProgress(
   const cardCounts = Object.fromEntries(
     theme.cards.map((card) => [
       card.id,
-      Math.max(0, Number(candidate.cardCounts?.[card.id]) || 0),
+      Math.max(
+        defaults.cardCounts[card.id] ?? 0,
+        Number(
+          candidate.cardCounts?.[card.id] ??
+            defaults.cardCounts[card.id] ??
+            0,
+        ) || 0,
+      ),
     ]),
   );
   const taskProgress = Object.fromEntries(
@@ -913,16 +967,29 @@ function normalizeState(
   input: unknown,
   legacyNight?: unknown,
   themes: Record<ThemeId, ThemeDefinition> = THEMES,
+  themePacks: Record<ThemeId, CampaignThemePack> = THEME_PACKS,
 ): CampaignState {
+  const summerInitialCards = getInitialCardIds(
+    themes.summer,
+    themePacks.summer,
+  );
+  const nightInitialCards = getInitialCardIds(
+    themes.night,
+    themePacks.night,
+  );
   if (!input || typeof input !== "object") {
-    const initial = createInitialState();
+    const initial = createInitialState("summer", themes, themePacks);
     return {
       ...initial,
       themes: {
-        summer: createInitialProgress(2),
+        summer: createInitialProgress(2, summerInitialCards),
         night: legacyNight
-          ? normalizeProgress(legacyNight, themes.night)
-          : createInitialProgress(1),
+          ? normalizeProgress(
+              legacyNight,
+              themes.night,
+              nightInitialCards,
+            )
+          : createInitialProgress(1, nightInitialCards),
       },
     };
   }
@@ -934,11 +1001,19 @@ function normalizeState(
     activeTheme,
     themes: {
       summer: candidate.themes?.summer
-        ? normalizeProgress(candidate.themes.summer, themes.summer)
-        : createInitialProgress(2),
+        ? normalizeProgress(
+            candidate.themes.summer,
+            themes.summer,
+            summerInitialCards,
+          )
+        : createInitialProgress(2, summerInitialCards),
       night: candidate.themes?.night
-        ? normalizeProgress(candidate.themes.night, themes.night)
-        : createInitialProgress(1),
+        ? normalizeProgress(
+            candidate.themes.night,
+            themes.night,
+            nightInitialCards,
+          )
+        : createInitialProgress(1, nightInitialCards),
     },
   };
 }
@@ -973,6 +1048,8 @@ type CampaignExperienceProps = {
   initialTheme?: ThemeId;
   persistProgress?: boolean;
   fixture?: boolean;
+  /** Studio-only card-ID override; it never mutates visitor collection data. */
+  heroLayerPreviewCardIds?: string[];
 };
 
 export function CampaignExperience({
@@ -980,6 +1057,7 @@ export function CampaignExperience({
   initialTheme = "summer",
   persistProgress = true,
   fixture = false,
+  heroLayerPreviewCardIds,
 }: CampaignExperienceProps = {}) {
   const [appliedConfiguration, setAppliedConfiguration] =
     useState<CampaignRuntimeConfiguration | null>(
@@ -988,8 +1066,16 @@ export function CampaignExperience({
   const [campaignState, setCampaignState] =
     useState<CampaignState>(() =>
       fixture
-        ? createFigmaFixtureState(initialTheme)
-        : createInitialState(initialTheme),
+        ? createFigmaFixtureState(
+            initialTheme,
+            providedConfiguration?.themes ?? THEMES,
+            providedConfiguration?.themePacks ?? THEME_PACKS,
+          )
+        : createInitialState(
+            initialTheme,
+            providedConfiguration?.themes ?? THEMES,
+            providedConfiguration?.themePacks ?? THEME_PACKS,
+          ),
     );
   const [ready, setReady] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -1067,10 +1153,11 @@ export function CampaignExperience({
           searchParams.get("fixture") === "figma"
         ) {
           fixtureModeRef.current = true;
-          setCampaignState(createFigmaFixtureState());
+          setCampaignState(createFigmaFixtureState(initialTheme));
           return;
         }
         let storedThemes = THEMES;
+        let storedThemePacks = THEME_PACKS;
         let storedSkin: CampaignSkinDraft | null = null;
         const savedSkin = window.localStorage.getItem(
           ACTIVE_SKIN_STORAGE_KEY,
@@ -1082,6 +1169,7 @@ export function CampaignExperience({
             const nextConfiguration =
               createConfigurationFromSkin(parsedSkin);
             storedThemes = nextConfiguration.themes;
+            storedThemePacks = nextConfiguration.themePacks;
             setAppliedConfiguration(nextConfiguration);
           }
         }
@@ -1091,6 +1179,7 @@ export function CampaignExperience({
             JSON.parse(saved),
             undefined,
             storedThemes,
+            storedThemePacks,
           );
           if (storedSkin) nextState.activeTheme = storedSkin.baseTheme;
           setCampaignState(nextState);
@@ -1100,6 +1189,7 @@ export function CampaignExperience({
             undefined,
             legacy ? JSON.parse(legacy) : undefined,
             storedThemes,
+            storedThemePacks,
           );
           if (storedSkin) nextState.activeTheme = storedSkin.baseTheme;
           setCampaignState(nextState);
@@ -1133,7 +1223,14 @@ export function CampaignExperience({
         const alreadyCurrent = Object.values(current.themes).every(
           (progress) => progress.dailyCycle === currentCycle,
         );
-        return alreadyCurrent ? current : normalizeState(current);
+        return alreadyCurrent
+          ? current
+          : normalizeState(
+              current,
+              undefined,
+              runtimeThemes,
+              runtimeThemePacks,
+            );
       });
     };
     const handleVisibilityChange = () => {
@@ -1147,7 +1244,7 @@ export function CampaignExperience({
       window.removeEventListener("focus", refreshDailyTasks);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [persistProgress]);
+  }, [persistProgress, runtimeThemePacks, runtimeThemes]);
 
   useEffect(() => {
     return () => {
@@ -1401,8 +1498,16 @@ export function CampaignExperience({
     }
     setCampaignState(
       fixtureModeRef.current
-        ? createFigmaFixtureState()
-        : createInitialState(),
+        ? createFigmaFixtureState(
+            campaignState.activeTheme,
+            runtimeThemes,
+            runtimeThemePacks,
+          )
+        : createInitialState(
+            campaignState.activeTheme,
+            runtimeThemes,
+            runtimeThemePacks,
+          ),
     );
     setIsDrawing(false);
     drawPendingRef.current = false;
@@ -1433,6 +1538,11 @@ export function CampaignExperience({
   const collectedHeroCards = CARD_DEFINITIONS.filter(
     (card) => (state.cardCounts[card.id] ?? 0) > 0,
   ).slice(-5);
+  const unlockedHeroCardIds =
+    heroLayerPreviewCardIds ??
+    CARD_DEFINITIONS.filter(
+      (card) => (state.cardCounts[card.id] ?? 0) > 0,
+    ).map((card) => card.id);
   const collectionComplete = uniqueCount === CARD_DEFINITIONS.length;
   const collectionHeading = collectionComplete
     ? "全套集齐，好运圆满"
@@ -1577,6 +1687,8 @@ export function CampaignExperience({
       <CampaignStage
         activeTheme={theme.id}
         pack={pack}
+        unlockedHeroCardIds={unlockedHeroCardIds}
+        unlockedCardCount={uniqueCount}
         showHeroMeasurements={showHeroMeasurements}
         tabs={stageTabs}
         accessibleTitle={theme.accessibleTitle}
