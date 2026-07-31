@@ -32,6 +32,41 @@ const DEFAULT_UPDATED_AT = "2026-07-31T00:00:00.000Z";
 const CANVAS_MIN_ZOOM = 0.4;
 const CANVAS_MAX_ZOOM = 1.25;
 
+type StudioLibraryMode = "schemes" | "ai";
+type AiStatus = "idle" | "generating" | "ready";
+
+type AiTarget = {
+  draftId: string;
+  kind: "hero" | "card" | "reward";
+  moduleId: "M1" | "M2";
+  slotId: string;
+  entityId?: string;
+  label: string;
+  displaySize: string;
+  outputSize: string;
+  accepts: string;
+};
+
+type AiCandidate = {
+  id: string;
+  label: string;
+  src: string;
+  width: number;
+  height: number;
+  position?: string;
+  target: AiTarget | null;
+};
+
+type AiTrial = {
+  target: AiTarget;
+  candidate: AiCandidate;
+};
+
+type AiCommitHistory = {
+  draftId: string;
+  before: CampaignSkinDraft;
+};
+
 type PackColorKey = keyof CampaignThemePack["colors"];
 type PackAssetKey = Exclude<
   keyof CampaignThemePack["assets"],
@@ -89,6 +124,203 @@ const KNOWN_ASSET_SIZES: Record<
   "/figma/equipment-sun-chair.webp": { width: 150, height: 180 },
   "/figma/reward-gold-horse.webp": { width: 132, height: 112 },
 };
+
+function createHeroAiTarget(draft: CampaignSkinDraft): AiTarget {
+  return {
+    draftId: draft.id,
+    kind: "hero",
+    moduleId: "M1",
+    slotId: "m1.hero-media",
+    label: "M1 · Hero 首焦",
+    displaySize: "375 × 460 px",
+    outputSize: "1125 × 1380 px",
+    accepts: "图片 / 视频 · Cover · UI 安全区",
+  };
+}
+
+function createCardAiTarget(
+  draft: CampaignSkinDraft,
+  cardId = draft.content.cards[0]?.id,
+): AiTarget | null {
+  const card = draft.content.cards.find((item) => item.id === cardId);
+  if (!card) return null;
+  return {
+    draftId: draft.id,
+    kind: "card",
+    moduleId: "M2",
+    slotId: `m2.card.${card.id}`,
+    entityId: card.id,
+    label: `M2 · ${card.name}`,
+    displaySize: "59 × 72 px",
+    outputSize: "180 × 220 px",
+    accepts: "透明 PNG / WebP · 8% 安全边",
+  };
+}
+
+function createRewardAiTarget(
+  draft: CampaignSkinDraft,
+  tierId = draft.content.tiers.at(-1)?.id,
+): AiTarget | null {
+  const tier = draft.content.tiers.find((item) => item.id === tierId);
+  if (!tier) return null;
+  return {
+    draftId: draft.id,
+    kind: "reward",
+    moduleId: "M2",
+    slotId: `m2.reward.${tier.id}`,
+    entityId: tier.id,
+    label: `M2 · ${tier.title}`,
+    displaySize: tier.kind === "grand" ? "44 × 30 px" : "46 × 27 px",
+    outputSize: tier.kind === "grand" ? "132 × 90 px" : "140 × 82 px",
+    accepts: "透明 PNG / WebP · 主体居中",
+  };
+}
+
+function createMockAiCandidates(
+  draft: CampaignSkinDraft,
+  target: AiTarget | null,
+): AiCandidate[] {
+  const targetSnapshot = target ? { ...target } : null;
+  if (target?.kind === "card") {
+    return [
+      {
+        id: `card-watergun-${Date.now()}`,
+        label: "清透果冻质感",
+        src: "/figma/equipment-water-gun.webp",
+        width: 180,
+        height: 156,
+        target: targetSnapshot,
+      },
+      {
+        id: `card-watermelon-${Date.now()}`,
+        label: "夏日食物道具",
+        src: "/figma/equipment-watermelon-bucket.webp",
+        width: 180,
+        height: 179,
+        target: targetSnapshot,
+      },
+      {
+        id: `card-board-${Date.now()}`,
+        label: "运动装备方向",
+        src: "/figma/equipment-paddle-board.webp",
+        width: 93,
+        height: 180,
+        target: targetSnapshot,
+      },
+    ];
+  }
+  if (target?.kind === "reward") {
+    return [
+      {
+        id: `reward-horse-${Date.now()}`,
+        label: "金色大奖",
+        src: "/figma/reward-gold-horse.webp",
+        width: 132,
+        height: 112,
+        target: targetSnapshot,
+      },
+      {
+        id: `reward-mascot-${Date.now()}`,
+        label: "IP 公仔大奖",
+        src: "/figma/mascot-side-horse.webp",
+        width: 180,
+        height: 180,
+        target: targetSnapshot,
+      },
+      {
+        id: `reward-float-${Date.now()}`,
+        label: "夏日限定奖励",
+        src: "/figma/equipment-pineapple-float.webp",
+        width: 180,
+        height: 138,
+        target: targetSnapshot,
+      },
+    ];
+  }
+
+  const isNight = draft.baseTheme === "night";
+  const currentHero = draft.pack.assets.heroMedia;
+  return [
+    {
+      id: `hero-current-${Date.now()}`,
+      label: "沿用当前构图",
+      src: currentHero.src,
+      width: currentHero.sourceWidth ?? 1125,
+      height: currentHero.sourceHeight ?? 1380,
+      position: currentHero.position ?? "center top",
+      target: targetSnapshot,
+    },
+    {
+      id: `hero-master-${Date.now()}`,
+      label: isNight ? "夜色氛围加强" : "主体更突出",
+      src: isNight
+        ? "/theme-assets/night/hero-scene.webp"
+        : "/hero-summer-base.webp",
+      width: isNight ? 1125 : 1159,
+      height: isNight ? 1125 : 1420,
+      position: "center top",
+      target: targetSnapshot,
+    },
+    {
+      id: `hero-explore-${Date.now()}`,
+      label: isNight ? "跨主题探索版" : "完整活动构图",
+      src: isNight ? "/og-night.webp" : "/figma/crops/hero-scene.webp",
+      width: 1125,
+      height: 1125,
+      position: "center top",
+      target: targetSnapshot,
+    },
+  ];
+}
+
+function applyAiCandidateToDraft(
+  draft: CampaignSkinDraft,
+  target: AiTarget,
+  candidate: AiCandidate,
+): CampaignSkinDraft {
+  const next = cloneValue(draft);
+  if (target.kind === "hero") {
+    next.pack.assets.heroMedia = {
+      type: "image",
+      src: candidate.src,
+      fit: "cover",
+      position: candidate.position ?? "center top",
+      sourceWidth: candidate.width,
+      sourceHeight: candidate.height,
+    };
+  }
+  if (target.kind === "card" && target.entityId) {
+    next.content.cards = next.content.cards.map((card) =>
+      card.id === target.entityId
+        ? {
+            ...card,
+            image: candidate.src,
+            imageWidth: candidate.width,
+            imageHeight: candidate.height,
+          }
+        : card,
+    );
+  }
+  if (target.kind === "reward" && target.entityId) {
+    const selectedTier = next.content.tiers.find(
+      (tier) => tier.id === target.entityId,
+    );
+    next.content.tiers = next.content.tiers.map((tier) =>
+      tier.id === target.entityId
+        ? {
+            ...tier,
+            image: candidate.src,
+            imageWidth: candidate.width,
+            imageHeight: candidate.height,
+          }
+        : tier,
+    );
+    if (selectedTier?.kind === "grand") {
+      next.pack.assets.grandRewardImage = candidate.src;
+    }
+  }
+  return next;
+}
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -314,6 +546,24 @@ export default function CampaignStudio() {
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState("修改会即时出现在手机预览中");
   const [importError, setImportError] = useState("");
+  const [libraryMode, setLibraryMode] =
+    useState<StudioLibraryMode>("ai");
+  const [h5EditMode, setH5EditMode] = useState(true);
+  const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
+  const [aiPrompt, setAiPrompt] = useState(
+    "生成一张更有冲浪速度感的夏日首焦，保留当前 IP 和标题",
+  );
+  const [aiStatus, setAiStatus] = useState<AiStatus>("idle");
+  const [aiCandidates, setAiCandidates] = useState<AiCandidate[]>([]);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<
+    string | null
+  >(null);
+  const [aiTrial, setAiTrial] = useState<AiTrial | null>(null);
+  const [adoptedCandidateId, setAdoptedCandidateId] = useState<
+    string | null
+  >(null);
+  const [lastAiCommit, setLastAiCommit] =
+    useState<AiCommitHistory | null>(null);
   const [canvasZoom, setCanvasZoom] = useState(0.75);
   const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 });
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -321,6 +571,8 @@ export default function CampaignStudio() {
   const fitModeRef = useRef(true);
   const previewWorldRef = useRef<HTMLDivElement>(null);
   const phoneStageRef = useRef<HTMLDivElement>(null);
+  const aiJobIdRef = useRef(0);
+  const aiTimerRef = useRef<number | null>(null);
   const canvasDragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -331,10 +583,26 @@ export default function CampaignStudio() {
 
   const activeDraft =
     drafts.find((draft) => draft.id === activeId) ?? drafts[0];
+  const activeDraftRef = useRef(activeDraft);
+  activeDraftRef.current = activeDraft;
+  const previewDraft = useMemo(() => {
+    if (!aiTrial || aiTrial.target.draftId !== activeDraft.id) {
+      return activeDraft;
+    }
+    return applyAiCandidateToDraft(
+      activeDraft,
+      aiTrial.target,
+      aiTrial.candidate,
+    );
+  }, [activeDraft, aiTrial]);
   const runtimeConfiguration = useMemo(
-    () => createConfigurationFromSkin(activeDraft),
-    [activeDraft],
+    () => createConfigurationFromSkin(previewDraft),
+    [previewDraft],
   );
+  const selectedCandidate =
+    aiCandidates.find((candidate) => candidate.id === selectedCandidateId) ??
+    null;
+  const inspectorOpen = h5EditMode && !selectedCandidate;
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
     if (!activeDraft.pack.assets.heroMedia.src) issues.push("缺少 Hero");
@@ -449,6 +717,32 @@ export default function CampaignStudio() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [activeId]);
+
+  useEffect(() => {
+    aiJobIdRef.current += 1;
+    if (aiTimerRef.current !== null) {
+      window.clearTimeout(aiTimerRef.current);
+      aiTimerRef.current = null;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      setAiTarget(createHeroAiTarget(activeDraftRef.current));
+      setAiStatus("idle");
+      setAiCandidates([]);
+      setSelectedCandidateId(null);
+      setAiTrial(null);
+      setAdoptedCandidateId(null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeId]);
+
+  useEffect(
+    () => () => {
+      if (aiTimerRef.current !== null) {
+        window.clearTimeout(aiTimerRef.current);
+      }
+    },
+    [],
+  );
 
   function clampCanvasZoom(value: number) {
     return Math.min(
@@ -697,6 +991,119 @@ export default function CampaignStudio() {
     });
   }
 
+  function selectAiTarget(target: AiTarget | null) {
+    setAiTarget(target);
+    setLibraryMode("ai");
+    setSelectedCandidateId(null);
+    setH5EditMode(true);
+    if (target) {
+      setMessage(`生成目标已锁定为「${target.label}」`);
+    } else {
+      setMessage("已切换为自由生成；候选不会自动写入 H5");
+    }
+  }
+
+  function runAiGeneration() {
+    if (aiStatus === "generating") return;
+    const prompt = aiPrompt.trim() || "沿用当前主题生成一组可用素材";
+    const jobId = aiJobIdRef.current + 1;
+    aiJobIdRef.current = jobId;
+    const draftSnapshot = cloneValue(activeDraft);
+    const targetSnapshot = aiTarget ? { ...aiTarget } : null;
+    setAiStatus("generating");
+    setAiCandidates([]);
+    setSelectedCandidateId(null);
+    setAiTrial(null);
+    setAdoptedCandidateId(null);
+    setMessage(
+      targetSnapshot
+        ? `正在为「${targetSnapshot.label}」生成：「${prompt.slice(0, 18)}${prompt.length > 18 ? "…" : ""}」`
+        : `正在自由生成：「${prompt.slice(0, 18)}${prompt.length > 18 ? "…" : ""}」`,
+    );
+    if (aiTimerRef.current !== null) {
+      window.clearTimeout(aiTimerRef.current);
+    }
+    aiTimerRef.current = window.setTimeout(() => {
+      if (aiJobIdRef.current !== jobId) return;
+      const candidates = createMockAiCandidates(
+        draftSnapshot,
+        targetSnapshot,
+      );
+      setAiCandidates(candidates);
+      setSelectedCandidateId(candidates[0]?.id ?? null);
+      setAiStatus("ready");
+      setMessage(
+        targetSnapshot
+          ? `已生成 3 个「${targetSnapshot.label}」候选，请在 Canvas 中试用`
+          : "已生成 3 个未绑定素材，请在 Canvas 中指定目标",
+      );
+      aiTimerRef.current = null;
+    }, 850);
+  }
+
+  function tryAiCandidate(
+    candidate: AiCandidate,
+    forcedTarget?: AiTarget,
+  ) {
+    const target = candidate.target ?? forcedTarget ?? aiTarget;
+    if (!target) {
+      setMessage("这个候选尚未绑定目标，请先选择 H5 素材槽");
+      return;
+    }
+    if (target.draftId !== activeDraft.id) {
+      setMessage("候选属于另一个方案，请重新生成或重新绑定");
+      return;
+    }
+    const boundCandidate =
+      candidate.target === target ? candidate : { ...candidate, target };
+    setAiCandidates((current) =>
+      current.map((item) =>
+        item.id === candidate.id ? boundCandidate : item,
+      ),
+    );
+    setAiTarget(target);
+    setAiTrial({ target, candidate: boundCandidate });
+    setSelectedCandidateId(candidate.id);
+    setMessage(`正在 H5 中临时试用「${candidate.label}」`);
+  }
+
+  function cancelAiTrial() {
+    setAiTrial(null);
+    setMessage("已退出试用，当前草稿没有被修改");
+  }
+
+  function confirmAiTrial() {
+    if (!aiTrial || aiTrial.target.draftId !== activeDraft.id) return;
+    const before = cloneValue(activeDraft);
+    const next = applyAiCandidateToDraft(
+      activeDraft,
+      aiTrial.target,
+      aiTrial.candidate,
+    );
+    next.updatedAt = new Date().toISOString();
+    setDrafts((current) =>
+      current.map((draft) => (draft.id === activeDraft.id ? next : draft)),
+    );
+    setLastAiCommit({ draftId: activeDraft.id, before });
+    setAdoptedCandidateId(aiTrial.candidate.id);
+    setAiTrial(null);
+    setMessage("已确认到当前草稿；尚未应用到活动页");
+  }
+
+  function undoLastAiCommit() {
+    if (!lastAiCommit || lastAiCommit.draftId !== activeDraft.id) return;
+    const restored = cloneValue(lastAiCommit.before);
+    setDrafts((current) =>
+      current.map((draft) =>
+        draft.id === lastAiCommit.draftId ? restored : draft,
+      ),
+    );
+    setLastAiCommit(null);
+    setAdoptedCandidateId(null);
+    setAiTrial(null);
+    setMessage("已撤销最近一次 AI 素材确认");
+  }
+
   function duplicateActive() {
     const next: CampaignSkinDraft = {
       ...cloneValue(activeDraft),
@@ -915,14 +1322,43 @@ export default function CampaignStudio() {
   }
 
   return (
-    <div className="studio-shell" data-testid="config-tool">
+    <div
+      className="studio-shell"
+      data-testid="config-tool"
+      data-inspector-open={inspectorOpen}
+    >
       <aside className="studio-sidebar studio-library">
         <header className="studio-brand">
           <span>Campaign Skin Studio</span>
           <h1>活动换肤配置器</h1>
-          <p>固定现有页面结构，快速复制并替换整套主题。</p>
+          <p>用生成目标连接 Chat、Canvas 与活动模块。</p>
         </header>
 
+        <div className="studio-left-tabs" role="tablist" aria-label="左侧工作区">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={libraryMode === "ai"}
+            onClick={() => setLibraryMode("ai")}
+            data-testid="studio-left-mode-ai"
+          >
+            AI 生成
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={libraryMode === "schemes"}
+            onClick={() => setLibraryMode("schemes")}
+            data-testid="studio-left-mode-schemes"
+          >
+            方案
+          </button>
+        </div>
+
+        <div
+          className="studio-library-mode"
+          hidden={libraryMode !== "schemes"}
+        >
         <div className="studio-create-row">
           <button type="button" onClick={() => addFromTheme("summer")}>
             + 夏日方案
@@ -981,6 +1417,124 @@ export default function CampaignStudio() {
             导入失败：{importError}
           </p>
         )}
+        </div>
+
+        <div
+          className="studio-ai-chat"
+          hidden={libraryMode !== "ai"}
+          data-testid="studio-ai-chat"
+        >
+          <div
+            className={`studio-ai-target-card ${
+              aiTarget ? "targeted" : "unbound"
+            }`}
+            data-testid="studio-ai-target"
+          >
+            <small>当前生成目标</small>
+            {aiTarget ? (
+              <>
+                <strong>{aiTarget.label}</strong>
+                <span>
+                  {aiTarget.displaySize} → {aiTarget.outputSize}
+                </span>
+                <span>{aiTarget.accepts}</span>
+                <button
+                  type="button"
+                  onClick={() => selectAiTarget(null)}
+                >
+                  清除目标，改为自由生成
+                </button>
+              </>
+            ) : (
+              <>
+                <strong>未绑定页面目标</strong>
+                <span>生成结果会先作为独立素材进入 Canvas。</span>
+              </>
+            )}
+          </div>
+
+          <div className="studio-ai-quick-targets">
+            <span>快速选择目标</span>
+            <div>
+              <button
+                type="button"
+                onClick={() =>
+                  selectAiTarget(createHeroAiTarget(activeDraft))
+                }
+              >
+                M1 Hero
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  selectAiTarget(createCardAiTarget(activeDraft))
+                }
+              >
+                M2 首张卡
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  selectAiTarget(createRewardAiTarget(activeDraft))
+                }
+              >
+                M2 大奖
+              </button>
+            </div>
+          </div>
+
+          <div className="studio-ai-thread" aria-live="polite">
+            <div className="studio-ai-message assistant">
+              <small>AI 助手</small>
+              <p>
+                我会读取目标容器的尺寸、媒体类型、安全区和当前主题，
+                生成结果统一放进中间 Canvas。
+              </p>
+            </div>
+            {aiStatus === "generating" && (
+              <div className="studio-ai-message assistant generating">
+                <small>生成任务</small>
+                <p>正在编译容器契约并自动处理素材…</p>
+              </div>
+            )}
+            {aiStatus === "ready" && (
+              <div className="studio-ai-message assistant">
+                <small>生成完成</small>
+                <p>
+                  3 个候选已经放到 Canvas。先试用，确认后才会写入草稿。
+                </p>
+              </div>
+            )}
+          </div>
+
+          <form
+            className="studio-ai-composer"
+            onSubmit={(event) => {
+              event.preventDefault();
+              runAiGeneration();
+            }}
+          >
+            <label htmlFor="studio-ai-prompt">描述你想要的素材</label>
+            <textarea
+              id="studio-ai-prompt"
+              value={aiPrompt}
+              onChange={(event) => setAiPrompt(event.target.value)}
+              rows={4}
+            />
+            <button
+              type="submit"
+              disabled={aiStatus === "generating"}
+              data-testid="studio-ai-generate"
+            >
+              {aiStatus === "generating"
+                ? "正在生成候选…"
+                : aiTarget
+                  ? `为 ${aiTarget.moduleId} 生成`
+                  : "自由生成素材"}
+            </button>
+            <small>体验版使用现有素材模拟生成，验证完整交互闭环。</small>
+          </form>
+        </div>
       </aside>
 
       <section className="studio-canvas">
@@ -990,6 +1544,17 @@ export default function CampaignStudio() {
             <strong>{activeDraft.name}</strong>
           </div>
           <div className="studio-toolbar-actions">
+            <button
+              type="button"
+              className={h5EditMode ? "active" : ""}
+              onClick={() => {
+                setH5EditMode((current) => !current);
+                setSelectedCandidateId(null);
+              }}
+              data-testid="studio-h5-edit-toggle"
+            >
+              {h5EditMode ? "退出 H5 编辑" : "编辑 H5"}
+            </button>
             <button type="button" onClick={resetActive}>
               恢复默认
             </button>
@@ -1020,6 +1585,116 @@ export default function CampaignStudio() {
           onPointerUp={handleCanvasPointerEnd}
           onPointerCancel={handleCanvasPointerEnd}
         >
+          {aiCandidates.length > 0 && (
+            <aside
+              className="studio-ai-candidate-dock"
+              data-testid="studio-ai-candidate-dock"
+              aria-label="AI 生成候选"
+            >
+              <header>
+                <div>
+                  <small>Canvas Assets</small>
+                  <strong>生成候选</strong>
+                </div>
+                <span>{aiCandidates.length}</span>
+              </header>
+              <div className="studio-ai-candidate-list">
+                {aiCandidates.map((candidate, index) => {
+                  const isSelected = candidate.id === selectedCandidateId;
+                  const isTrying =
+                    candidate.id === aiTrial?.candidate.id;
+                  const isAdopted =
+                    candidate.id === adoptedCandidateId;
+                  return (
+                    <article
+                      className={[
+                        isSelected ? "selected" : "",
+                        isTrying ? "trying" : "",
+                        isAdopted ? "adopted" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      key={candidate.id}
+                    >
+                      <button
+                        type="button"
+                        className="studio-ai-candidate-preview"
+                        onClick={() =>
+                          setSelectedCandidateId(candidate.id)
+                        }
+                      >
+                        <img src={candidate.src} alt="" />
+                        <span>
+                          <b>0{index + 1} · {candidate.label}</b>
+                          <small>
+                            {candidate.target?.label ?? "未绑定素材"}
+                          </small>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="studio-ai-candidate-use"
+                        onClick={() =>
+                          tryAiCandidate(
+                            candidate,
+                            candidate.target
+                              ? undefined
+                              : aiTarget ??
+                                  createHeroAiTarget(activeDraft),
+                          )
+                        }
+                      >
+                        {isTrying
+                          ? "试用中"
+                          : isAdopted
+                            ? "已确认"
+                            : candidate.target
+                              ? "在 H5 中试用"
+                              : "绑定并试用"}
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </aside>
+          )}
+
+          {selectedCandidate && (
+            <div
+              className="studio-asset-quickbar"
+              data-testid="studio-asset-quickbar"
+              role="toolbar"
+              aria-label="所选素材快捷工具"
+            >
+              <span>
+                <small>图片素材</small>
+                <strong>{selectedCandidate.label}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  tryAiCandidate(
+                    selectedCandidate,
+                    selectedCandidate.target
+                      ? undefined
+                      : aiTarget ?? createHeroAiTarget(activeDraft),
+                  )
+                }
+              >
+                {selectedCandidate.target ? "试用" : "绑定到 H5"}
+              </button>
+              <button type="button" onClick={runAiGeneration}>
+                重新生成
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCandidateId(null)}
+              >
+                关闭工具
+              </button>
+            </div>
+          )}
+
           <div
             className="studio-canvas-controls"
             role="group"
@@ -1052,6 +1727,29 @@ export default function CampaignStudio() {
               适应画布
             </button>
           </div>
+          {aiTrial && (
+            <div
+              className="studio-ai-trial-bar"
+              data-testid="studio-ai-trial-bar"
+            >
+              <span>
+                <small>正在试用</small>
+                <strong>
+                  {aiTrial.candidate.label} → {aiTrial.target.label}
+                </strong>
+              </span>
+              <button type="button" onClick={cancelAiTrial}>
+                退出试用
+              </button>
+              <button
+                type="button"
+                className="primary"
+                onClick={confirmAiTrial}
+              >
+                确认到草稿
+              </button>
+            </div>
+          )}
           <p className="studio-canvas-help">
             按住空格拖动画布 · 在手机内滚动浏览 H5 · Ctrl/⌘ + 滚轮缩放
           </p>
@@ -1066,12 +1764,45 @@ export default function CampaignStudio() {
               ref={phoneStageRef}
               data-testid="studio-phone-stage"
               data-canvas-zoom={canvasZoom.toFixed(2)}
+              data-h5-mode={h5EditMode ? "edit" : "preview"}
               style={
                 {
                   "--studio-canvas-scale": canvasZoom,
                 } as CSSProperties
               }
             >
+              {h5EditMode && (
+                <nav
+                  className="studio-h5-target-toolbar"
+                  aria-label="H5 可生成目标"
+                >
+                  <span>H5 编辑态</span>
+                  <button
+                    type="button"
+                    className={
+                      aiTarget?.slotId === "m1.hero-media"
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      selectAiTarget(createHeroAiTarget(activeDraft))
+                    }
+                  >
+                    M1 Hero
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      aiTarget?.kind === "card" ? "active" : ""
+                    }
+                    onClick={() =>
+                      selectAiTarget(createCardAiTarget(activeDraft))
+                    }
+                  >
+                    M2 首卡
+                  </button>
+                </nav>
+              )}
               <div className="studio-phone-label">
                 <span>画布 375 × 875 px · 9:21</span>
                 <b>
@@ -1082,6 +1813,15 @@ export default function CampaignStudio() {
                 className="studio-phone"
                 data-testid="config-preview"
                 data-preview-ratio="9:21"
+                onClickCapture={(event) => {
+                  if (!h5EditMode) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setSelectedCandidateId(null);
+                  setMessage(
+                    "H5 已进入编辑态；请选择上方 M1/M2 目标或使用右侧模块配置",
+                  );
+                }}
               >
                 <CampaignExperience
                   key={activeDraft.id}
@@ -1097,16 +1837,24 @@ export default function CampaignStudio() {
 
         <footer className="studio-status" role="status">
           <span>{message}</span>
-          <button
-            type="button"
-            onClick={exportActive}
-            data-testid="config-export"
-          >
-            导出当前方案
-          </button>
+          <div className="studio-status-actions">
+            {lastAiCommit?.draftId === activeDraft.id && (
+              <button type="button" onClick={undoLastAiCommit}>
+                撤销 AI 确认
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={exportActive}
+              data-testid="config-export"
+            >
+              导出当前方案
+            </button>
+          </div>
         </footer>
       </section>
 
+      {inspectorOpen && (
       <aside className="studio-sidebar studio-inspector">
         <header className="studio-inspector-header">
           <div>
@@ -1216,6 +1964,17 @@ export default function CampaignStudio() {
         <details open data-module-id="hero">
           <SectionSummary index="M1">首焦与主操作</SectionSummary>
           <div className="studio-section-body">
+            <button
+              type="button"
+              className="studio-ai-slot-action"
+              onClick={() =>
+                selectAiTarget(createHeroAiTarget(activeDraft))
+              }
+              data-testid="studio-ai-target-hero"
+            >
+              <span>AI 生成 Hero 候选</span>
+              <small>自动携带 375 × 460 容器、安全区与当前主题</small>
+            </button>
             <label className="studio-upload">
               <strong>上传 Hero 图片或视频</strong>
               <span>
@@ -1369,6 +2128,30 @@ export default function CampaignStudio() {
             <p className="studio-section-note">
               当前模板固定 9 张卡片和 4 档奖励；稳定 ID 不随换肤改变。
             </p>
+            <div className="studio-ai-module-actions">
+              <button
+                type="button"
+                className="studio-ai-slot-action"
+                onClick={() =>
+                  selectAiTarget(createCardAiTarget(activeDraft))
+                }
+                data-testid="studio-ai-target-card"
+              >
+                <span>AI 生成首张卡片</span>
+                <small>180 × 220 · 透明背景 · 8% 安全边</small>
+              </button>
+              <button
+                type="button"
+                className="studio-ai-slot-action"
+                onClick={() =>
+                  selectAiTarget(createRewardAiTarget(activeDraft))
+                }
+                data-testid="studio-ai-target-reward"
+              >
+                <span>AI 生成终极奖励</span>
+                <small>按大奖槽位自动处理透明图</small>
+              </button>
+            </div>
             <Field label="卡册名称">
               <input
                 type="text"
@@ -2220,6 +3003,7 @@ export default function CampaignStudio() {
         </details>
         </div>
       </aside>
+      )}
     </div>
   );
 }

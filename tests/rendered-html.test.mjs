@@ -128,6 +128,15 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "studio-canvas-zoom",
     "studio-canvas-zoom-in",
     "studio-canvas-fit",
+    "studio-left-mode-ai",
+    "studio-left-mode-schemes",
+    "studio-ai-chat",
+    "studio-ai-target",
+    "studio-ai-generate",
+    "studio-h5-edit-toggle",
+    "studio-ai-target-hero",
+    "studio-ai-target-card",
+    "studio-ai-target-reward",
   ]) {
     assert.match(html, new RegExp(`data-testid="${testId}"`));
   }
@@ -302,6 +311,23 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /event\.code\s*!==\s*["']Space["']/);
   assert.match(studio, /isTypingTarget\(event\.target\)/);
   assert.match(studio, /!event\.ctrlKey\s*&&\s*!event\.metaKey/);
+  assert.match(studio, /function createMockAiCandidates\s*\(/);
+  assert.match(studio, /function applyAiCandidateToDraft\s*\(/);
+  assert.match(
+    studio,
+    /const previewDraft\s*=\s*useMemo\([\s\S]*?applyAiCandidateToDraft\(/,
+  );
+  assert.match(studio, /function runAiGeneration\s*\(/);
+  assert.match(studio, /function tryAiCandidate\s*\(/);
+  assert.match(studio, /function confirmAiTrial\s*\(/);
+  assert.match(studio, /function undoLastAiCommit\s*\(/);
+  assert.match(studio, /data-testid=["']studio-ai-candidate-dock["']/);
+  assert.match(studio, /data-testid=["']studio-asset-quickbar["']/);
+  assert.match(studio, /data-testid=["']studio-ai-trial-bar["']/);
+  assert.match(
+    studio,
+    /data-inspector-open=\{inspectorOpen\}/,
+  );
   assert.match(
     studio,
     /fitModeRef\.current\s*=\s*true[\s\S]*?requestAnimationFrame\([\s\S]*?setCanvasZoom\(calculateCanvasFitZoom\(\)\)[\s\S]*?setCanvasPan\(\{\s*x:\s*0,\s*y:\s*0\s*\}\)[\s\S]*?\},\s*\[activeId\]\)/,
@@ -318,6 +344,13 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     css,
     /\.studio-preview-world\s*\{(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
   );
+  assert.match(
+    css,
+    /\.studio-shell\[data-inspector-open=["']false["']\]\s*\{(?=[^}]*grid-template-columns:[^}]*0;)[^}]*\}/s,
+  );
+  assert.match(css, /\.studio-ai-candidate-dock\s*\{/);
+  assert.match(css, /\.studio-asset-quickbar\s*\{/);
+  assert.match(css, /\.studio-ai-trial-bar\s*\{/);
   assert.doesNotMatch(
     css,
     /\.studio-preview-world\s*\{[^}]*overflow:\s*(?:auto|scroll)[^}]*\}/s,
