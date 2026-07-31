@@ -235,6 +235,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(page, /export type CampaignSkinDraft\s*=/);
   assert.match(page, /export function createConfigurationFromSkin\s*\(/);
+  assert.match(page, /shouldMigrateLegacySummerHero/);
   assert.match(page, /export function CampaignExperience\s*\(/);
   assert.match(
     page,
@@ -255,6 +256,8 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /name:\s*["']夏日夜食 · 默认["']/);
   assert.match(studio, /function duplicateActive\s*\(/);
   assert.match(studio, /function resetActive\s*\(/);
+  assert.match(studio, /function normalizeDraft\s*\(/);
+  assert.match(studio, /shouldMigrateLegacySummerHero/);
   assert.match(studio, /function importDraft\s*\(/);
   assert.match(studio, /function exportActive\s*\(/);
   assert.match(studio, /function uploadTier\s*\(/);

@@ -724,6 +724,11 @@ function createDraft(
 
 function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
   const defaultPack = THEME_PACKS[draft.baseTheme];
+  const shouldMigrateLegacySummerHero =
+    draft.baseTheme === "summer" &&
+    !draft.pack.assets.collectionHeroComposition &&
+    draft.pack.assets.heroMedia.src ===
+      "/theme-assets/summer/hero-scene-v2.png";
   return {
     ...draft,
     pack: {
@@ -732,6 +737,9 @@ function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
       assets: {
         ...defaultPack.assets,
         ...draft.pack.assets,
+        heroMedia: shouldMigrateLegacySummerHero
+          ? defaultPack.assets.heroMedia
+          : draft.pack.assets.heroMedia,
         collectionHeroComposition:
           draft.pack.assets.collectionHeroComposition ??
           cloneValue(defaultPack.assets.collectionHeroComposition),

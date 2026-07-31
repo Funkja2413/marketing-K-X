@@ -711,12 +711,20 @@ export function createConfigurationFromSkin(
   skin: CampaignSkinDraft,
 ): CampaignRuntimeConfiguration {
   const defaultPack = THEME_PACKS[skin.baseTheme];
+  const shouldMigrateLegacySummerHero =
+    skin.baseTheme === "summer" &&
+    !skin.pack.assets.collectionHeroComposition &&
+    skin.pack.assets.heroMedia.src ===
+      "/theme-assets/summer/hero-scene-v2.png";
   const mergedPack: CampaignThemePack = {
     ...defaultPack,
     ...skin.pack,
     assets: {
       ...defaultPack.assets,
       ...skin.pack.assets,
+      heroMedia: shouldMigrateLegacySummerHero
+        ? defaultPack.assets.heroMedia
+        : skin.pack.assets.heroMedia,
     },
     colors: {
       ...defaultPack.colors,
