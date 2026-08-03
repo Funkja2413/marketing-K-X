@@ -233,7 +233,7 @@ export function CampaignStage({
           .filter(
             (layer) =>
               unlockedHeroCardIdSet.has(layer.cardId) &&
-              (layer.presentation ?? "image-layer") === "image-layer" &&
+              (layer.presentation ?? "image-layer") !== "none" &&
               !layer.embeddedInBase &&
               Boolean(layer.media?.src),
           )

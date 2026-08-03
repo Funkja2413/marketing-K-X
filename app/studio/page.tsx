@@ -1407,7 +1407,7 @@ function HeroLayerComposer({
   const compositionLayers = layers
     .filter(
       (layer) =>
-        (layer.presentation ?? "image-layer") === "image-layer" &&
+        (layer.presentation ?? "image-layer") !== "none" &&
         layer.media?.src &&
         !layer.embeddedInBase,
     )
@@ -2293,7 +2293,10 @@ export default function CampaignStudio() {
       const size = await readImageSize(src);
       updateHeroLayer(layerId, {
         embeddedInBase: false,
-        presentation: "image-layer",
+        presentation:
+          currentLayer.presentation === "video-transition"
+            ? "video-transition"
+            : "image-layer",
         media: {
           type: "image",
           src,
@@ -4862,7 +4865,7 @@ export default function CampaignStudio() {
                       </Field>
                     )}
                     {(selectedHeroLayer.presentation ??
-                      "image-layer") === "image-layer" && (
+                      "image-layer") !== "none" && (
                       <>
                         <div
                           className="studio-hero-layer-asset-choices"
@@ -4928,7 +4931,10 @@ export default function CampaignStudio() {
                           </label>
                         </div>
                         <p className="studio-hero-layer-canvas-hint">
-                          两张图独立保存：卡片图在集卡槽内居中适配；下方坐标与组合画布只控制 Hero 图层。
+                          {selectedHeroLayer.presentation ===
+                          "video-transition"
+                            ? "视频只负责解锁过场；Hero 透明图会在动画结束后按下方位置常驻显示。"
+                            : "两张图独立保存：卡片图在集卡槽内居中适配；下方坐标与组合画布只控制 Hero 图层。"}
                         </p>
                         <label className="studio-hero-layer-embedded">
                           <input

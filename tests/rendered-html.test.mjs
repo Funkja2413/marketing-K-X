@@ -364,6 +364,14 @@ test("keeps the Studio import, preview, and applied-skin contracts wired", async
   );
   assert.match(
     studio,
+    /const compositionLayers = layers[\s\S]*?\(layer\.presentation \?\? ["']image-layer["']\) !== ["']none["']/,
+  );
+  assert.match(
+    campaignStage,
+    /const visibleHeroLayers[\s\S]*?\(layer\.presentation \?\? ["']image-layer["']\) !== ["']none["']/,
+  );
+  assert.match(
+    studio,
     /data-composition-layer-count=\{compositionLayers\.length\}/,
   );
   assert.doesNotMatch(studio, /visibleCardIds/);
@@ -390,6 +398,17 @@ test("keeps the Studio import, preview, and applied-skin contracts wired", async
   assert.match(studio, /aria-checked=\{selected\}/);
   assert.match(studio, /已上传动画/);
   assert.match(studio, /上传新视频/);
+  assert.match(
+    studio,
+    /currentLayer\.presentation === ["']video-transition["'][\s\S]*?\? ["']video-transition["'][\s\S]*?: ["']image-layer["']/,
+  );
+  assert.match(studio, /视频只负责解锁过场/);
+  assert.match(page, /const previewTransitionKeys = new Set<string>\(\)/);
+  assert.match(page, /const transitionKey = media\.assetId \?\? media\.src/);
+  assert.match(
+    page,
+    /previewTransitionKeys\.has\(transitionKey\)[\s\S]*?previewTransitionKeys\.add\(transitionKey\)/,
+  );
   assert.match(studio, /setH5EditMode\(false\)/);
   assert.match(studio, /const previewMode = !h5EditMode/);
   assert.match(page, /const STUDIO_PREVIEW_DRAW_SEQUENCE/);

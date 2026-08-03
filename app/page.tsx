@@ -1564,15 +1564,23 @@ export function CampaignExperience({
           });
           distinctBefore = distinctAfter;
         }
+        const previewTransitionKeys = new Set<string>();
         const previewTransitions = previewCards.flatMap((card) => {
           const layer =
             pack.assets.collectionHeroComposition?.layers.find(
               (item) => item.cardId === card.id,
             );
-          return layer?.presentation === "video-transition" &&
-            layer.transitionMedia?.src
-            ? [{ cardId: card.id, media: layer.transitionMedia }]
-            : [];
+          const media = layer?.transitionMedia;
+          if (
+            layer?.presentation !== "video-transition" ||
+            !media?.src
+          ) {
+            return [];
+          }
+          const transitionKey = media.assetId ?? media.src;
+          if (previewTransitionKeys.has(transitionKey)) return [];
+          previewTransitionKeys.add(transitionKey);
+          return [{ cardId: card.id, media }];
         });
         setState((current) => ({
           ...current,
