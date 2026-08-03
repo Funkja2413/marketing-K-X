@@ -112,6 +112,14 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /AI工坊/);
   assert.match(html, /data-preview-mode="false"/);
   assert.match(html, /data-testid="studio-h5-edit-toggle"/);
+  assert.equal(
+    (html.match(/data-testid="config-export"/g) ?? []).length,
+    1,
+  );
+  assert.equal(
+    (html.match(/data-testid="studio-canvas-fit"/g) ?? []).length,
+    1,
+  );
   assert.match(html, /夏天马上顺 · 默认/);
   assert.match(html, /夏日夜食 · 默认/);
 
@@ -502,6 +510,18 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.doesNotMatch(studio, /config-hero-layer-source/);
   assert.doesNotMatch(studio, /最终图对位/);
+  for (const figmaAsset of [
+    "/studio-figma/project-nav/skills.svg",
+    "/studio-figma/chat/send.svg",
+    "/studio-figma/canvas/dot-grid.svg",
+    "/studio-figma/canvas/headset.svg",
+  ]) {
+    assert.match(studio + css, new RegExp(figmaAsset.replaceAll("/", "\\/")));
+  }
+  assert.match(
+    css,
+    /@font-face\s*\{(?=[^}]*font-family:\s*["']DouyinSans["'])(?=[^}]*DouyinSansBold\.otf)[^}]*\}/s,
+  );
   assert.match(studio, /<b>卡片图<\/b>/);
   assert.match(studio, /<b>Hero 图层<\/b>/);
   assert.match(
@@ -540,6 +560,22 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(
     css,
     /\.studio-shell\s*\{(?=[^}]*position:\s*fixed)(?=[^}]*inset:\s*0)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+  );
+  assert.match(
+    css,
+    /\/\* Figma 1:1 creative-workshop shell \*\/[\s\S]*?\.studio-shell\s*\{(?=[^}]*min-width:\s*0)[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-chat-toolbar\s+span\s*\{[^}]*display:\s*none[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-inspector-header\s*>\s*\*\s*\{[^}]*visibility:\s*hidden[^}]*\}/s,
+  );
+  assert.doesNotMatch(
+    css,
+    /\.studio-canvas-controls\s+button:last-child\s*\{[^}]*display:\s*none[^}]*\}/s,
   );
   assert.match(
     css,
@@ -889,6 +925,11 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
       "../public/figma/topic-sunset-card.webp",
       "../public/figma/content-card-lions.webp",
       "../public/theme-assets/night/hero-scene.webp",
+      "../public/studio-figma/project-nav/skills.svg",
+      "../public/studio-figma/chat/send.svg",
+      "../public/studio-figma/canvas/dot-grid.svg",
+      "../public/studio-figma/canvas/headset.svg",
+      "../public/studio-figma/fonts/DouyinSansBold.otf",
     ].map((asset) => access(new URL(asset, import.meta.url))),
   );
 });

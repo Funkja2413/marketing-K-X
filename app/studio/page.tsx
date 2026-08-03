@@ -3165,7 +3165,8 @@ export default function CampaignStudio() {
         </nav>
         <div className="studio-global-account">
           <span className="studio-global-points" aria-label="创作点数 276">
-            <b>✦</b> 276
+            <img src="/studio-figma/points-star-a.svg" alt="" />
+            <b>276</b>
           </span>
           <img src="/studio-figma/avatar.png" alt="用户头像" />
         </div>
@@ -3182,29 +3183,48 @@ export default function CampaignStudio() {
           className="studio-new-project"
           onClick={duplicateActive}
         >
-          <span aria-hidden="true">＋</span>
+          <span className="studio-nav-icon" aria-hidden="true">
+            <img src="/studio-figma/project-nav/plus.svg" alt="" />
+          </span>
           新建项目
         </button>
 
         <nav className="studio-project-primary" aria-label="资源导航">
           <button type="button">
-            <span aria-hidden="true">⌘</span>技能库
+            <span className="studio-nav-icon" aria-hidden="true">
+              <img src="/studio-figma/project-nav/skills.svg" alt="" />
+            </span>
+            技能库
           </button>
           <button type="button">
-            <span aria-hidden="true">▱</span>资源库
+            <span className="studio-nav-icon" aria-hidden="true">
+              <img src="/studio-figma/project-nav/resources.svg" alt="" />
+            </span>
+            资源库
           </button>
+          <span className="studio-project-nav-divider" aria-hidden="true" />
           <button type="button" className="active">
-            <span aria-hidden="true">◇</span>项目库
+            <span className="studio-nav-icon" aria-hidden="true">
+              <img src="/studio-figma/project-nav/projects.svg" alt="" />
+            </span>
+            项目库
           </button>
+          <span className="studio-project-nav-divider" aria-hidden="true" />
         </nav>
 
         <div className="studio-project-tree">
           <div className="studio-project-tree-heading">
             <span>项目列表</span>
-            <b aria-hidden="true">⌕</b>
+            <img
+              src="/studio-figma/project-nav/search.svg"
+              alt=""
+              aria-hidden="true"
+            />
           </div>
           <button type="button" className="studio-project-tree-item">
-            <span aria-hidden="true">⌄</span>
+            <span className="studio-tree-chevron" aria-hidden="true">
+              <img src="/studio-figma/project-nav/chevron-right.svg" alt="" />
+            </span>
             塔罗兴趣卡
           </button>
           <button
@@ -3215,7 +3235,9 @@ export default function CampaignStudio() {
               setSelectedPageId("campaign-main");
             }}
           >
-            <span aria-hidden="true">⌄</span>
+            <span className="studio-tree-chevron" aria-hidden="true">
+              <img src="/studio-figma/project-nav/chevron-right.svg" alt="" />
+            </span>
             抖音 ACG 游戏新春会
           </button>
           <div className="studio-project-children">
@@ -3227,19 +3249,31 @@ export default function CampaignStudio() {
                 setCanvasMode("page");
               }}
             >
-              <i className="blue" aria-hidden="true" />项目文件
+              <span className="studio-project-child-icon blue" aria-hidden="true">
+                <img src="/studio-figma/project-nav/project-file.svg" alt="" />
+              </span>
+              项目文件
             </button>
             <button type="button">
-              <i className="pink" aria-hidden="true" />活动文档
+              <span className="studio-project-child-icon pink" aria-hidden="true">
+                <img src="/studio-figma/project-nav/document.svg" alt="" />
+              </span>
+              活动文档
             </button>
             <button
               type="button"
               onClick={() => selectAiTarget(null)}
             >
-              <i className="purple" aria-hidden="true" />素材库
+              <span className="studio-project-child-icon purple" aria-hidden="true">
+                <img src="/studio-figma/project-nav/assets.svg" alt="" />
+              </span>
+              素材库
             </button>
             <button type="button">
-              <i className="cyan" aria-hidden="true" />数据库
+              <span className="studio-project-child-icon cyan" aria-hidden="true">
+                <img src="/studio-figma/project-nav/database.svg" alt="" />
+              </span>
+              数据库
             </button>
             <button
               type="button"
@@ -3249,26 +3283,47 @@ export default function CampaignStudio() {
               }}
               data-testid="studio-page-flow-entry"
             >
-              <i className="green" aria-hidden="true" />活动玩法配置
+              <span className="studio-project-child-icon green" aria-hidden="true">
+                <img src="/studio-figma/project-nav/gameplay.svg" alt="" />
+              </span>
+              活动玩法配置
             </button>
           </div>
           <button type="button" className="studio-project-tree-item">
-            <span aria-hidden="true">⌄</span>
+            <span className="studio-tree-chevron" aria-hidden="true">
+              <img src="/studio-figma/project-nav/chevron-right.svg" alt="" />
+            </span>
             射击小游戏
           </button>
         </div>
 
         <button type="button" className="studio-preferences">
-          <span aria-hidden="true">⚙</span>偏好设置
+          <span className="studio-nav-icon" aria-hidden="true">
+            <img src="/studio-figma/project-nav/settings.svg" alt="" />
+          </span>
+          偏好设置
         </button>
       </aside>
 
       <aside className="studio-sidebar studio-library">
         <header className="studio-chat-toolbar">
-          <button type="button">抖音 ACG 游戏新春会⌄</button>
-          <i aria-hidden="true" />
-          <button type="button">初始创建⌄</button>
-          <span>▣ 最近更新时间：12:21</span>
+          <button type="button" className="studio-chat-dropdown">
+            <span>抖音 ACG 游戏新春会</span>
+            <img src="/studio-figma/chat/chevron-down.svg" alt="" />
+          </button>
+          <i className="studio-chat-divider" aria-hidden="true" />
+          <button type="button" className="studio-chat-dropdown">
+            <span>初始创建</span>
+            <img src="/studio-figma/chat/chevron-down.svg" alt="" />
+          </button>
+          <button
+            type="button"
+            className="studio-chat-new-message"
+            aria-label="新建对话"
+          >
+            <img src="/studio-figma/chat/message-plus.svg" alt="" />
+          </button>
+          <span className="studio-chat-updated">最近更新时间：12:21</span>
         </header>
 
         <div
@@ -3287,7 +3342,10 @@ export default function CampaignStudio() {
             </div>
             <div className="studio-ai-message assistant report">
               <p>我来为你生成一个抖音 ACG 游戏新春会 H5</p>
-              <p className="studio-ai-elapsed">已处理 34s　›</p>
+              <p className="studio-ai-elapsed">
+                <span>已处理 34s</span>
+                <img src="/studio-figma/chat/chevron-right.svg" alt="" />
+              </p>
               <p>
                 已完成新春主视觉、游戏会场、主视频与高燃榜单集成。
                 右侧预览已更新，当前构建状态如下：
@@ -3307,10 +3365,24 @@ export default function CampaignStudio() {
               </ul>
               <div className="studio-ai-version-card">
                 <span>抖音 ACG 游戏新春会 <b>V1</b></span>
-                <span>变更 6 文件　↶</span>
+                <span>
+                  变更 6 文件
+                  <button type="button" aria-label="回退版本">
+                    <img src="/studio-figma/chat/flip-backward.svg" alt="" />
+                  </button>
+                </span>
               </div>
-              <div className="studio-ai-reactions" aria-hidden="true">
-                <span>▣</span><span>⟳</span><span>♧</span><span>♤</span>
+              <div className="studio-ai-reactions">
+                {[
+                  ["复制", "/studio-figma/chat/copy.svg"],
+                  ["重新生成", "/studio-figma/chat/refresh.svg"],
+                  ["有帮助", "/studio-figma/chat/thumbs-up.svg"],
+                  ["没帮助", "/studio-figma/chat/thumbs-down.svg"],
+                ].map(([label, icon]) => (
+                  <button type="button" aria-label={label} key={label}>
+                    <img src={icon} alt="" />
+                  </button>
+                ))}
               </div>
             </div>
             {lastAiPrompt && (
@@ -3422,8 +3494,13 @@ export default function CampaignStudio() {
 
               <div className="studio-ai-composer-actions">
                 <label className="studio-ai-reference-button">
-                  <span aria-hidden="true">＋</span>
-                  ▱ 扩展
+                  <span className="studio-composer-plus" aria-hidden="true">
+                    <img src="/studio-figma/chat/plus.svg" alt="" />
+                  </span>
+                  <span className="studio-composer-extension">
+                    <img src="/studio-figma/chat/folder-code.svg" alt="" />
+                    扩展
+                  </span>
                   <input
                     type="file"
                     accept="image/*"
@@ -3432,7 +3509,10 @@ export default function CampaignStudio() {
                     data-testid="studio-ai-reference-input"
                   />
                 </label>
-                <small>Auto⌄</small>
+                <small>
+                  Auto
+                  <img src="/studio-figma/chat/auto-chevron.svg" alt="" />
+                </small>
                 <button
                   type="submit"
                   disabled={aiStatus === "generating"}
@@ -3443,7 +3523,11 @@ export default function CampaignStudio() {
                       : "开始生成候选"
                   }
                 >
-                  {aiStatus === "generating" ? "···" : "↑"}
+                  {aiStatus === "generating" ? (
+                    "···"
+                  ) : (
+                    <img src="/studio-figma/chat/send.svg" alt="" />
+                  )}
                 </button>
               </div>
             </div>
@@ -3458,26 +3542,29 @@ export default function CampaignStudio() {
         <header className="studio-toolbar">
           <div className="studio-canvas-tabs" role="tablist" aria-label="打开的画布">
             <button type="button" role="tab" aria-selected="true">
-              ▣ 预览
+              <img src="/studio-figma/canvas/preview.svg" alt="" />
+              <span>预览</span>
             </button>
-            <button type="button" aria-label="新建画布">＋</button>
+            <button type="button" aria-label="新建画布">
+              <img src="/studio-figma/canvas/plus-tab.svg" alt="" />
+            </button>
           </div>
         </header>
 
         <div className="studio-canvas-subtoolbar">
-          <strong>{selectedPage.name}</strong>
+          <strong>
+            {canvasMode === "flow" ? "页面流程" : "游戏新春会首页"}
+          </strong>
           <div>
             <button type="button" onClick={resetActive} aria-label="恢复默认">
-              ⟳
-            </button>
-            <button type="button" onClick={exportActive} aria-label="导出当前方案">
-              ⇧
+              <img src="/studio-figma/canvas/reset.svg" alt="" />
             </button>
             <button
               type="button"
               className={canvasMode === "page" ? "active" : ""}
               onClick={() => setCanvasMode("page")}
             >
+              <img src="/studio-figma/canvas/edit.svg" alt="" />
               画布编辑
             </button>
           </div>
@@ -3555,7 +3642,7 @@ export default function CampaignStudio() {
               onClick={() => adjustCanvasZoom(-0.05)}
               disabled={canvasZoom <= CANVAS_MIN_ZOOM}
             >
-              −
+              <img src="/studio-figma/canvas/minus.svg" alt="" />
             </button>
             <output data-testid="studio-canvas-zoom">
               {Math.round(canvasZoom * 100)}%
@@ -3566,14 +3653,7 @@ export default function CampaignStudio() {
               onClick={() => adjustCanvasZoom(0.05)}
               disabled={canvasZoom >= CANVAS_MAX_ZOOM}
             >
-              ＋
-            </button>
-            <button
-              type="button"
-              data-testid="studio-canvas-fit"
-              onClick={fitCanvas}
-            >
-              适应画布
+              <img src="/studio-figma/canvas/plus.svg" alt="" />
             </button>
           </div>
           {aiTrial && (
@@ -3999,13 +4079,6 @@ export default function CampaignStudio() {
                 撤销 AI 确认
               </button>
             )}
-            <button
-              type="button"
-              onClick={exportActive}
-              data-testid="config-export"
-            >
-              导出当前方案
-            </button>
           </div>
         </footer>
       </section>
@@ -4016,7 +4089,25 @@ export default function CampaignStudio() {
         data-readonly={previewMode}
       >
         <div className="studio-inspector-workbar">
-          <button type="button" aria-label="帮助与支持">♬</button>
+          <button type="button" aria-label="帮助与支持">
+            <img src="/studio-figma/canvas/headset.svg" alt="" />
+          </button>
+          <button
+            type="button"
+            onClick={fitCanvas}
+            data-testid="studio-canvas-fit"
+            aria-label="适应画布"
+          >
+            适应
+          </button>
+          <button
+            type="button"
+            onClick={exportActive}
+            data-testid="config-export"
+            aria-label="导出当前方案"
+          >
+            导出
+          </button>
           <button
             type="button"
             className={previewMode ? "active" : ""}
