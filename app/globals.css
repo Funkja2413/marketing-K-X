@@ -3314,7 +3314,7 @@ footer button {
   width: 100%;
   min-height: 0;
   height: auto;
-  aspect-ratio: 375 / 460;
+  aspect-ratio: 375 / 500;
   padding: 0;
   overflow: hidden;
   isolation: isolate;
@@ -5158,7 +5158,7 @@ footer button {
 .studio-hero-frame-preview {
   display: grid;
   width: 54px;
-  aspect-ratio: 375 / 460;
+  aspect-ratio: 375 / 500;
   place-items: center;
   overflow: hidden;
   border-radius: 6px;
@@ -5714,7 +5714,7 @@ footer button {
 .studio-hero-composer-canvas {
   position: relative;
   width: min(100%, 300px);
-  aspect-ratio: 375 / 460;
+  aspect-ratio: 375 / 500;
   justify-self: center;
   overflow: hidden;
   border: 1px solid #a9bddf;
@@ -5993,7 +5993,7 @@ footer button {
 .studio-hero-video-editor > video,
 .studio-hero-video-empty {
   width: 100%;
-  aspect-ratio: 375 / 460;
+  aspect-ratio: 375 / 500;
   overflow: hidden;
   border-radius: 10px;
   background: #13233b;
@@ -7003,7 +7003,7 @@ footer button {
 
 .studio-ai-hero-candidate-grid .studio-ai-candidate-image {
   height: auto;
-  aspect-ratio: 375 / 460;
+  aspect-ratio: 375 / 500;
 }
 
 .studio-ai-candidate-image img {

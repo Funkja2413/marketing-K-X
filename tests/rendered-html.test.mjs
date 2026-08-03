@@ -686,7 +686,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(themePacks, /type:\s*["']video["']/);
   assert.match(
     themePacks,
-    /src:\s*["']\/theme-assets\/summer\/hero-layer-base\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*750[\s\S]*?sourceHeight:\s*949/,
+    /src:\s*["']\/theme-assets\/summer\/hero-layer-base\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*750[\s\S]*?sourceHeight:\s*1000/,
   );
   assert.match(
     themePacks,
@@ -699,12 +699,12 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.doesNotMatch(themePacks, /\bheroImage\b/);
   assert.match(
     themePacks,
-    /(?:media layer[^.\n]*375\s*[:×x]\s*460|375\s*[:×x]\s*460[^.\n]*media layer)/i,
+    /(?:media layer[^.\n]*375\s*[:×x]\s*500|375\s*[:×x]\s*500[^.\n]*media layer)/i,
   );
   assert.doesNotMatch(themePacks, /375\s*[:×x]\s*375/i);
   assert.match(
     themePackGuide,
-    /Hero 媒体槽[^。\n]*375\s*[×x:]\s*460/i,
+    /Hero 媒体槽[^。\n]*375\s*[×x:]\s*500/i,
   );
   assert.match(campaignStage, /export function CampaignStage/);
   assert.match(campaignStage, /className="campaign-stage"/);
@@ -733,7 +733,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
     campaignStage,
     /data-testid="hero-measurement-overlay"/,
   );
-  assert.match(campaignStage, /data-hero-ratio="375\/460"/);
+  assert.match(campaignStage, /data-hero-ratio="375\/500"/);
   assert.match(campaignStage, /data-transition-inset="65\.2174%"/);
   assert.match(campaignStage, /data-reward-overlap="27px"/);
   assert.doesNotMatch(campaignStage, /\bcollectionEyebrow\b/);
@@ -761,7 +761,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   );
   assert.match(
     css,
-    /\.campaign-template\s+\.campaign-hero\s*\{(?=[^}]*aspect-ratio:\s*375\s*\/\s*460)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
+    /\.campaign-template\s+\.campaign-hero\s*\{(?=[^}]*aspect-ratio:\s*375\s*\/\s*500)(?=[^}]*overflow:\s*hidden)[^}]*\}/s,
   );
   assert.match(
     css,

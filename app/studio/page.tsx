@@ -429,8 +429,8 @@ function createHeroAiTarget(draft: CampaignSkinDraft): AiTarget {
     moduleId: "M1",
     slotId: "m1.hero-media",
     label: "M1 · Hero 首焦",
-    displaySize: "375 × 460 px",
-    outputSize: "1125 × 1380 px",
+    displaySize: "375 × 500 px",
+    outputSize: "1125 × 1500 px",
     accepts: "图片 / 视频 · Cover · UI 安全区",
   };
 }
@@ -630,7 +630,7 @@ function createMockAiCandidates(
       label: "沿用当前构图",
       src: currentHero.src,
       width: currentHero.sourceWidth ?? 1125,
-      height: currentHero.sourceHeight ?? 1380,
+      height: currentHero.sourceHeight ?? 1500,
       position: currentHero.position ?? "center top",
       target: targetSnapshot,
     },
@@ -1344,6 +1344,8 @@ function AssetPreview({
   );
 }
 
+const HERO_COMPOSER_DESIGN_HEIGHT = 500;
+
 function HeroLayerComposer({
   baseMedia,
   layers,
@@ -1440,7 +1442,7 @@ function HeroLayerComposer({
     const deltaY =
       ((event.clientY - interaction.startClientY) /
         interaction.rectHeight) *
-      460;
+      HERO_COMPOSER_DESIGN_HEIGHT;
     if (interaction.mode === "resize") {
       const nextFrame = {
         layerId: interaction.layerId,
@@ -1524,7 +1526,7 @@ function HeroLayerComposer({
             }`}
             style={{
               left: `${(frame.x / 375) * 100}%`,
-              top: `${(frame.y / 460) * 100}%`,
+              top: `${(frame.y / HERO_COMPOSER_DESIGN_HEIGHT) * 100}%`,
               width: `${(frame.width / 375) * 100}%`,
               zIndex: layer.zIndex + 2,
               transform: `rotate(${layer.rotation}deg)`,
@@ -1564,7 +1566,7 @@ function HeroLayerComposer({
           </div>
         );
       })}
-      <span className="studio-hero-composer-size">375 × 460</span>
+      <span className="studio-hero-composer-size">375 × 500</span>
     </div>
   );
 }
@@ -4308,7 +4310,7 @@ export default function CampaignStudio() {
                 data-testid="studio-ai-target-hero"
               >
                 <span>AI 生成</span>
-                <small>375 × 460 · 自带当前主题约束</small>
+                <small>375 × 500 · 自带当前主题约束</small>
               </button>
             </div>
             <div
@@ -4587,7 +4589,7 @@ export default function CampaignStudio() {
                 />
                 <div className="studio-hero-layer-canvas-hint">
                   画布以 Hero 尾帧为背景，并始终显示全部已放置素材。点击或拖动图层切换编辑对象，拖右下角控制点等比缩放；坐标按
-                  375 × 460 可见区保存。
+                  375 × 500 可见区保存。
                 </div>
                 <div className="studio-hero-layer-list-heading">
                   <strong>{heroLayers.length} 个道具素材</strong>
@@ -4973,7 +4975,7 @@ export default function CampaignStudio() {
                             selectedHeroLayer.transitionMedia
                               ?.sourceHeight
                               ? `当前文件 ${selectedHeroLayer.transitionMedia.sourceWidth} × ${selectedHeroLayer.transitionMedia.sourceHeight} px`
-                              : "建议 MP4/WebM，竖屏 375 × 460 或 750 × 920。"
+                              : "建议 MP4/WebM，竖屏 375 × 500 或 750 × 1000。"
                           }
                         >
                           <input

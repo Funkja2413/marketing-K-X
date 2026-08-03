@@ -42,7 +42,7 @@ export type CampaignCollectionHeroLayer = {
   embeddedInBase?: boolean;
   /** Horizontal offset in the 375px Hero design coordinate space. */
   x: number;
-  /** Vertical offset in the 460px Hero design coordinate space. */
+  /** Vertical offset in the 500px Hero design coordinate space. */
   y: number;
   /** Layer width in the 375px Hero design coordinate space. */
   width: number;
@@ -71,7 +71,7 @@ export type CampaignThemePack = {
      */
     mapBackgroundImage?: string;
     /**
-     * Swappable image or video rendered across the fixed 375:460 media layer.
+     * Swappable image or video rendered across the fixed 375:500 media layer.
      * The transition mask and live UI are independent overlays.
      */
     heroMedia: CampaignHeroMedia;
@@ -121,7 +121,7 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
         fit: "cover",
         position: "center top",
         sourceWidth: 750,
-        sourceHeight: 949,
+        sourceHeight: 1000,
       },
       collectionHeroComposition: {
         enabled: true,
@@ -131,8 +131,8 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
           src: "/theme-assets/summer/hero-scene-v2.png",
           fit: "cover",
           position: "center top",
-          sourceWidth: 375,
-          sourceHeight: 474,
+          sourceWidth: 750,
+          sourceHeight: 1000,
         },
         layers: [
           {

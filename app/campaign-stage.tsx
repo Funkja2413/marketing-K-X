@@ -71,7 +71,7 @@ type CampaignStageProps = {
 };
 
 const HERO_DESIGN_WIDTH = 375;
-const HERO_DESIGN_HEIGHT = 460;
+const HERO_DESIGN_HEIGHT = 500;
 
 function getHeroMediaMeasurement(media: CampaignHeroMedia) {
   const sourceWidth = media.sourceWidth;
@@ -412,7 +412,7 @@ export function CampaignStage({
             <div
               className="campaign-hero-measurement-overlay"
               data-testid="hero-measurement-overlay"
-              data-hero-ratio="375/460"
+              data-hero-ratio="375/500"
               data-transition-inset="65.2174%"
               data-reward-overlap="27px"
               aria-hidden="true"
@@ -422,7 +422,7 @@ export function CampaignStage({
                 <span>375</span>
               </div>
               <div className="hero-measure-height">
-                <span>460</span>
+                <span>500</span>
               </div>
               <div className="hero-measure-radius">
                 顶部圆角 R30（375 基准）
@@ -432,26 +432,26 @@ export function CampaignStage({
               </div>
               <div className="hero-measure-transition-zone">
                 <span className="hero-measure-transition-start">
-                  渐变 Mask 起点 · Y300 · Hero 65.22%
+                  渐变 Mask 起点 · Y326 · Hero 65.22%
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-18">
-                  12% 页面色 · Y329
+                  12% 页面色 · Y357
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-52">
-                  52% 页面色 · Y383
+                  52% 页面色 · Y417
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-80">
-                  88% 页面色 · Y428
+                  88% 页面色 · Y465
                 </span>
                 <span className="hero-measure-stop hero-measure-stop-100">
-                  纯页面色 · Y460
+                  纯页面色 · Y500
                 </span>
               </div>
               <div className="hero-measure-action-zone">
-                <span>实时按钮层 · Y375–425 · 50px</span>
+                <span>实时按钮层 · Y408–458 · 50px</span>
               </div>
               <div className="hero-measure-extension-zone">
-                <span>背景延伸 · Y425–460 · 35px</span>
+                <span>背景延伸 · Y458–500 · 42px</span>
               </div>
               <dl className="hero-measure-info">
                 <div>
@@ -460,7 +460,7 @@ export function CampaignStage({
                 </div>
                 <div>
                   <dt>Hero 容器</dt>
-                  <dd>375×460 · 75:92</dd>
+                  <dd>375×500 · 3:4</dd>
                 </div>
                 <div>
                   <dt>图片源</dt>
