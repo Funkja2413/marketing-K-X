@@ -8480,7 +8480,12 @@ footer button {
 
 .studio-ai-composer-actions > button {
   width: 24px;
+  min-width: 24px;
+  height: 24px;
+  min-height: 24px;
+  flex: 0 0 24px;
   padding: 5px;
+  aspect-ratio: 1;
   border-radius: 50%;
   background: #1c1f23;
   color: #fff;

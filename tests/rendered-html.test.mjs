@@ -112,21 +112,14 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /AI工坊/);
   assert.match(html, /data-preview-mode="false"/);
   assert.match(html, /data-testid="studio-h5-edit-toggle"/);
-  assert.equal(
-    (html.match(/data-testid="config-export"/g) ?? []).length,
-    1,
-  );
-  assert.equal(
-    (html.match(/data-testid="studio-canvas-fit"/g) ?? []).length,
-    1,
-  );
+  assert.doesNotMatch(html, /data-testid="config-export"/);
+  assert.doesNotMatch(html, /data-testid="studio-canvas-fit"/);
   assert.match(html, /夏天马上顺 · 默认/);
   assert.match(html, /夏日夜食 · 默认/);
 
   for (const testId of [
     "config-preview",
     "config-import-input",
-    "config-export",
     "config-field-title",
     "config-field-hero-media",
     "config-card-preview-watergun",
@@ -142,7 +135,6 @@ test("server-renders the campaign studio with starter drafts and a live campaign
     "studio-canvas-zoom-out",
     "studio-canvas-zoom",
     "studio-canvas-zoom-in",
-    "studio-canvas-fit",
     "studio-ai-chat",
     "studio-ai-composer",
     "studio-ai-target-pill",
@@ -220,7 +212,7 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /多主题方案/);
   assert.match(html, /新建夏日方案/);
   assert.match(html, /导入 JSON/);
-  assert.match(html, /导出当前方案/);
+  assert.doesNotMatch(html, /导出当前方案|适应画布/);
   assert.match(html, />发布<\/button>/);
   assert.match(html, />预览<\/button>/);
   assert.doesNotMatch(html, /data-testid="config-error"/);
@@ -235,7 +227,7 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /class="featured-task-rail"/);
 });
 
-test("keeps the Studio import, export, preview, and applied-skin contracts wired", async () => {
+test("keeps the Studio import, preview, and applied-skin contracts wired", async () => {
   const [page, studio, campaignStage, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/studio/page.tsx", import.meta.url), "utf8"),
@@ -279,7 +271,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /function normalizeDraft\s*\(/);
   assert.match(studio, /shouldMigrateLegacySummerHero/);
   assert.match(studio, /function importDraft\s*\(/);
-  assert.match(studio, /function exportActive\s*\(/);
+  assert.doesNotMatch(studio, /function exportActive\s*\(/);
   assert.match(studio, /function persistActivePreviewDraft\s*\(/);
   assert.match(studio, /function openActivityPreview\s*\(/);
   assert.match(studio, /function exitActivityPreview\s*\(/);
@@ -302,7 +294,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /window\.indexedDB\.open\(/);
   assert.match(studio, /function hydrateAndCacheDraftAssets\s*\(/);
   assert.match(studio, /function serializeDraftAssets\s*\(/);
-  assert.match(studio, /function materializeDraftAssets\s*\(/);
+  assert.doesNotMatch(studio, /function materializeDraftAssets\s*\(/);
   assert.match(studio, /function cacheStudioFile\s*\(/);
   assert.match(
     studio,
@@ -310,7 +302,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   );
   assert.match(page, /imageAssetId\?: string/);
   assert.match(studio, /new FileReader\(\)/);
-  assert.match(studio, /new Blob\(/);
+  assert.doesNotMatch(studio, /new Blob\(/);
   assert.match(
     studio,
     /localStorage\.setItem\(\s*ACTIVE_SKIN_STORAGE_KEY\s*,/,
@@ -324,7 +316,6 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     "config-tool",
     "config-preview",
     "config-import-input",
-    "config-export",
     "config-error",
     "config-field-title",
     "config-field-hero-media",
@@ -337,7 +328,6 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     "studio-canvas-zoom-out",
     "studio-canvas-zoom",
     "studio-canvas-zoom-in",
-    "studio-canvas-fit",
     "studio-ai-composer",
     "studio-ai-target-pill",
     "studio-ai-reference-input",
@@ -607,6 +597,10 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(css, /\.studio-ai-reward-batch-grid\s*\{/);
   assert.match(css, /\.studio-page-flow-stage\s*\{/);
   assert.match(css, /\.studio-ai-composer-box\s*\{/);
+  assert.match(
+    css,
+    /\.studio-ai-composer-actions\s*>\s*button\s*\{(?=[^}]*width:\s*24px)(?=[^}]*min-width:\s*24px)(?=[^}]*height:\s*24px)(?=[^}]*min-height:\s*24px)(?=[^}]*border-radius:\s*50%)[^}]*\}/s,
+  );
   assert.match(css, /\.studio-asset-quickbar\s*\{/);
   assert.match(css, /\.studio-ai-trial-bar\s*\{/);
   assert.doesNotMatch(

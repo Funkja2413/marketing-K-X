@@ -149,15 +149,6 @@ async function cacheStudioFile(assetId: string, file: File) {
   return URL.createObjectURL(file);
 }
 
-function blobToDataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-
 type AiStatus = "idle" | "generating" | "ready";
 type StudioCanvasMode = "page" | "flow";
 
@@ -994,59 +985,6 @@ function serializeDraftAssets(sourceDrafts: CampaignSkinDraft[]) {
   return drafts;
 }
 
-async function materializeDraftAssets(sourceDraft: CampaignSkinDraft) {
-  const draft = cloneValue(sourceDraft);
-  if (draft.pack.assets.heroMedia.assetId) {
-    const cached = await getStudioCachedAsset(
-      draft.pack.assets.heroMedia.assetId,
-    );
-    if (cached) {
-      draft.pack.assets.heroMedia.src = await blobToDataUrl(cached.blob);
-    }
-  }
-  for (const card of draft.content.cards) {
-    if (!card.imageAssetId) continue;
-    const cached = await getStudioCachedAsset(card.imageAssetId);
-    if (cached) card.image = await blobToDataUrl(cached.blob);
-  }
-  const composition = draft.pack.assets.collectionHeroComposition;
-  if (!composition) return draft;
-  if (composition.finalReference?.assetId) {
-    const cached = await getStudioCachedAsset(
-      composition.finalReference.assetId,
-    );
-    if (cached) {
-      composition.finalReference.src = await blobToDataUrl(cached.blob);
-    }
-  }
-  for (const layer of composition.layers) {
-    if (layer.media?.assetId) {
-      const cached = await getStudioCachedAsset(layer.media.assetId);
-      if (cached) layer.media.src = await blobToDataUrl(cached.blob);
-    }
-    if (layer.transitionMedia?.assetId) {
-      const cached = await getStudioCachedAsset(
-        layer.transitionMedia.assetId,
-      );
-      if (cached) {
-        layer.transitionMedia.src = await blobToDataUrl(cached.blob);
-      }
-    }
-    if (
-      layer.transitionMedia?.type === "video" &&
-      layer.transitionMedia.posterAssetId
-    ) {
-      const cached = await getStudioCachedAsset(
-        layer.transitionMedia.posterAssetId,
-      );
-      if (cached) {
-        layer.transitionMedia.poster = await blobToDataUrl(cached.blob);
-      }
-    }
-  }
-  return draft;
-}
-
 function createDraft(
   baseTheme: ThemeId,
   options?: { id?: string; name?: string; updatedAt?: string },
@@ -1881,6 +1819,61 @@ export default function CampaignStudio() {
       });
   }, [previewMode]);
 
+  function clampCanvasZoom(value: number) {
+    return Math.min(
+      CANVAS_MAX_ZOOM,
+      Math.max(CANVAS_MIN_ZOOM, value),
+    );
+  }
+
+  function calculateCanvasFitZoom() {
+    return calculateCanvasFitLayout().zoom;
+  }
+
+  function calculateCanvasFitLayout() {
+    const world = previewWorldRef.current;
+    const scene = canvasSceneRef.current;
+    if (!world || !scene) {
+      return { zoom: 0.72, pan: { x: 0, y: 0 } };
+    }
+    const bounds = world.getBoundingClientRect();
+    let minX = 0;
+    let minY = 0;
+    let maxX = scene.offsetWidth;
+    let maxY = scene.offsetHeight;
+    scene
+      .querySelectorAll<HTMLElement>(".studio-ai-candidate-group")
+      .forEach((group) => {
+        if (group.offsetWidth === 0 || group.offsetHeight === 0) return;
+        const match = group.style.transform.match(
+          /translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*0(?:px)?\)/,
+        );
+        const x = Number(match?.[1] ?? 0);
+        const y = Number(match?.[2] ?? 0);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + group.offsetWidth);
+        maxY = Math.max(maxY, y + group.offsetHeight);
+      });
+    const zoom = Math.min(
+      1,
+      Math.max(
+        CANVAS_MIN_ZOOM,
+        Math.min(
+          (bounds.width - 96) / (maxX - minX),
+          (bounds.height - 108) / (maxY - minY),
+        ),
+      ),
+    );
+    return {
+      zoom,
+      pan: {
+        x: (scene.offsetWidth / 2 - (minX + maxX) / 2) * zoom,
+        y: (scene.offsetHeight / 2 - (minY + maxY) / 2) * zoom,
+      },
+    };
+  }
+
   useEffect(() => {
     const world = previewWorldRef.current;
     const scene = canvasSceneRef.current;
@@ -1937,73 +1930,11 @@ export default function CampaignStudio() {
     [],
   );
 
-  function clampCanvasZoom(value: number) {
-    return Math.min(
-      CANVAS_MAX_ZOOM,
-      Math.max(CANVAS_MIN_ZOOM, value),
-    );
-  }
-
-  function calculateCanvasFitZoom() {
-    return calculateCanvasFitLayout().zoom;
-  }
-
-  function calculateCanvasFitLayout() {
-    const world = previewWorldRef.current;
-    const scene = canvasSceneRef.current;
-    if (!world || !scene) {
-      return { zoom: 0.72, pan: { x: 0, y: 0 } };
-    }
-    const bounds = world.getBoundingClientRect();
-    let minX = 0;
-    let minY = 0;
-    let maxX = scene.offsetWidth;
-    let maxY = scene.offsetHeight;
-    scene
-      .querySelectorAll<HTMLElement>(".studio-ai-candidate-group")
-      .forEach((group) => {
-        if (group.offsetWidth === 0 || group.offsetHeight === 0) return;
-        const match = group.style.transform.match(
-          /translate3d\(([-\d.]+)px,\s*([-\d.]+)px,\s*0(?:px)?\)/,
-        );
-        const x = Number(match?.[1] ?? 0);
-        const y = Number(match?.[2] ?? 0);
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + group.offsetWidth);
-        maxY = Math.max(maxY, y + group.offsetHeight);
-      });
-    const zoom = Math.min(
-      1,
-      Math.max(
-        CANVAS_MIN_ZOOM,
-        Math.min(
-          (bounds.width - 96) / (maxX - minX),
-          (bounds.height - 108) / (maxY - minY),
-        ),
-      ),
-    );
-    return {
-      zoom,
-      pan: {
-        x: (scene.offsetWidth / 2 - (minX + maxX) / 2) * zoom,
-        y: (scene.offsetHeight / 2 - (minY + maxY) / 2) * zoom,
-      },
-    };
-  }
-
   function adjustCanvasZoom(delta: number) {
     fitModeRef.current = false;
     setCanvasZoom((current) =>
       clampCanvasZoom(Math.round((current + delta) * 20) / 20),
     );
-  }
-
-  function fitCanvas() {
-    fitModeRef.current = true;
-    const layout = calculateCanvasFitLayout();
-    setCanvasZoom(layout.zoom);
-    setCanvasPan(layout.pan);
   }
 
   function handleCanvasWheel(event: ReactWheelEvent<HTMLDivElement>) {
@@ -2837,21 +2768,6 @@ export default function CampaignStudio() {
   function exitActivityPreview() {
     setH5EditMode(true);
     setMessage("已返回编辑态");
-  }
-
-  async function exportActive() {
-    const portableDraft = await materializeDraftAssets(activeDraft);
-    const blob = new Blob(
-      [JSON.stringify(portableDraft, null, 2)],
-      { type: "application/json;charset=utf-8" },
-    );
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `${activeDraft.name.replace(/[^\w\u4e00-\u9fa5-]+/g, "-")}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    setMessage("当前方案 JSON 已导出");
   }
 
   function importDraft(event: ChangeEvent<HTMLInputElement>) {
@@ -4091,22 +4007,6 @@ export default function CampaignStudio() {
         <div className="studio-inspector-workbar">
           <button type="button" aria-label="帮助与支持">
             <img src="/studio-figma/canvas/headset.svg" alt="" />
-          </button>
-          <button
-            type="button"
-            onClick={fitCanvas}
-            data-testid="studio-canvas-fit"
-            aria-label="适应画布"
-          >
-            适应
-          </button>
-          <button
-            type="button"
-            onClick={exportActive}
-            data-testid="config-export"
-            aria-label="导出当前方案"
-          >
-            导出
           </button>
           <button
             type="button"
