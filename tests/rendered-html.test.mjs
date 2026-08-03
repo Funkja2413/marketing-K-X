@@ -109,7 +109,9 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /class="studio-sidebar studio-library"/);
   assert.match(html, /class="studio-canvas"/);
   assert.match(html, /class="studio-sidebar studio-inspector"/);
-  assert.match(html, /创意工坊/);
+  assert.match(html, /AI工坊/);
+  assert.match(html, /data-preview-mode="false"/);
+  assert.match(html, /data-testid="studio-h5-edit-toggle"/);
   assert.match(html, /夏天马上顺 · 默认/);
   assert.match(html, /夏日夜食 · 默认/);
 
@@ -211,7 +213,8 @@ test("server-renders the campaign studio with starter drafts and a live campaign
   assert.match(html, /新建夏日方案/);
   assert.match(html, /导入 JSON/);
   assert.match(html, /导出当前方案/);
-  assert.match(html, /应用到活动页/);
+  assert.match(html, />发布<\/button>/);
+  assert.match(html, />预览<\/button>/);
   assert.doesNotMatch(html, /data-testid="config-error"/);
 
   assert.match(
@@ -271,7 +274,11 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /function exportActive\s*\(/);
   assert.match(studio, /function persistActivePreviewDraft\s*\(/);
   assert.match(studio, /function openActivityPreview\s*\(/);
-  assert.match(studio, /onClick=\{openActivityPreview\}/);
+  assert.match(studio, /function exitActivityPreview\s*\(/);
+  assert.match(
+    studio,
+    /onClick=\{previewMode \? exitActivityPreview : openActivityPreview\}/,
+  );
   assert.match(
     studio,
     /serializeDraftAssets\(\[activeDraft\]\)\[0\]/,
@@ -368,10 +375,8 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /积分获得/);
   assert.match(studio, /图片叠加到 Hero/);
   assert.match(studio, /播放视频过场/);
-  assert.match(
-    studio,
-    /studioPreview:\s*String\(Date\.now\(\)\)/,
-  );
+  assert.match(studio, /setH5EditMode\(false\)/);
+  assert.match(studio, /const previewMode = !h5EditMode/);
   assert.match(page, /const STUDIO_PREVIEW_DRAW_SEQUENCE/);
   assert.match(
     page,

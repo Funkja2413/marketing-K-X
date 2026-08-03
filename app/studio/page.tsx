@@ -1573,7 +1573,7 @@ export default function CampaignStudio() {
   );
   const [lastAiCommit, setLastAiCommit] =
     useState<AiCommitHistory | null>(null);
-  const [canvasZoom, setCanvasZoom] = useState(0.75);
+  const [canvasZoom, setCanvasZoom] = useState(0.72);
   const [canvasPan, setCanvasPan] = useState({ x: 0, y: 0 });
   const [spaceHeld, setSpaceHeld] = useState(false);
   const spaceHeldRef = useRef(false);
@@ -1652,6 +1652,7 @@ export default function CampaignStudio() {
     CAMPAIGN_PAGES.find((page) => page.id === selectedPageId) ??
     CAMPAIGN_PAGES[2];
   const inspectorOpen = true;
+  const previewMode = !h5EditMode;
   const validationIssues = useMemo(() => {
     const issues: string[] = [];
     if (!activeDraft.pack.assets.heroMedia.src) issues.push("缺少 Hero");
@@ -1748,6 +1749,12 @@ export default function CampaignStudio() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !h5EditMode) {
+        event.preventDefault();
+        setH5EditMode(true);
+        setMessage("已返回编辑态");
+        return;
+      }
       if (
         event.code !== "Space" ||
         isTypingTarget(event.target) ||
@@ -1778,7 +1785,21 @@ export default function CampaignStudio() {
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleBlur);
     };
-  }, []);
+  }, [h5EditMode]);
+
+  useEffect(() => {
+    document
+      .querySelectorAll<HTMLElement>(
+        ".studio-inspector > :not(.studio-inspector-workbar)",
+      )
+      .forEach((element) => {
+        if (previewMode) {
+          element.setAttribute("inert", "");
+        } else {
+          element.removeAttribute("inert");
+        }
+      });
+  }, [previewMode]);
 
   useEffect(() => {
     const world = previewWorldRef.current;
@@ -1851,7 +1872,7 @@ export default function CampaignStudio() {
     const world = previewWorldRef.current;
     const scene = canvasSceneRef.current;
     if (!world || !scene) {
-      return { zoom: 0.75, pan: { x: 0, y: 0 } };
+      return { zoom: 0.72, pan: { x: 0, y: 0 } };
     }
     const bounds = world.getBoundingClientRect();
     let minX = 0;
@@ -1878,7 +1899,7 @@ export default function CampaignStudio() {
         CANVAS_MIN_ZOOM,
         Math.min(
           (bounds.width - 96) / (maxX - minX),
-          (bounds.height - 72) / (maxY - minY),
+          (bounds.height - 108) / (maxY - minY),
         ),
       ),
     );
@@ -2720,16 +2741,15 @@ export default function CampaignStudio() {
   }
 
   function openActivityPreview() {
-    if (!persistActivePreviewDraft()) return;
-    const previewParams = new URLSearchParams({
-      studioPreview: String(Date.now()),
-    });
-    window.open(
-      `/?${previewParams.toString()}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
-    setMessage("已保存当前配置并打开活动预览");
+    setCanvasMode("page");
+    setSelectedAiAsset(null);
+    setH5EditMode(false);
+    setMessage("正在本页预览活动；按 Esc 或点击退出预览返回编辑");
+  }
+
+  function exitActivityPreview() {
+    setH5EditMode(true);
+    setMessage("已返回编辑态");
   }
 
   async function exportActive() {
@@ -2996,26 +3016,182 @@ export default function CampaignStudio() {
       className="studio-shell"
       data-testid="config-tool"
       data-inspector-open={inspectorOpen}
+      data-preview-mode={previewMode}
     >
+      <header className="studio-global-nav" aria-label="创作者中心顶部导航">
+        <div className="studio-global-brand" aria-label="抖音创作者中心">
+          <span>
+            <img src="/studio-figma/logo-mark.svg" alt="" />
+          </span>
+          <img src="/studio-figma/logo-type.svg" alt="抖音创作者中心" />
+        </div>
+        <nav className="studio-global-links" aria-label="产品导航">
+          {[
+            ["首页", "/studio-figma/nav-home.svg"],
+            ["AI分身", "/studio-figma/nav-avatar-ai.svg"],
+            ["百科", "/studio-figma/nav-book.svg"],
+            ["随变", "/studio-figma/nav-create.svg"],
+            ["AI工坊", "/studio-figma/nav-workshop.svg"],
+          ].map(([label, icon]) => (
+            <button
+              type="button"
+              className={label === "AI工坊" ? "active" : ""}
+              key={label}
+            >
+              <img src={icon} alt="" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="studio-global-account">
+          <span className="studio-global-points" aria-label="创作点数 276">
+            <b>✦</b> 276
+          </span>
+          <img src="/studio-figma/avatar.png" alt="用户头像" />
+        </div>
+      </header>
+
+      <aside
+        className="studio-project-nav"
+        aria-label="项目导航"
+        data-readonly={previewMode}
+        inert={previewMode ? true : undefined}
+      >
+        <button
+          type="button"
+          className="studio-new-project"
+          onClick={duplicateActive}
+        >
+          <span aria-hidden="true">＋</span>
+          新建项目
+        </button>
+
+        <nav className="studio-project-primary" aria-label="资源导航">
+          <button type="button">
+            <span aria-hidden="true">⌘</span>技能库
+          </button>
+          <button type="button">
+            <span aria-hidden="true">▱</span>资源库
+          </button>
+          <button type="button" className="active">
+            <span aria-hidden="true">◇</span>项目库
+          </button>
+        </nav>
+
+        <div className="studio-project-tree">
+          <div className="studio-project-tree-heading">
+            <span>项目列表</span>
+            <b aria-hidden="true">⌕</b>
+          </div>
+          <button type="button" className="studio-project-tree-item">
+            <span aria-hidden="true">⌄</span>
+            塔罗兴趣卡
+          </button>
+          <button
+            type="button"
+            className="studio-project-tree-item active"
+            onClick={() => {
+              setCanvasMode("page");
+              setSelectedPageId("campaign-main");
+            }}
+          >
+            <span aria-hidden="true">⌄</span>
+            抖音 ACG 游戏新春会
+          </button>
+          <div className="studio-project-children">
+            <button
+              type="button"
+              className="active"
+              onClick={() => {
+                setSelectedPageId("campaign-main");
+                setCanvasMode("page");
+              }}
+            >
+              <i className="blue" aria-hidden="true" />项目文件
+            </button>
+            <button type="button">
+              <i className="pink" aria-hidden="true" />活动文档
+            </button>
+            <button
+              type="button"
+              onClick={() => selectAiTarget(null)}
+            >
+              <i className="purple" aria-hidden="true" />素材库
+            </button>
+            <button type="button">
+              <i className="cyan" aria-hidden="true" />数据库
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCanvasMode("flow");
+                setSelectedAiAsset(null);
+              }}
+              data-testid="studio-page-flow-entry"
+            >
+              <i className="green" aria-hidden="true" />活动玩法配置
+            </button>
+          </div>
+          <button type="button" className="studio-project-tree-item">
+            <span aria-hidden="true">⌄</span>
+            射击小游戏
+          </button>
+        </div>
+
+        <button type="button" className="studio-preferences">
+          <span aria-hidden="true">⚙</span>偏好设置
+        </button>
+      </aside>
+
       <aside className="studio-sidebar studio-library">
-        <header className="studio-brand">
-          <span>Campaign Skin Studio</span>
-          <h1>创意工坊</h1>
-          <p>用生成目标连接 Chat、Canvas 与活动模块。</p>
+        <header className="studio-chat-toolbar">
+          <button type="button">抖音 ACG 游戏新春会⌄</button>
+          <i aria-hidden="true" />
+          <button type="button">初始创建⌄</button>
+          <span>▣ 最近更新时间：12:21</span>
         </header>
 
         <div
           className="studio-ai-chat"
           data-testid="studio-ai-chat"
           data-panel="chat"
+          aria-disabled={previewMode}
+          inert={previewMode ? true : undefined}
         >
           <div className="studio-ai-thread" aria-live="polite">
-            <div className="studio-ai-message assistant">
-              <small>Campaign Copilot</small>
+            <div className="studio-ai-message user brief">
               <p>
-                从右侧模块点击“AI 生成”后，容器规则会作为约束胶囊进入输入框。
-                你可以继续补充描述或参考图，结果会成为 Canvas 里的素材组。
+                帮我做一个抖音 ACG 游戏新春会 H5，聚合热门游戏、
+                主会场视频和开年高燃榜单。
               </p>
+            </div>
+            <div className="studio-ai-message assistant report">
+              <p>我来为你生成一个抖音 ACG 游戏新春会 H5</p>
+              <p className="studio-ai-elapsed">已处理 34s　›</p>
+              <p>
+                已完成新春主视觉、游戏会场、主视频与高燃榜单集成。
+                右侧预览已更新，当前构建状态如下：
+              </p>
+              <h3>任务总结</h3>
+              <ul>
+                <li><b>活动类型：</b>ACG 游戏新春会营销 H5</li>
+                <li><b>核心主题：</b>好游戏一起过新年</li>
+                <li><b>视觉风格：</b>新春红金 + ACG 角色群像</li>
+                <li><b>工程文件：</b><code>index.html</code> <code>assets/</code> <code>config/</code> 均已就绪</li>
+                <li><b>验证结果：</b>适配、切换与热点跳转检查通过</li>
+              </ul>
+              <h3>已生成内容</h3>
+              <ul>
+                <li><b>页面内容：</b>主视觉、游戏会场、主视频与高燃榜单</li>
+                <li><b>互动能力：</b>会场切换、榜单互动与活动入口跳转</li>
+              </ul>
+              <div className="studio-ai-version-card">
+                <span>抖音 ACG 游戏新春会 <b>V1</b></span>
+                <span>变更 6 文件　↶</span>
+              </div>
+              <div className="studio-ai-reactions" aria-hidden="true">
+                <span>▣</span><span>⟳</span><span>♧</span><span>♤</span>
+              </div>
             </div>
             {lastAiPrompt && (
               <div className="studio-ai-message user">
@@ -3119,7 +3295,7 @@ export default function CampaignStudio() {
                     event.currentTarget.form?.requestSubmit();
                   }
                 }}
-                placeholder="描述画面、动作、风格，Shift + Enter 换行"
+                placeholder="继续调整当前活动 H5..."
                 rows={4}
                 data-testid="studio-ai-prompt"
               />
@@ -3127,7 +3303,7 @@ export default function CampaignStudio() {
               <div className="studio-ai-composer-actions">
                 <label className="studio-ai-reference-button">
                   <span aria-hidden="true">＋</span>
-                  添加参考图
+                  ▱ 扩展
                   <input
                     type="file"
                     accept="image/*"
@@ -3136,7 +3312,7 @@ export default function CampaignStudio() {
                     data-testid="studio-ai-reference-input"
                   />
                 </label>
-                <small>最多 4 张</small>
+                <small>Auto⌄</small>
                 <button
                   type="submit"
                   disabled={aiStatus === "generating"}
@@ -3151,77 +3327,48 @@ export default function CampaignStudio() {
                 </button>
               </div>
             </div>
-            <small>体验版使用现有素材模拟生成，验证完整交互闭环。</small>
+            <small className="studio-ai-composer-footnote">
+              支持添加参考图；生成结果会作为素材组进入 Canvas。
+            </small>
           </form>
         </div>
       </aside>
 
       <section className="studio-canvas">
         <header className="studio-toolbar">
-          <div>
-            <small>
-              {canvasMode === "page" ? "页面画布" : "页面与跳转流程"}
-            </small>
-            <strong>
-              {activeDraft.name} · {selectedPage.name}
-            </strong>
+          <div className="studio-canvas-tabs" role="tablist" aria-label="打开的画布">
+            <button type="button" role="tab" aria-selected="true">
+              ▣ 预览
+            </button>
+            <button type="button" aria-label="新建画布">＋</button>
           </div>
-          <div className="studio-toolbar-actions">
-            <div
-              className="studio-canvas-mode-toggle"
-              role="tablist"
-              aria-label="Canvas 视图"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={canvasMode === "page"}
-                onClick={() => setCanvasMode("page")}
-              >
-                页面编辑
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={canvasMode === "flow"}
-                onClick={() => {
-                  setCanvasMode("flow");
-                  setSelectedAiAsset(null);
-                }}
-                data-testid="studio-page-flow-entry"
-              >
-                页面流程
-              </button>
-            </div>
-            <button
-              type="button"
-              className={h5EditMode ? "active" : ""}
-              onClick={() => {
-                setH5EditMode((current) => !current);
-                setSelectedAiAsset(null);
-              }}
-              data-testid="studio-h5-edit-toggle"
-            >
-              {h5EditMode ? "退出 H5 编辑" : "编辑 H5"}
+        </header>
+
+        <div className="studio-canvas-subtoolbar">
+          <strong>{selectedPage.name}</strong>
+          <div>
+            <button type="button" onClick={resetActive} aria-label="恢复默认">
+              ⟳
             </button>
-            <button type="button" onClick={resetActive}>
-              恢复默认
+            <button type="button" onClick={exportActive} aria-label="导出当前方案">
+              ⇧
             </button>
             <button
               type="button"
-              onClick={openActivityPreview}
+              className={canvasMode === "page" ? "active" : ""}
+              onClick={() => setCanvasMode("page")}
             >
-              打开活动页
+              画布编辑
             </button>
             <button
               type="button"
               className="primary"
-              onClick={applyActive}
+              onClick={() => setCanvasMode("page")}
             >
-              应用到活动页
+              ✧ 快速编辑
             </button>
           </div>
-        </header>
+        </div>
 
         <div
           className="studio-preview-world"
@@ -3295,7 +3442,7 @@ export default function CampaignStudio() {
               onClick={() => adjustCanvasZoom(-0.05)}
               disabled={canvasZoom <= CANVAS_MIN_ZOOM}
             >
-              缩小
+              −
             </button>
             <output data-testid="studio-canvas-zoom">
               {Math.round(canvasZoom * 100)}%
@@ -3306,7 +3453,7 @@ export default function CampaignStudio() {
               onClick={() => adjustCanvasZoom(0.05)}
               disabled={canvasZoom >= CANVAS_MAX_ZOOM}
             >
-              放大
+              ＋
             </button>
             <button
               type="button"
@@ -3745,7 +3892,24 @@ export default function CampaignStudio() {
       </section>
 
       {inspectorOpen && (
-      <aside className="studio-sidebar studio-inspector">
+      <aside
+        className="studio-sidebar studio-inspector"
+        data-readonly={previewMode}
+      >
+        <div className="studio-inspector-workbar">
+          <button type="button" aria-label="帮助与支持">♬</button>
+          <button
+            type="button"
+            className={previewMode ? "active" : ""}
+            onClick={previewMode ? exitActivityPreview : openActivityPreview}
+            data-testid="studio-h5-edit-toggle"
+          >
+            {previewMode ? "退出预览" : "预览"}
+          </button>
+          <button type="button" className="publish" onClick={applyActive}>
+            发布
+          </button>
+        </div>
         <header className="studio-inspector-header">
           <div>
             <small>正在编辑</small>
