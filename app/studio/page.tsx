@@ -4576,14 +4576,17 @@ export default function CampaignStudio() {
                   组合画布常显所有已配置图层；选择卡片只切换编辑焦点，不会隐藏其他素材。
                 </p>
                 <HeroLayerComposer
-                  baseMedia={activeDraft.pack.assets.heroMedia}
+                  baseMedia={
+                    collectionHeroComposition.finalReference ??
+                    activeDraft.pack.assets.heroMedia
+                  }
                   layers={heroLayers}
                   selectedLayerId={selectedHeroLayer?.id ?? ""}
                   onSelect={(layerId) => setHeroLayerEditId(layerId)}
                   onCommit={updateHeroLayer}
                 />
                 <div className="studio-hero-layer-canvas-hint">
-                  画布始终显示全部已放置素材。点击或拖动图层切换编辑对象，拖右下角控制点等比缩放；坐标按
+                  画布以 Hero 尾帧为背景，并始终显示全部已放置素材。点击或拖动图层切换编辑对象，拖右下角控制点等比缩放；坐标按
                   375 × 460 可见区保存。
                 </div>
                 <div className="studio-hero-layer-list-heading">

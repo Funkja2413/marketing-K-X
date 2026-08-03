@@ -492,6 +492,14 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.match(studio, /preview-\$\{previewSessionId\}/);
   assert.match(page, /data-hero-frame=\{heroEndFrameActive/);
   assert.match(page, /setHeroEndFrameActive\(true\)/);
+  assert.doesNotMatch(
+    page,
+    /heroEndFrameActive[\s\S]{0,900}collectionHeroComposition:[\s\S]{0,250}enabled:\s*false/,
+  );
+  assert.match(
+    studio,
+    /baseMedia=\{[\s\S]*?collectionHeroComposition\.finalReference\s*\?\?[\s\S]*?activeDraft\.pack\.assets\.heroMedia/,
+  );
   assert.doesNotMatch(studio, /config-hero-layer-source/);
   assert.doesNotMatch(studio, /最终图对位/);
   assert.match(studio, /<b>卡片图<\/b>/);

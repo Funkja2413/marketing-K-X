@@ -1293,13 +1293,6 @@ export function CampaignExperience({
               position:
                 pack.assets.heroMedia.position ?? "center top",
             },
-            collectionHeroComposition:
-              pack.assets.collectionHeroComposition
-                ? {
-                    ...pack.assets.collectionHeroComposition,
-                    enabled: false,
-                  }
-                : undefined,
           },
         }
       : pack;
