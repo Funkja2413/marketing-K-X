@@ -1287,7 +1287,12 @@ export function CampaignExperience({
           ...pack,
           assets: {
             ...pack.assets,
-            heroMedia: heroEndFrame,
+            heroMedia: {
+              ...heroEndFrame,
+              fit: pack.assets.heroMedia.fit ?? "cover",
+              position:
+                pack.assets.heroMedia.position ?? "center top",
+            },
             collectionHeroComposition:
               pack.assets.collectionHeroComposition
                 ? {

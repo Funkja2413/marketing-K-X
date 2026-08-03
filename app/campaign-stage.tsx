@@ -221,6 +221,10 @@ export function CampaignStage({
     /^(.*?)(\d+)(.*)$/,
   );
   const heroMediaMeasurement = getHeroMediaMeasurement(pack.assets.heroMedia);
+  const transitionMediaStyle: CSSProperties = {
+    objectFit: pack.assets.heroMedia.fit ?? "cover",
+    objectPosition: pack.assets.heroMedia.position ?? "center top",
+  };
   const heroComposition = pack.assets.collectionHeroComposition;
   const unlockedHeroCardIdSet = new Set(unlockedHeroCardIds);
   const visibleHeroLayers =
@@ -315,6 +319,7 @@ export function CampaignStage({
                 <video
                   src={heroTransition.media.src}
                   poster={heroTransition.media.poster}
+                  style={transitionMediaStyle}
                   autoPlay
                   muted
                   playsInline
@@ -325,6 +330,7 @@ export function CampaignStage({
                 <img
                   src={heroTransition.media.src}
                   alt=""
+                  style={transitionMediaStyle}
                   onLoad={() =>
                     window.setTimeout(onHeroTransitionEnd, 1200)
                   }

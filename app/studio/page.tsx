@@ -2292,8 +2292,9 @@ export default function CampaignStudio() {
               : undefined,
           sourceWidth: size.width,
           sourceHeight: size.height,
-          fit: "cover",
-          position: "center",
+          fit: activeDraft.pack.assets.heroMedia.fit ?? "cover",
+          position:
+            activeDraft.pack.assets.heroMedia.position ?? "center top",
         },
       });
       setMessage("视频过场已载入");
@@ -2332,8 +2333,9 @@ export default function CampaignStudio() {
           posterAssetId,
           sourceWidth: layer?.transitionMedia?.sourceWidth,
           sourceHeight: layer?.transitionMedia?.sourceHeight,
-          fit: "cover",
-          position: "center",
+          fit: activeDraft.pack.assets.heroMedia.fit ?? "cover",
+          position:
+            activeDraft.pack.assets.heroMedia.position ?? "center top",
         },
       });
       setMessage("视频封面已载入");
@@ -2919,8 +2921,9 @@ export default function CampaignStudio() {
           type: "image",
           src,
           assetId,
-          fit: "cover",
-          position: "center top",
+          fit: activeDraft.pack.assets.heroMedia.fit ?? "cover",
+          position:
+            activeDraft.pack.assets.heroMedia.position ?? "center top",
           sourceWidth: size.width,
           sourceHeight: size.height,
         },
@@ -4937,7 +4940,7 @@ export default function CampaignStudio() {
                         data-testid="config-hero-video-editor"
                       >
                         <p>
-                          获得本卡后在 H5 上播放一次全屏过场；视频结束后回到由图片图层组成的 Hero。
+                          获得本卡后在 Hero 容器内播放一次过场；视频与首尾帧共享同一套裁切和焦点规则，并位于渐变 Mask 下方。
                         </p>
                         {selectedHeroLayer.transitionMedia?.src ? (
                           <video
@@ -4989,8 +4992,12 @@ export default function CampaignStudio() {
                                           ? selectedHeroLayer
                                               .transitionMedia.poster
                                           : undefined,
-                                      fit: "cover",
-                                      position: "center",
+                                      fit:
+                                        activeDraft.pack.assets.heroMedia
+                                          .fit ?? "cover",
+                                      position:
+                                        activeDraft.pack.assets.heroMedia
+                                          .position ?? "center top",
                                     }
                                   : undefined,
                               })

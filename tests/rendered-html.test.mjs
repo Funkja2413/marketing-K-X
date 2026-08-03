@@ -396,6 +396,14 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
     /data-testid=["']hero-unlock-transition["']/,
   );
   assert.match(css, /\.campaign-template \.campaign-hero-unlock-transition\s*\{/);
+  assert.match(
+    css,
+    /\.campaign-template \.campaign-hero-unlock-transition\s*\{[\s\S]*?z-index:\s*0/,
+  );
+  assert.match(
+    campaignStage,
+    /const transitionMediaStyle:[\s\S]*?objectPosition:\s*pack\.assets\.heroMedia\.position/,
+  );
   assert.doesNotMatch(css, /\.hero-transition-backdrop\s*\{/);
   assert.match(page, /heroLayer\?\.presentation === ["']video-transition["']/);
   assert.ok(
