@@ -592,7 +592,7 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
 });
 
 test("keeps the campaign mechanics and local Figma assets wired", async () => {
-  const [page, campaignStage, themePacks, themePackGuide, css] =
+  const [page, campaignStage, themePacks, themePackGuide, css, studio] =
     await Promise.all([
       readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
       readFile(new URL("../app/campaign-stage.tsx", import.meta.url), "utf8"),
@@ -602,6 +602,7 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
       ),
       readFile(new URL("../THEME-PACKS.md", import.meta.url), "utf8"),
       readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+      readFile(new URL("../app/studio/page.tsx", import.meta.url), "utf8"),
     ]);
 
   assert.match(page, /summer-campaign-multitheme-v2/);
@@ -686,7 +687,15 @@ test("keeps the campaign mechanics and local Figma assets wired", async () => {
   assert.match(themePacks, /type:\s*["']video["']/);
   assert.match(
     themePacks,
-    /src:\s*["']\/theme-assets\/summer\/hero-layer-base\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*750[\s\S]*?sourceHeight:\s*1000/,
+    /src:\s*["']\/theme-assets\/summer\/hero-layer-base\.png["'][\s\S]*?fit:\s*["']cover["'][\s\S]*?position:\s*["']center top["'][\s\S]*?sourceWidth:\s*834[\s\S]*?sourceHeight:\s*1112/,
+  );
+  assert.match(
+    themePacks,
+    /assetId:\s*["']builtin:summer:hero:start:video-native-v1["']/,
+  );
+  assert.match(
+    studio,
+    /shouldMigrateSummerVideoStartFrame[\s\S]*?sourceWidth\s*!==\s*834[\s\S]*?sourceHeight\s*!==\s*1112/,
   );
   assert.match(
     themePacks,

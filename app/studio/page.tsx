@@ -1083,6 +1083,38 @@ function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
     !draft.pack.assets.collectionHeroComposition &&
     draft.pack.assets.heroMedia.src ===
       "/theme-assets/summer/hero-scene-v2.png";
+  const legacySummerStartFrameAssetId = createStudioAssetId(
+    draft.id,
+    "hero",
+    "main",
+  );
+  const shouldMigrateSummerVideoStartFrame =
+    draft.id === "starter-summer" &&
+    draft.baseTheme === "summer" &&
+    (draft.pack.assets.heroMedia.assetId ===
+      legacySummerStartFrameAssetId ||
+      getStudioAssetIdFromRef(draft.pack.assets.heroMedia.src) ===
+        legacySummerStartFrameAssetId) &&
+    (draft.pack.assets.heroMedia.sourceWidth !== 834 ||
+      draft.pack.assets.heroMedia.sourceHeight !== 1112);
+  const draftComposition =
+    draft.pack.assets.collectionHeroComposition;
+  const legacySummerEndFrameAssetId = createStudioAssetId(
+    draft.id,
+    "hero-end",
+    "main",
+  );
+  const shouldMigrateSummerVideoEndFrame =
+    draft.id === "starter-summer" &&
+    draft.baseTheme === "summer" &&
+    Boolean(draftComposition?.finalReference) &&
+    (draftComposition?.finalReference?.assetId ===
+      legacySummerEndFrameAssetId ||
+      getStudioAssetIdFromRef(
+        draftComposition?.finalReference?.src,
+      ) === legacySummerEndFrameAssetId) &&
+    (draftComposition?.finalReference?.sourceWidth !== 834 ||
+      draftComposition?.finalReference?.sourceHeight !== 1112);
   const sourceComposition =
     draft.pack.assets.collectionHeroComposition ??
     cloneValue(defaultPack.assets.collectionHeroComposition);
@@ -1121,10 +1153,22 @@ function normalizeDraft(draft: CampaignSkinDraft): CampaignSkinDraft {
       assets: {
         ...defaultPack.assets,
         ...draft.pack.assets,
-        heroMedia: shouldMigrateLegacySummerHero
-          ? defaultPack.assets.heroMedia
-          : draft.pack.assets.heroMedia,
-        collectionHeroComposition: normalizedComposition,
+        heroMedia:
+          shouldMigrateLegacySummerHero ||
+          shouldMigrateSummerVideoStartFrame
+            ? cloneValue(defaultPack.assets.heroMedia)
+            : draft.pack.assets.heroMedia,
+        collectionHeroComposition: normalizedComposition
+          ? {
+              ...normalizedComposition,
+              finalReference: shouldMigrateSummerVideoEndFrame
+                ? cloneValue(
+                    defaultPack.assets.collectionHeroComposition!
+                      .finalReference!,
+                  )
+                : normalizedComposition.finalReference,
+            }
+          : undefined,
       },
       colors: {
         ...defaultPack.colors,
@@ -2851,7 +2895,7 @@ export default function CampaignStudio() {
       const assetId = createStudioAssetId(
         activeDraft.id,
         "hero",
-        "main",
+        `main-${Date.now()}`,
       );
       const src = await cacheStudioFile(assetId, file);
       const isVideo = file.type.startsWith("video/");
@@ -2913,7 +2957,7 @@ export default function CampaignStudio() {
       const assetId = createStudioAssetId(
         activeDraft.id,
         "hero-end",
-        "main",
+        `main-${Date.now()}`,
       );
       const src = await cacheStudioFile(assetId, file);
       const size = await readImageSize(src);

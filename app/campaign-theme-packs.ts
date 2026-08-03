@@ -118,10 +118,11 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
       heroMedia: {
         type: "image",
         src: "/theme-assets/summer/hero-layer-base.png",
+        assetId: "builtin:summer:hero:start:video-native-v1",
         fit: "cover",
         position: "center top",
-        sourceWidth: 750,
-        sourceHeight: 1000,
+        sourceWidth: 834,
+        sourceHeight: 1112,
       },
       collectionHeroComposition: {
         enabled: true,
@@ -129,10 +130,11 @@ export const THEME_PACKS: Record<ThemeId, CampaignThemePack> = {
         finalReference: {
           type: "image",
           src: "/theme-assets/summer/hero-scene-v2.png",
+          assetId: "builtin:summer:hero:end:video-native-v1",
           fit: "cover",
           position: "center top",
-          sourceWidth: 750,
-          sourceHeight: 1000,
+          sourceWidth: 834,
+          sourceHeight: 1112,
         },
         layers: [
           {
