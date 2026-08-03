@@ -373,6 +373,23 @@ test("keeps the Studio import, preview, and applied-skin contracts wired", async
   assert.match(studio, /积分获得/);
   assert.match(studio, /图片叠加到 Hero/);
   assert.match(studio, /播放视频过场/);
+  assert.match(studio, /function createHeroTransitionLibrary\s*\(/);
+  assert.match(
+    studio,
+    /media\.assetId\s*\?\?\s*media\.src/,
+  );
+  assert.match(
+    studio,
+    /presentation === ["']video-transition["'][\s\S]*?heroTransitionLibrary\[0\]/,
+  );
+  assert.match(
+    studio,
+    /data-testid=["']config-hero-transition-library["']/,
+  );
+  assert.match(studio, /role=["']radio["']/);
+  assert.match(studio, /aria-checked=\{selected\}/);
+  assert.match(studio, /已上传动画/);
+  assert.match(studio, /上传新视频/);
   assert.match(studio, /setH5EditMode\(false\)/);
   assert.match(studio, /const previewMode = !h5EditMode/);
   assert.match(page, /const STUDIO_PREVIEW_DRAW_SEQUENCE/);

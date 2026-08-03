@@ -819,6 +819,42 @@ function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+type HeroTransitionLibraryItem = {
+  key: string;
+  media: Extract<CampaignHeroMedia, { type: "video" }>;
+  sourceLayerIds: string[];
+  sourceLabels: string[];
+};
+
+function getHeroTransitionMediaKey(media?: CampaignHeroMedia) {
+  if (!media?.src || media.type !== "video") return "";
+  return media.assetId ?? media.src;
+}
+
+function createHeroTransitionLibrary(
+  layers: CampaignCollectionHeroLayer[],
+) {
+  const library = new Map<string, HeroTransitionLibraryItem>();
+  for (const layer of layers) {
+    const media = layer.transitionMedia;
+    const key = getHeroTransitionMediaKey(media);
+    if (!key || media?.type !== "video") continue;
+    const existing = library.get(key);
+    if (existing) {
+      existing.sourceLayerIds.push(layer.id);
+      existing.sourceLabels.push(layer.label);
+      continue;
+    }
+    library.set(key, {
+      key,
+      media,
+      sourceLayerIds: [layer.id],
+      sourceLabels: [layer.label],
+    });
+  }
+  return Array.from(library.values());
+}
+
 async function hydrateAndCacheDraftAssets(
   sourceDrafts: CampaignSkinDraft[],
 ) {
@@ -1623,10 +1659,14 @@ export default function CampaignStudio() {
   const collectionHeroComposition =
     activeDraft.pack.assets.collectionHeroComposition;
   const heroLayers = collectionHeroComposition?.layers ?? [];
+  const heroTransitionLibrary = createHeroTransitionLibrary(heroLayers);
   const selectedHeroLayer =
     heroLayers.find((layer) => layer.id === heroLayerEditId) ??
     heroLayers[0] ??
     null;
+  const selectedHeroTransitionKey = getHeroTransitionMediaKey(
+    selectedHeroLayer?.transitionMedia,
+  );
   const selectedHeroCard = selectedHeroLayer
     ? activeDraft.content.cards.find(
         (card) => card.id === selectedHeroLayer.cardId,
@@ -2155,6 +2195,46 @@ export default function CampaignStudio() {
         layer.id === layerId ? { ...layer, ...patch } : layer,
       ),
     }));
+  }
+
+  function updateHeroLayerPresentation(
+    layer: CampaignCollectionHeroLayer,
+    presentation: NonNullable<
+      CampaignCollectionHeroLayer["presentation"]
+    >,
+  ) {
+    const reusableTransition =
+      presentation === "video-transition" &&
+      !getHeroTransitionMediaKey(layer.transitionMedia)
+        ? heroTransitionLibrary[0]
+        : undefined;
+    updateHeroLayer(layer.id, {
+      presentation,
+      embeddedInBase:
+        presentation === "image-layer" ? layer.embeddedInBase : false,
+      ...(reusableTransition
+        ? { transitionMedia: cloneValue(reusableTransition.media) }
+        : {}),
+    });
+    if (reusableTransition) {
+      setMessage(
+        `已为「${layer.label}」复用「${reusableTransition.sourceLabels.join("、")}」的过场动画`,
+      );
+    }
+  }
+
+  function reuseHeroTransition(
+    layer: CampaignCollectionHeroLayer,
+    transition: HeroTransitionLibraryItem,
+  ) {
+    updateHeroLayer(layer.id, {
+      presentation: "video-transition",
+      embeddedInBase: false,
+      transitionMedia: cloneValue(transition.media),
+    });
+    setMessage(
+      `「${layer.label}」将复用「${transition.sourceLabels.join("、")}」的过场动画`,
+    );
   }
 
   function updateHeroLayerUnlockMethod(
@@ -4737,16 +4817,12 @@ export default function CampaignStudio() {
                             "image-layer"
                           }
                           onChange={(event) =>
-                            updateHeroLayer(selectedHeroLayer.id, {
-                              presentation: event.target
-                                .value as NonNullable<
+                            updateHeroLayerPresentation(
+                              selectedHeroLayer,
+                              event.target.value as NonNullable<
                                 CampaignCollectionHeroLayer["presentation"]
                               >,
-                              embeddedInBase:
-                                event.target.value === "image-layer"
-                                  ? selectedHeroLayer.embeddedInBase
-                                  : false,
-                            })
+                            )
                           }
                           data-testid="config-hero-presentation"
                         >
@@ -4982,6 +5058,86 @@ export default function CampaignStudio() {
                         <p>
                           获得本卡后在 Hero 容器内播放一次过场；视频与首尾帧共享同一套裁切和焦点规则，并位于渐变 Mask 下方。
                         </p>
+                        <section
+                          className="studio-hero-transition-library"
+                          data-testid="config-hero-transition-library"
+                        >
+                          <div className="studio-hero-transition-library-heading">
+                            <div>
+                              <strong>已上传动画</strong>
+                              <small>可被多个道具卡共用</small>
+                            </div>
+                            <span>{heroTransitionLibrary.length} 个</span>
+                          </div>
+                          {heroTransitionLibrary.length > 0 ? (
+                            <div
+                              className="studio-hero-transition-options"
+                              role="radiogroup"
+                              aria-label="选择已上传的过场动画"
+                            >
+                              {heroTransitionLibrary.map((transition) => {
+                                const selected =
+                                  transition.key ===
+                                  selectedHeroTransitionKey;
+                                const { media } = transition;
+                                return (
+                                  <button
+                                    key={transition.key}
+                                    type="button"
+                                    className="studio-hero-transition-option"
+                                    data-selected={selected}
+                                    role="radio"
+                                    aria-checked={selected}
+                                    onClick={() =>
+                                      reuseHeroTransition(
+                                        selectedHeroLayer,
+                                        transition,
+                                      )
+                                    }
+                                  >
+                                    <span className="studio-hero-transition-thumb">
+                                      {media.poster ? (
+                                        <span
+                                          className="studio-hero-transition-poster"
+                                          style={{
+                                            backgroundImage: `url(${media.poster})`,
+                                          }}
+                                          aria-hidden="true"
+                                        />
+                                      ) : (
+                                        <i aria-hidden="true">▶</i>
+                                      )}
+                                    </span>
+                                    <span className="studio-hero-transition-copy">
+                                      <b>
+                                        {transition.sourceLabels.join(
+                                          "、",
+                                        )}
+                                      </b>
+                                      <small>
+                                        {media.sourceWidth &&
+                                        media.sourceHeight
+                                          ? `${media.sourceWidth} × ${media.sourceHeight} px`
+                                          : "视频过场"}
+                                        {` · ${transition.sourceLayerIds.length} 张卡使用`}
+                                      </small>
+                                    </span>
+                                    <span
+                                      className="studio-hero-transition-check"
+                                      aria-hidden="true"
+                                    >
+                                      {selected ? "✓" : ""}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="studio-hero-transition-library-empty">
+                              暂无可复用动画，上传后会自动出现在这里。
+                            </p>
+                          )}
+                        </section>
                         {selectedHeroLayer.transitionMedia?.src ? (
                           <video
                             src={
@@ -5047,7 +5203,7 @@ export default function CampaignStudio() {
                         </Field>
                         <div className="studio-hero-layer-asset-actions">
                           <label className="studio-mini-upload">
-                            上传视频
+                            上传新视频
                             <input
                               type="file"
                               accept="video/mp4,video/webm,video/quicktime"
