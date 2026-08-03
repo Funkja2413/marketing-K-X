@@ -123,6 +123,7 @@ function createStudioAssetId(
   draftId: string,
   slot:
     | "hero"
+    | "hero-end"
     | "card"
     | "hero-layer"
     | "transition"
@@ -869,6 +870,24 @@ async function hydrateAndCacheDraftAssets(
 
     const composition = draft.pack.assets.collectionHeroComposition;
     if (!composition) continue;
+    if (composition.finalReference?.src) {
+      const assetId =
+        composition.finalReference.assetId ??
+        getStudioAssetIdFromRef(composition.finalReference.src) ??
+        createStudioAssetId(draft.id, "hero-end", "main");
+      try {
+        const src = await cacheStudioSource(
+          assetId,
+          composition.finalReference.src,
+        );
+        if (src && !src.startsWith(STUDIO_ASSET_REF_PREFIX)) {
+          composition.finalReference.src = src;
+          composition.finalReference.assetId = assetId;
+        }
+      } catch {
+        // Preserve the original public or inline source when caching fails.
+      }
+    }
     for (const layer of composition.layers) {
       if (layer.media?.src) {
         const assetId =
@@ -948,6 +967,11 @@ function serializeDraftAssets(sourceDrafts: CampaignSkinDraft[]) {
     }
     const composition = draft.pack.assets.collectionHeroComposition;
     if (!composition) continue;
+    if (composition.finalReference?.assetId) {
+      composition.finalReference.src = getStudioAssetRef(
+        composition.finalReference.assetId,
+      );
+    }
     for (const layer of composition.layers) {
       if (layer.media?.assetId) {
         layer.media.src = getStudioAssetRef(layer.media.assetId);
@@ -987,6 +1011,14 @@ async function materializeDraftAssets(sourceDraft: CampaignSkinDraft) {
   }
   const composition = draft.pack.assets.collectionHeroComposition;
   if (!composition) return draft;
+  if (composition.finalReference?.assetId) {
+    const cached = await getStudioCachedAsset(
+      composition.finalReference.assetId,
+    );
+    if (cached) {
+      composition.finalReference.src = await blobToDataUrl(cached.blob);
+    }
+  }
   for (const layer of composition.layers) {
     if (layer.media?.assetId) {
       const cached = await getStudioCachedAsset(layer.media.assetId);
@@ -1545,6 +1577,7 @@ export default function CampaignStudio() {
   const [message, setMessage] = useState("修改会即时出现在手机预览中");
   const [importError, setImportError] = useState("");
   const [h5EditMode, setH5EditMode] = useState(true);
+  const [previewSessionId, setPreviewSessionId] = useState(0);
   const [canvasMode, setCanvasMode] =
     useState<StudioCanvasMode>("page");
   const [selectedPageId, setSelectedPageId] =
@@ -1580,6 +1613,7 @@ export default function CampaignStudio() {
   const fitModeRef = useRef(true);
   const previewWorldRef = useRef<HTMLDivElement>(null);
   const canvasSceneRef = useRef<HTMLDivElement>(null);
+  const phoneViewportRef = useRef<HTMLDivElement>(null);
   const aiPromptRef = useRef<HTMLTextAreaElement>(null);
   const aiJobIdRef = useRef(0);
   const aiTimerRef = useRef<number | null>(null);
@@ -2742,8 +2776,13 @@ export default function CampaignStudio() {
 
   function openActivityPreview() {
     setCanvasMode("page");
+    setSelectedPageId("campaign-main");
     setSelectedAiAsset(null);
+    setPreviewSessionId((current) => current + 1);
     setH5EditMode(false);
+    window.requestAnimationFrame(() => {
+      phoneViewportRef.current?.scrollTo({ top: 0 });
+    });
     setMessage("正在本页预览活动；按 Esc 或点击退出预览返回编辑");
   }
 
@@ -2857,6 +2896,38 @@ export default function CampaignStudio() {
       setMessage(`Hero 图片已载入：${size.width}×${size.height}`);
     } catch {
       setMessage("Hero 素材读取失败");
+    }
+  }
+
+  async function uploadHeroEndFrame(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const assetId = createStudioAssetId(
+        activeDraft.id,
+        "hero-end",
+        "main",
+      );
+      const src = await cacheStudioFile(assetId, file);
+      const size = await readImageSize(src);
+      updateCollectionHeroComposition((composition) => ({
+        ...composition,
+        finalReference: {
+          type: "image",
+          src,
+          assetId,
+          fit: "cover",
+          position: "center top",
+          sourceWidth: size.width,
+          sourceHeight: size.height,
+        },
+      }));
+      setMessage(`Hero 尾帧已载入：${size.width}×${size.height}`);
+    } catch {
+      setMessage("Hero 尾帧读取失败");
     }
   }
 
@@ -3360,13 +3431,6 @@ export default function CampaignStudio() {
             >
               画布编辑
             </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => setCanvasMode("page")}
-            >
-              ✧ 快速编辑
-            </button>
           </div>
         </div>
 
@@ -3696,6 +3760,7 @@ export default function CampaignStudio() {
               </div>
               <div
                 className="studio-phone"
+                ref={phoneViewportRef}
                 data-testid="config-preview"
                 data-preview-ratio="9:21"
                 onClickCapture={(event) => {
@@ -3712,12 +3777,17 @@ export default function CampaignStudio() {
               >
                 {selectedPageId === "campaign-main" ? (
                   <CampaignExperience
-                    key={activeDraft.id}
+                    key={`${activeDraft.id}:${
+                      previewMode ? `preview-${previewSessionId}` : "edit"
+                    }`}
                     configuration={runtimeConfiguration}
                     initialTheme={activeDraft.baseTheme}
                     persistProgress={false}
-                    fixture
-                    heroLayerPreviewCardIds={h5HeroLayerPreviewCardIds}
+                    fixture={!previewMode}
+                    studioPreview={previewMode}
+                    heroLayerPreviewCardIds={
+                      previewMode ? undefined : h5HeroLayerPreviewCardIds
+                    }
                   />
                 ) : (
                   <div
@@ -4237,17 +4307,64 @@ export default function CampaignStudio() {
                 <span>AI 生成</span>
                 <small>375 × 460 · 自带当前主题约束</small>
               </button>
-              <label className="studio-upload studio-upload-compact">
-                <strong>上传本地</strong>
-                <span>图片 / 视频 · 推荐 1125 × 1380</span>
+            </div>
+            <div
+              className="studio-hero-frame-grid"
+              data-testid="config-hero-frame-slots"
+            >
+              <label className="studio-hero-frame-card">
+                <span className="studio-hero-frame-preview">
+                  {activeDraft.pack.assets.heroMedia.type === "video" ? (
+                    <video
+                      src={activeDraft.pack.assets.heroMedia.src}
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={activeDraft.pack.assets.heroMedia.src}
+                      alt="Hero 首帧预览"
+                    />
+                  )}
+                </span>
+                <span>
+                  <strong>首帧</strong>
+                  <small>进入活动与抽卡前显示</small>
+                  <b>上传图片</b>
+                </span>
                 <input
                   type="file"
-                  accept="image/*,video/*"
+                  accept="image/*"
                   onChange={uploadHero}
+                  data-testid="config-hero-start-frame-upload"
+                />
+              </label>
+              <label className="studio-hero-frame-card">
+                <span className="studio-hero-frame-preview">
+                  {collectionHeroComposition?.finalReference?.src ? (
+                    <img
+                      src={collectionHeroComposition.finalReference.src}
+                      alt="Hero 尾帧预览"
+                    />
+                  ) : (
+                    <i>待上传</i>
+                  )}
+                </span>
+                <span>
+                  <strong>尾帧</strong>
+                  <small>两段过场播放完成后停留</small>
+                  <b>上传图片</b>
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={uploadHeroEndFrame}
+                  disabled={!collectionHeroComposition}
+                  data-testid="config-hero-end-frame-upload"
                 />
               </label>
             </div>
-            <Field label="素材地址">
+            <Field label="首帧素材地址">
               <input
                 type="text"
                 value={activeDraft.pack.assets.heroMedia.src}
@@ -4269,6 +4386,33 @@ export default function CampaignStudio() {
                 data-testid="config-field-hero-media"
               />
             </Field>
+            {collectionHeroComposition && (
+              <Field label="尾帧素材地址">
+                <input
+                  type="text"
+                  value={
+                    collectionHeroComposition.finalReference?.src ?? ""
+                  }
+                  onChange={(event) =>
+                    updateCollectionHeroComposition((composition) => ({
+                      ...composition,
+                      finalReference: event.target.value
+                        ? {
+                            type: "image",
+                            src: event.target.value,
+                            fit:
+                              composition.finalReference?.fit ?? "cover",
+                            position:
+                              composition.finalReference?.position ??
+                              "center top",
+                          }
+                        : undefined,
+                    }))
+                  }
+                  data-testid="config-field-hero-end-frame"
+                />
+              </Field>
+            )}
             <div className="studio-two-fields">
               <Field label="填充方式">
                 <select

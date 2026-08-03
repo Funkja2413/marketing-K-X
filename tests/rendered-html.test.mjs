@@ -476,7 +476,14 @@ test("keeps the Studio import, export, preview, and applied-skin contracts wired
   assert.doesNotMatch(studio, /AI 生成整套集卡与奖励/);
   assert.match(studio, /className=["']studio-hero-source-actions["']/);
   assert.match(studio, />AI 生成</);
-  assert.match(studio, />上传本地</);
+  assert.match(studio, /config-hero-start-frame-upload/);
+  assert.match(studio, /config-hero-end-frame-upload/);
+  assert.match(studio, /config-field-hero-end-frame/);
+  assert.doesNotMatch(studio, /快速编辑/);
+  assert.match(studio, /studioPreview=\{previewMode\}/);
+  assert.match(studio, /preview-\$\{previewSessionId\}/);
+  assert.match(page, /data-hero-frame=\{heroEndFrameActive/);
+  assert.match(page, /setHeroEndFrameActive\(true\)/);
   assert.doesNotMatch(studio, /config-hero-layer-source/);
   assert.doesNotMatch(studio, /最终图对位/);
   assert.match(studio, /<b>卡片图<\/b>/);

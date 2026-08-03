@@ -858,6 +858,13 @@ async function resolveCampaignSkinPreviewAssets(
 
   const composition = skin.pack.assets.collectionHeroComposition;
   if (!composition) return skin;
+  if (composition.finalReference) {
+    composition.finalReference.src =
+      (await resolvePreviewAssetUrl(
+        composition.finalReference.src,
+        composition.finalReference.assetId,
+      )) ?? composition.finalReference.src;
+  }
   for (const layer of composition.layers) {
     if (layer.media) {
       layer.media.src =
@@ -1192,6 +1199,8 @@ type CampaignExperienceProps = {
   initialTheme?: ThemeId;
   persistProgress?: boolean;
   fixture?: boolean;
+  /** Starts a fresh, deterministic two-card Studio preview session. */
+  studioPreview?: boolean;
   /** Studio-only card-ID override; it never mutates visitor collection data. */
   heroLayerPreviewCardIds?: string[];
 };
@@ -1201,6 +1210,7 @@ export function CampaignExperience({
   initialTheme = "summer",
   persistProgress = true,
   fixture = false,
+  studioPreview = false,
   heroLayerPreviewCardIds,
 }: CampaignExperienceProps = {}) {
   const [appliedConfiguration, setAppliedConfiguration] =
@@ -1215,6 +1225,12 @@ export function CampaignExperience({
             providedConfiguration?.themes ?? THEMES,
             providedConfiguration?.themePacks ?? THEME_PACKS,
           )
+        : studioPreview
+          ? createStudioPreviewState(
+              initialTheme,
+              providedConfiguration?.themes ?? THEMES,
+              providedConfiguration?.themePacks ?? THEME_PACKS,
+            )
         : createInitialState(
             initialTheme,
             providedConfiguration?.themes ?? THEMES,
@@ -1228,6 +1244,7 @@ export function CampaignExperience({
     cardId: string;
     media: CampaignHeroMedia;
   } | null>(null);
+  const [heroEndFrameActive, setHeroEndFrameActive] = useState(false);
   const [previewDrawResultQueue, setPreviewDrawResultQueue] = useState<
     DrawResult[]
   >([]);
@@ -1252,7 +1269,7 @@ export function CampaignExperience({
   const giftClaimPendingRef = useRef(false);
   const stateEpochRef = useRef(0);
   const fixtureModeRef = useRef(fixture);
-  const studioPreviewModeRef = useRef(false);
+  const studioPreviewModeRef = useRef(studioPreview);
   const studioPreviewDrawIndexRef = useRef(0);
 
   const runtimeConfiguration =
@@ -1262,6 +1279,25 @@ export function CampaignExperience({
     runtimeConfiguration?.themePacks ?? THEME_PACKS;
   const theme = runtimeThemes[campaignState.activeTheme];
   const pack = runtimeThemePacks[theme.id];
+  const heroEndFrame =
+    pack.assets.collectionHeroComposition?.finalReference;
+  const displayedPack =
+    heroEndFrameActive && heroEndFrame?.src
+      ? {
+          ...pack,
+          assets: {
+            ...pack.assets,
+            heroMedia: heroEndFrame,
+            collectionHeroComposition:
+              pack.assets.collectionHeroComposition
+                ? {
+                    ...pack.assets.collectionHeroComposition,
+                    enabled: false,
+                  }
+                : undefined,
+          },
+        }
+      : pack;
   const state = campaignState.themes[campaignState.activeTheme];
   const CARD_DEFINITIONS = theme.cards;
   const TIERS = theme.tiers;
@@ -1296,13 +1332,25 @@ export function CampaignExperience({
 
   useEffect(() => {
     const hydrateFromStorage = async () => {
+      studioPreviewModeRef.current = studioPreview;
+      studioPreviewDrawIndexRef.current = 0;
       if (!persistProgress) {
+        if (studioPreview) {
+          setCampaignState(
+            createStudioPreviewState(
+              initialTheme,
+              providedConfiguration?.themes ?? THEMES,
+              providedConfiguration?.themePacks ?? THEME_PACKS,
+            ),
+          );
+        }
         setReady(true);
         return;
       }
       try {
         const searchParams = new URLSearchParams(window.location.search);
-        studioPreviewModeRef.current = searchParams.has("studioPreview");
+        studioPreviewModeRef.current =
+          studioPreview || searchParams.has("studioPreview");
         studioPreviewDrawIndexRef.current = 0;
         setShowHeroMeasurements(
           searchParams.get("inspectHero") === "1",
@@ -1375,7 +1423,7 @@ export function CampaignExperience({
       }
     };
     window.queueMicrotask(() => void hydrateFromStorage());
-  }, [initialTheme, persistProgress]);
+  }, [initialTheme, persistProgress, providedConfiguration, studioPreview]);
 
   useEffect(() => {
     if (
@@ -1458,6 +1506,7 @@ export function CampaignExperience({
     }));
     setDrawResult(null);
     setActiveHeroTransition(null);
+    setHeroEndFrameActive(false);
     setPreviewDrawResultQueue([]);
     setPreviewHeroTransitionQueue([]);
     setGiftCardId(null);
@@ -1479,6 +1528,7 @@ export function CampaignExperience({
       studioPreviewModeRef.current &&
       studioPreviewDrawIndexRef.current === 0
     ) {
+      setHeroEndFrameActive(false);
       const previewCards = STUDIO_PREVIEW_DRAW_SEQUENCE.map((cardId) =>
         CARD_DEFINITIONS.find((card) => card.id === cardId),
       ).filter((card): card is CardDefinition => Boolean(card));
@@ -1617,6 +1667,7 @@ export function CampaignExperience({
         previewHeroTransitionQueue;
       setPreviewHeroTransitionQueue(remainingTransitions);
       setActiveHeroTransition(nextTransition ?? null);
+      if (!nextTransition) setHeroEndFrameActive(true);
       return;
     }
     setDrawResult(null);
@@ -1631,6 +1682,7 @@ export function CampaignExperience({
         setActiveHeroTransition(nextTransition);
         return;
       }
+      setHeroEndFrameActive(true);
     }
     setActiveHeroTransition(null);
   }
@@ -1835,6 +1887,9 @@ export function CampaignExperience({
     setActiveModal(null);
     setDrawResult(null);
     setActiveHeroTransition(null);
+    setHeroEndFrameActive(false);
+    setPreviewDrawResultQueue([]);
+    setPreviewHeroTransitionQueue([]);
     setGiftCardId(null);
     if (!fixtureModeRef.current) {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -2001,10 +2056,11 @@ export function CampaignExperience({
     <main
       className={`campaign-shell campaign-template theme-${theme.id}`}
       style={getThemePackStyle(pack)}
+      data-hero-frame={heroEndFrameActive ? "end" : "start"}
     >
       <CampaignStage
         activeTheme={theme.id}
-        pack={pack}
+        pack={displayedPack}
         unlockedHeroCardIds={unlockedHeroCardIds}
         unlockedCardCount={uniqueCount}
         showHeroMeasurements={showHeroMeasurements}

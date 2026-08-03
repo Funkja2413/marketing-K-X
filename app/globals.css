@@ -5113,6 +5113,97 @@ footer button {
   min-height: 58px;
 }
 
+.studio-hero-source-actions .studio-ai-slot-action {
+  grid-column: 1 / -1;
+}
+
+.studio-hero-frame-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.studio-hero-frame-card {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px;
+  overflow: hidden;
+  border: 1px solid #dce4ef;
+  border-radius: 9px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.studio-hero-frame-card > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.studio-hero-frame-card:has(input:focus-visible) {
+  outline: 2px solid #2e90fa;
+  outline-offset: 1px;
+}
+
+.studio-hero-frame-card:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.studio-hero-frame-preview {
+  display: grid;
+  width: 54px;
+  aspect-ratio: 375 / 460;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #eef3f8;
+}
+
+.studio-hero-frame-preview img,
+.studio-hero-frame-preview video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-hero-frame-preview i {
+  color: #8a96a5;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.studio-hero-frame-card > span:last-of-type {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.studio-hero-frame-card strong {
+  color: #273342;
+  font-size: 10px;
+}
+
+.studio-hero-frame-card small {
+  overflow: hidden;
+  color: #7a8796;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-hero-frame-card b {
+  margin-top: 2px;
+  color: #2563eb;
+  font-size: 8px;
+}
+
 .studio-upload-compact {
   min-height: 58px;
   padding: 9px 10px;
