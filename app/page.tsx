@@ -1244,6 +1244,12 @@ export function CampaignExperience({
     cardId: string;
     media: CampaignHeroMedia;
   } | null>(null);
+  const [heroLayerRevealQueue, setHeroLayerRevealQueue] = useState<string[]>(
+    [],
+  );
+  const [revealingHeroCardId, setRevealingHeroCardId] = useState<
+    string | null
+  >(null);
   const [heroEndFrameActive, setHeroEndFrameActive] = useState(false);
   const [previewDrawResultQueue, setPreviewDrawResultQueue] = useState<
     DrawResult[]
@@ -1477,6 +1483,34 @@ export function CampaignExperience({
     };
   }, []);
 
+  useEffect(() => {
+    if (
+      drawResult ||
+      activeHeroTransition ||
+      revealingHeroCardId ||
+      heroLayerRevealQueue.length === 0
+    ) {
+      return;
+    }
+    const [nextCardId, ...remainingCardIds] = heroLayerRevealQueue;
+    setHeroLayerRevealQueue(remainingCardIds);
+    setRevealingHeroCardId(nextCardId);
+  }, [
+    activeHeroTransition,
+    drawResult,
+    heroLayerRevealQueue,
+    revealingHeroCardId,
+  ]);
+
+  useEffect(() => {
+    if (!revealingHeroCardId) return;
+    const timerId = window.setTimeout(
+      () => setRevealingHeroCardId(null),
+      1100,
+    );
+    return () => window.clearTimeout(timerId);
+  }, [revealingHeroCardId]);
+
   function announce(message: string) {
     setToast(message);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -1504,6 +1538,8 @@ export function CampaignExperience({
     }));
     setDrawResult(null);
     setActiveHeroTransition(null);
+    setHeroLayerRevealQueue([]);
+    setRevealingHeroCardId(null);
     setHeroEndFrameActive(false);
     setPreviewDrawResultQueue([]);
     setPreviewHeroTransitionQueue([]);
@@ -1661,6 +1697,22 @@ export function CampaignExperience({
   }
 
   function confirmDrawResult() {
+    if (drawResult?.isNew) {
+      const heroLayer =
+        pack.assets.collectionHeroComposition?.layers.find(
+          (layer) => layer.cardId === drawResult.cardId,
+        );
+      if (
+        (heroLayer?.presentation ?? "image-layer") === "image-layer" &&
+        !heroLayer?.embeddedInBase &&
+        heroLayer?.media?.src
+      ) {
+        setHeroLayerRevealQueue((current) => [
+          ...current,
+          drawResult.cardId,
+        ]);
+      }
+    }
     if (studioPreviewModeRef.current) {
       const [nextResult, ...remainingResults] = previewDrawResultQueue;
       if (nextResult) {
@@ -1893,6 +1945,8 @@ export function CampaignExperience({
     setActiveModal(null);
     setDrawResult(null);
     setActiveHeroTransition(null);
+    setHeroLayerRevealQueue([]);
+    setRevealingHeroCardId(null);
     setHeroEndFrameActive(false);
     setPreviewDrawResultQueue([]);
     setPreviewHeroTransitionQueue([]);
@@ -2068,6 +2122,7 @@ export function CampaignExperience({
         activeTheme={theme.id}
         pack={displayedPack}
         unlockedHeroCardIds={unlockedHeroCardIds}
+        revealingHeroCardId={revealingHeroCardId}
         unlockedCardCount={uniqueCount}
         showHeroMeasurements={showHeroMeasurements}
         tabs={stageTabs}

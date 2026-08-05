@@ -38,6 +38,7 @@ type CampaignStageProps = {
   activeTheme: ThemeId;
   pack: CampaignThemePack;
   unlockedHeroCardIds: string[];
+  revealingHeroCardId?: string | null;
   unlockedCardCount: number;
   showHeroMeasurements?: boolean;
   tabs: ThemeTab[];
@@ -146,21 +147,26 @@ function CampaignHeroMediaSlot({ media }: { media: CampaignHeroMedia }) {
 
 function CampaignHeroCardLayer({
   layer,
+  revealing,
 }: {
   layer: CampaignCollectionHeroLayer;
+  revealing: boolean;
 }) {
   if (!layer.media?.src || layer.embeddedInBase) return null;
-  const style: CSSProperties = {
+  const style = {
     left: `${(layer.x / HERO_DESIGN_WIDTH) * 100}%`,
     top: `${(layer.y / HERO_DESIGN_HEIGHT) * 100}%`,
     width: `${(layer.width / HERO_DESIGN_WIDTH) * 100}%`,
     zIndex: layer.zIndex,
-    transform: `rotate(${layer.rotation}deg)`,
-  };
+    "--hero-layer-rotation": `${layer.rotation}deg`,
+  } as CSSProperties;
+  const className = `campaign-hero-card-layer${
+    revealing ? " is-revealing" : ""
+  }`;
   if (layer.media.type === "video") {
     return (
       <video
-        className="campaign-hero-card-layer"
+        className={className}
         src={layer.media.src}
         poster={layer.media.poster}
         style={style}
@@ -175,7 +181,7 @@ function CampaignHeroCardLayer({
   }
   return (
     <img
-      className="campaign-hero-card-layer"
+      className={className}
       src={layer.media.src}
       alt=""
       style={style}
@@ -189,6 +195,7 @@ export function CampaignStage({
   activeTheme,
   pack,
   unlockedHeroCardIds,
+  revealingHeroCardId = null,
   unlockedCardCount,
   showHeroMeasurements = false,
   tabs,
@@ -285,6 +292,7 @@ export function CampaignStage({
           data-visible-hero-card-ids={visibleHeroLayers
             .map((layer) => layer.cardId)
             .join(",")}
+          data-revealing-hero-card-id={revealingHeroCardId ?? ""}
         >
           <h1 id="campaign-title" className="sr-only">
             {accessibleTitle}
@@ -297,7 +305,11 @@ export function CampaignStage({
             <CampaignHeroMediaSlot media={pack.assets.heroMedia} />
             <div className="campaign-hero-card-layer-stack">
               {visibleHeroLayers.map((layer) => (
-                <CampaignHeroCardLayer layer={layer} key={layer.id} />
+                <CampaignHeroCardLayer
+                  layer={layer}
+                  revealing={layer.cardId === revealingHeroCardId}
+                  key={layer.id}
+                />
               ))}
             </div>
           </div>

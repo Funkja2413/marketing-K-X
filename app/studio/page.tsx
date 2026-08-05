@@ -3138,12 +3138,7 @@ export default function CampaignStudio() {
       data-preview-mode={previewMode}
     >
       <header className="studio-global-nav" aria-label="创作者中心顶部导航">
-        <div className="studio-global-brand" aria-label="抖音创作者中心">
-          <span>
-            <img src="/studio-figma/logo-mark.svg" alt="" />
-          </span>
-          <img src="/studio-figma/logo-type.svg" alt="抖音创作者中心" />
-        </div>
+        <div className="studio-global-brand" aria-hidden="true" />
         <nav className="studio-global-links" aria-label="产品导航">
           {[
             ["首页", "/studio-figma/nav-home.svg"],
